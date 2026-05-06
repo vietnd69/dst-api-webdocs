@@ -1,122 +1,157 @@
 ---
 id: compostwrap
 title: Compostwrap
-description: A reusable item that applies slow fertilizer effect and provides minor health regeneration when equipped as a debuff on living targets.
-tags: [fertilizer, healing, debuff]
+description: Defines the compostwrap fertilizer item and its associated healing buff prefab for player application.
+tags: [fertilizer, healing, inventory, wormwood]
 sidebar_position: 10
-
-last_updated: 2026-03-04
-build_version: 714014
+last_updated: 2026-04-22
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 937bdd7c
+source_hash: 6a13a6c0
 system_scope: inventory
 ---
 
 # Compostwrap
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **722832** | Last updated: 2026-04-22
 
 ## Overview
-The `compostwrap` prefab represents both an inventory item and a self-contained debuff effect. As an item, it functions as a small-stackable fertilizer with fuel properties and smothering behavior. When applied (e.g., via player interaction), it spawns a non-networked `compostheal_buff` entity that attaches to a target and periodically restores health while applying a slow-fertilize effect. The item and its associated debuff interact with multiple core systems: inventory, fertilizer, fuel, burnable, smotherer, and debuff components.
+The `compostwrap` prefab defines a stackable fertilizer item that players can use to enrich farmable soil. When applied to a player (typically Wormwood), it spawns a hidden `compostheal_buff` entity that attaches as a debuff and provides health regeneration over time. The item can be burned, used as fuel, and spawns visual fly effects when dropped on the ground.
 
 ## Usage example
 ```lua
--- Spawn a compostwrap item in world
-local item = SpawnPrefab("compostwrap")
+-- Spawn a compostwrap item
+local compostwrap = SpawnPrefab("compostwrap")
 
--- When placed in a player's inventory, the OnPutInInventory callback removes spawned flies
--- When dropped, OnDropped spawns flies and cancels the initial delay task
-
--- If applied as a debuff (e.g., via player action), the compostheal_buff entity is spawned and attached
--- It heals the target over time and stops when the target dies or the timer expires
+-- The item can be deployed on farmable soil using the deployable component
+-- The healing buff is applied automatically when used on a player
+-- via the debuff component attachment system
 ```
 
 ## Dependencies & tags
-**Components used:** `stackable`, `inspectable`, `inventoryitem`, `fertilizerresearchable`, `fertilizer`, `fuel`, `smotherer`, `burnable`, `debuff`, `timer`
-**Tags:** Adds `"heal_fertilize"`, `"slowfertilize"`, `"fertilizerresearchable"`, and `"CLASSIFIED"` (on the buff entity); checks `"playerghost"`.
+**External dependencies:**
+- `prefabs/fertilizer_nutrient_defs.lua` -- provides FERTILIZER_DEFS for nutrient values
+
+**Components used:**
+- `stackable` -- enables stacking up to TUNING.STACK_SIZE_SMALLITEM
+- `inspectable` -- allows players to inspect the item
+- `inventoryitem` -- handles drop and inventory pickup callbacks
+- `fertilizerresearchable` -- enables research tracking for fertilizer type
+- `fertilizer` -- defines nutrient values and soil/withered cycle counts
+- `fuel` -- allows item to be used as fuel with TUNING.LARGE_FUEL value
+- `smotherer` -- enables fire extinguishing capability
+- `burnable` -- allows item to be burned with TUNING.MED_BURNTIME
+- `debuff` -- (compostheal_buff) manages attachment and detachment from target
+- `timer` -- (compostheal_buff) tracks regeneration duration
+
+**Tags:**
+- `fertilizer` -- marks item as fertilizer type
+- `slowfertilize` -- enables player self-fertilize healing action
+- `fertilizerresearchable` -- marks item as researchable for fertilizer knowledge
+- `CLASSIFIED` -- (compostheal_buff) hides entity from normal visibility
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inittask` | task (optional) | `nil` | Delayed task handle used to defer fly spawning until after creation. |
-| `flies` | entity (optional) | `nil` | Child entity spawned to simulate natural fly behavior while unequipped. |
-| `task` | task (optional) | `nil` | Periodic task used by the buff entity to apply heal ticks. |
+| None | | | No properties are defined. |
 
 ## Main functions
-### `GetFertilizerKey(inst)`
-* **Description:** Returns the prefab name of the instance, used as a lookup key for fertilizer research.
-* **Parameters:** `inst` (entity) — the compostwrap instance.
-* **Returns:** `string` — the value of `inst.prefab`.
-* **Error states:** None.
-
-### `fertilizerresearchfn(inst)`
-* **Description:** Callback used by the `fertilizerresearchable` component to determine the research key.
-* **Parameters:** `inst` (entity) — the compostwrap instance.
-* **Returns:** `string` — the result of `inst:GetFertilizerKey()`.
-
-### `FuelTaken(inst, taker)`
-* **Description:** Executed when the compostwrap is used as fuel. Spawns a `"poopcloud"` at the taker's position or burning flame position.
-* **Parameters:**  
-  `inst` (entity) — the compostwrap instance being consumed.  
-  `taker` (entity) — the entity burning the fuel.
-* **Returns:** Nothing.
+### `fn()`
+* **Description:** Constructor function for the compostwrap prefab. Creates the entity, attaches all components, and configures fertilizer, fuel, and burnable behavior. Returns the entity instance.
+* **Parameters:** None
+* **Returns:** Entity instance for the compostwrap prefab.
+* **Error states:** None
 
 ### `OnBurn(inst)`
-* **Description:** Executed upon ignition. Cleans up associated effects (flies or init task) and triggers default burn behavior.
-* **Parameters:** `inst` (entity) — the compostwrap instance.
-* **Returns:** Nothing.
+* **Description:** Callback fired when the compostwrap is ignited. Calls DefaultBurnFn, removes spawned flies if present, or cancels the initialization task if flies haven't spawned yet.
+* **Parameters:** `inst` -- the compostwrap entity instance
+* **Returns:** None
+* **Error states:** None
+
+### `FuelTaken(inst, taker)`
+* **Description:** Callback fired when the compostwrap is taken as fuel. Spawns a poopcloud visual effect at the taker's position (or their fire effect position if available).
+* **Parameters:**
+  - `inst` -- the compostwrap entity instance
+  - `taker` -- the entity taking the fuel
+* **Returns:** None
+* **Error states:** None
 
 ### `OnDropped(inst)`
-* **Description:** Called when dropped from inventory. Ensures flies are spawned and initial task is canceled.
-* **Parameters:** `inst` (entity) — the compostwrap instance.
-* **Returns:** Nothing.
+* **Description:** Callback fired when the compostwrap is dropped from inventory. Spawns child flies entity if not already present and cancels any pending initialization task.
+* **Parameters:** `inst` -- the compostwrap entity instance
+* **Returns:** None
+* **Error states:** None
 
 ### `OnPutInInventory(inst)`
-* **Description:** Called when placed in an inventory. Removes spawned flies and cancels the init task.
-* **Parameters:** `inst` (entity) — the compostwrap instance.
-* **Returns:** Nothing.
+* **Description:** Callback fired when the compostwrap is placed into inventory. Removes spawned flies entity and cancels any pending initialization task.
+* **Parameters:** `inst` -- the compostwrap entity instance
+* **Returns:** None
+* **Error states:** None
 
 ### `OnInit(inst)`
-* **Description:** Initializes fly spawning; runs once with a short delay (0s task) after creation.
-* **Parameters:** `inst` (entity) — the compostwrap instance.
-* **Returns:** Nothing.
+* **Description:** Initialization function called after a short delay to spawn flies. Delays spawning since the item is most likely being crafted directly into player inventory.
+* **Parameters:** `inst` -- the compostwrap entity instance
+* **Returns:** None
+* **Error states:** None
 
-### `OnAttached(inst, target, followsymbol, followoffset, data)`
-* **Description:** Called when the `compostheal_buff` is attached to a target. Sets up periodic health regeneration and timer.
-* **Parameters:**  
-  `inst` (entity) — the buff instance.  
-  `target` (entity) — the entity receiving the buff.  
-  `followsymbol`, `followoffset` — visual attachment data (unused).  
-  `data` (table?, optional) — contains `duration` in seconds.
-* **Returns:** Nothing.
+### `GetFertilizerKey(inst)`
+* **Description:** Returns the fertilizer key for research tracking. Used by the fertilizerresearchable component.
+* **Parameters:** `inst` -- the compostwrap entity instance
+* **Returns:** String prefab name for fertilizer identification.
+* **Error states:** None
 
-### `OnExtended(inst, target, followsymbol, followoffset, data)`
-* **Description:** Called when the buff duration is extended. Updates the `"regenover"` timer if the new duration exceeds the remaining time.
-* **Parameters:**  
-  `inst` (entity) — the buff instance.  
-  `target` (entity) — the buffed entity.  
-  `followsymbol`, `followoffset` — unused.  
-  `data` (table?, optional) — contains `duration` in seconds.
-* **Returns:** Nothing.
+### `fertilizerresearchfn(inst)`
+* **Description:** Research function wrapper that calls GetFertilizerKey. Assigned to the fertilizerresearchable component.
+* **Parameters:** `inst` -- the compostwrap entity instance
+* **Returns:** String fertilizer key from GetFertilizerKey.
+* **Error states:** None
+
+### `buff_fn()`
+* **Description:** Constructor function for the compostheal_buff prefab. Creates a hidden, non-persisted entity that manages healing over time via the debuff system. Only functions on master sim (server).
+* **Parameters:** None
+* **Returns:** Entity instance for the compostheal_buff prefab.
+* **Error states:** None -- client instances are scheduled for immediate removal.
 
 ### `OnTick(inst, target)`
-* **Description:** Periodic tick function that applies health regeneration to the target. Stops the debuff if target is dead or a ghost.
-* **Parameters:**  
-  `inst` (entity) — the buff instance.  
-  `target` (entity) — the entity receiving health.
-* **Returns:** Nothing.
+* **Description:** Periodic callback that applies health delta to the target. Checks if target has health and sanity components and is not dead or a player ghost. Stops the debuff if conditions are not met.
+* **Parameters:**
+  - `inst` -- the compostheal_buff entity instance
+  - `target` -- the entity receiving healing
+* **Returns:** None
+* **Error states:** None
+
+### `OnAttached(inst, target, followsymbol, followoffset, data)`
+* **Description:** Callback fired when the debuff attaches to a target. Sets parent entity, resets position, starts periodic healing task, and initializes the regeneration timer. Listens for target death to stop debuff.
+* **Parameters:**
+  - `inst` -- the compostheal_buff entity instance
+  - `target` -- the entity receiving the debuff
+  - `followsymbol` -- animation symbol to follow (unused)
+  - `followoffset` -- position offset (unused)
+  - `data` -- attachment data containing duration
+* **Returns:** None
+* **Error states:** None
 
 ### `OnTimerDone(inst, data)`
-* **Description:** Handles timer expiration for `"regenover"`, stopping the debuff.
-* **Parameters:**  
-  `inst` (entity) — the buff instance.  
-  `data` (table) — event data, must contain `name == "regenover"`.
-* **Returns:** Nothing.
+* **Description:** Callback fired when the regeneration timer completes. Stops the debuff if the timer name is "regenover".
+* **Parameters:**
+  - `inst` -- the compostheal_buff entity instance
+  - `data` -- timer data containing timer name
+* **Returns:** None
+* **Error states:** None
+
+### `OnExtended(inst, target, followsymbol, followoffset, data)`
+* **Description:** Callback fired when the debuff duration is extended. Updates the timer if the new duration is longer than time remaining, or starts a new timer if none exists.
+* **Parameters:**
+  - `inst` -- the compostheal_buff entity instance
+  - `target` -- the entity receiving the debuff
+  - `followsymbol` -- animation symbol to follow (unused)
+  - `followoffset` -- position offset (unused)
+  - `data` -- extension data containing duration
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:**  
-  `"death"` (on target entity) — triggers debuff removal.  
-  `"timerdone"` (on buff entity) — triggers debuff removal via `OnTimerDone`.
-- **Pushes:**  
-  None directly (events are dispatched via component hooks like `healthdelta` for heal effect).
+- **Listens to:** `death` (on target) -- stops debuff when target dies
+- **Listens to:** `timerdone` -- handles timer completion for regeneration
+- **Pushes:** None identified

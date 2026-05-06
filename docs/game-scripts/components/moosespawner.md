@@ -1,71 +1,97 @@
 ---
 id: moosespawner
 title: Moosespawner
-description: Manages the spawning and scheduling of moose entities in relation to moose nesting grounds during spring season.
-tags: [environment, boss, seasonal, world, spawning]
+description: Manages Moose boss spawning mechanics and nest initialization during Spring season.
+tags: [boss, spawn, seasonal]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-22
+build_version: 722832
 change_status: stable
-category_type: world
-source_hash: 78980f66
-system_scope: world
+category_type: components
+source_hash: 51a7162f
+system_scope: environment
 ---
 
 # Moosespawner
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-22
 
 ## Overview
-`Moosespawner` is a world-scoped component responsible for scheduling and initiating moose appearances based on moose nesting grounds (`moose_nesting_ground` entities). It monitors for spring season transitions and triggers either soft or hard spawns of the `moose` prefab. It is only instantiated on the master simulation and interacts with the `timer` and `entitytracker` components.
+`Moosespawner` controls the spawning behavior of the Moose boss entity in relation to Moose Nesting Ground prefabs. It operates exclusively on the master simulation server and initializes nests during Spring season based on configured density values. The component coordinates with timer and entitytracker components to manage spawn timing and mother-egg relationships.
 
 ## Usage example
 ```lua
--- Typically added to a persistent world entity (e.g., a world spawner or manager)
 local inst = CreateEntity()
 inst:AddComponent("moosespawner")
--- Auto-initialization occurs upon spring transition if world cycles exceed TUNING.NO_BOSS_TIME
+
+-- Initialize all nests in the world (typically called on Spring start)
+inst.components.moosespawner:InitializeNests()
+
+-- Spawn a moose at a specific nest with egg
+-- Obtain nest reference through game world (e.g., from Ents table or other valid means)
+local nest = Ents[1] -- example nest reference
+inst.components.moosespawner:DoHardSpawn(nest)
+
+-- Spawn a moose with glide animation (no egg)
+inst.components.moosespawner:DoSoftSpawn(nest)
 ```
 
 ## Dependencies & tags
-**Components used:** `timer`, `entitytracker`, `WorldState`
-**Tags:** None identified.
+**External dependencies:**
+- `easing` -- required but not actively used in visible code
+- `TUNING` -- accesses MOOSE_DENSITY, SEG_TIME, NO_BOSS_TIME constants
+- `Ents` -- global entity table for finding nest prefabs
+- `TheWorld` -- world state monitoring via WatchWorldState
+- `SpawnPrefab` -- spawns moose and mooseegg prefabs
+- `PickSome` -- selects random subset of nests for spawning
+- `FindWalkableOffset` -- calculates valid spawn positions
+- `Vector3` -- position vector operations
+
+**Components used:**
+- `timer` -- StartTimer/StopTimer for CallMoose and WantsToLayEgg timers on nests and moose
+- `entitytracker` -- TrackEntity to link moose and egg entities together
+- `transform` -- Sets position for spawned moose and egg entities
+- `sg` -- StateGraph control for moose glide animation
+
+**Tags:**
+None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity instance the component is attached to. |
+| `inst` | Entity | N/A (set in constructor) | The entity instance that owns this component. |
 
 ## Main functions
+
 ### `OverrideAttackDensity(density)`
-* **Description:** Deprecated stub; no effect.
-* **Parameters:** `density` (number) — intended override for moose spawn density.
-* **Returns:** Nothing.
-* **Error states:** Silently ignored.
+* **Description:** Deprecated function. Previously allowed overriding the moose spawn density value. No longer performs any operation.
+* **Parameters:** `density` -- number value for spawn density (ignored).
+* **Returns:** None.
+* **Error states:** None.
 
 ### `DoSoftSpawn(nest)`
-* **Description:** Performs a soft spawn of a moose by placing it above a nesting ground, setting it to glide state, and scheduling egg-laying.
-* **Parameters:** `nest` (`Entity`) — the moose nesting ground entity.
-* **Returns:** Nothing.
-* **Error states:** Assumes `nest.mooseIncoming` is `true`; sets it to `false`. Stops the nest's `"CallMoose"` timer.
+* **Description:** Spawns a moose entity at the nest location with a glide animation. The moose will act out laying an egg sequence. Stops the nest's CallMoose timer.
+* **Parameters:** `nest` -- Moose Nesting Ground entity instance.
+* **Returns:** None.
+* **Error states:** Errors if `nest` is nil or lacks `timer` component.
 
 ### `DoHardSpawn(nest)`
-* **Description:** Performs a hard spawn: creates a `mooseegg` at the nest location, finds a nearby walkable spawn point for the moose, and establishes bidirectional tracking between moose and egg.
-* **Parameters:** `nest` (`Entity`) — the moose nesting ground entity.
-* **Returns:** Nothing.
-* **Error states:** Relies on `FindWalkableOffset` returning a valid offset or `Vector3(0,0,0)`.
+* **Description:** Spawns a moose egg at the nest position, then spawns the moose at a nearby walkable offset. Uses FindWalkableOffset with fallback to Vector3(0,0,0) if no valid offset found. Establishes bidirectional entity tracking between moose (mother) and egg. Initializes the egg entity.
+* **Parameters:** `nest` -- Moose Nesting Ground entity instance.
+* **Returns:** None.
+* **Error states:** Errors if `nest` is nil. Errors if `mooseegg` prefab fails to spawn (egg would be nil, causing crash on egg.components.entitytracker or egg:InitEgg() access).
 
 ### `InitializeNest(nest)`
-* **Description:** Schedules a future moose spawn by starting a `"CallMoose"` timer on the nest (random interval between 8 and 24 SEGS) and marks it as incoming.
-* **Parameters:** `nest` (`Entity`) — the moose nesting ground entity.
-* **Returns:** Nothing.
+* **Description:** Sets up a single nest with a CallMoose timer and marks it as expecting a moose spawn. Timer duration is randomized between 8 and 24 segment times.
+* **Parameters:** `nest` -- Moose Nesting Ground entity instance.
+* **Returns:** None.
+* **Error states:** Errors if `nest` is nil or lacks `timer` component.
 
 ### `InitializeNests()`
-* **Description:** Scans the world for all `moose_nesting_ground` entities, selects a subset based on `TUNING.MOOSE_DENSITY`, and initializes them for future spawning.
+* **Description:** Finds all moose nesting grounds in the world, selects a subset based on density configuration, and initializes each selected nest. Typically called when Spring season begins.
 * **Parameters:** None.
-* **Returns:** Nothing.
+* **Returns:** None.
+* **Error states:** Errors if any nest in the selected list lacks `timer` component (called by InitializeNest).
 
 ## Events & listeners
-- **Listens to:** `isspring` — triggers `InitializeNests` if the current world season is spring and `TheWorld.state.cycles > TUNING.NO_BOSS_TIME`.
-- **Pushes:** None identified.
+- **Listens to:** `isspring` (World State) -- via `WatchWorldState`, triggers `InitializeNests()` when Spring begins and cycle count exceeds `TUNING.NO_BOSS_TIME`.

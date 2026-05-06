@@ -1,96 +1,138 @@
 ---
 id: wx78moisturemeter
-title: Wx78Moisturemeter
-description: Renders a visual moisture meter UI for WX-78, showing current moisture level, direction of change, and a warning marker for low moisture.
-tags: [ui, hud, wx78]
+title: Wx78MoistureMeter
+description: A UI widget that displays WX-78's moisture/wetness level with animated meter, rate arrow, and spark effects.
+tags: [widget, ui, wx78]
 sidebar_position: 10
-
-last_updated: 2026-03-08
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
 category_type: widgets
-source_hash: a9dbeb66
+source_hash: a5058159
 system_scope: ui
 ---
 
-# Wx78Moisturemeter
+# Wx78MoistureMeter
 
-> Based on game build **714014** | Last updated: 2026-03-08
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-`WX78MoistureMeter` is a UI widget that displays WX-78’s current moisture level as a horizontal progress bar, accompanied by animated indicators for moisture trend (increase/decrease) and a dynamic warning marker that appears when moisture falls below an acceptable threshold (`TUNING.WX78_MINACCEPTABLEMOISTURE`). It integrates with the frontend sound system to play UI feedback and responds to the `do_robot_spark` event (emitted by WX-78 during electrical interactions) to trigger spark animations.
+`Wx78MoistureMeter` is a UI widget extending `Widget` that displays WX-78's moisture level in the HUD. It composes multiple `UIAnim` children for the meter bar, frame, direction arrow, bad-moisture marker, and spark effects, plus a `Text` label for the numeric value. The widget activates/deactivates with animations based on moisture state and listens to owner entity events for module upgrades and robot spark triggers. Embedded inside WX-78's character HUD screen.
 
 ## Usage example
 ```lua
--- The component is automatically instantiated and attached to the WX-78 entity
--- during character initialization. Typical usage involves updating its value:
-if inst:HasTag("wx78") and inst.components.moisture ~= nil then
-    local max_moisture = 100
-    local current = inst.components.moisture:GetMoisture()
-    local rate = RATE_SCALE.DECREASE_MED  -- e.g., from moisture loss
-    inst.components.wx78moisturemeter:SetValue(current, max_moisture, rate)
-end
+local Wx78MoistureMeter = require("widgets/wx78moisturemeter")
+
+-- Inside a screen's _ctor (e.g., WX-78 HUD screen):
+self.moisturemeter = self:AddChild(Wx78MoistureMeter(owner_entity))
+self.moisturemeter:SetPosition(200, -150, 0)
+self.moisturemeter:SetValue(50, 100, RATE_SCALE.INCREASE_LOW)
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** None identified
+**External dependencies:**
+- `widgets/uianim` -- UIAnim child widgets for animated meter elements
+- `widgets/widget` -- Widget base class
+- `widgets/text` -- Text child widget for numeric display
+
+**Components used:** None — widgets do not interact with ECS components directly.
+
+**Tags:** None.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `owner` | `Entity` | `nil` | The entity (WX-78) the meter belongs to. |
-| `moisture` | number | `0` | Current moisture value (unused internally; likely legacy). |
-| `moisturedelta` | number | `0` | Unused. |
-| `active` | boolean | `false` | Whether the meter is currently visible. |
-| `arrowdir` | string | `"neutral"` | Name of the currently playing arrow animation. |
+| `owner` | entity | --- | The WX-78 character entity that owns this widget. |
+| `moisture` | number | `0` | Current moisture value stored locally. |
+| `moisturedelta` | number | `0` | Moisture change delta (unused in visible logic). |
+| `active` | boolean | `false` | Whether the meter is currently visible/active. |
+| `backing` | UIAnim | --- | Background meter animation; bank `status_meter`, build `status_wet`. |
+| `anim` | UIAnim | --- | Main moisture bar animation; bank `status_meter`, build `status_meter`. |
+| `circleframe` | UIAnim | --- | Circular frame animation with icon override. |
+| `arrowdir` | string | `"neutral"` | Current arrow animation direction state. |
+| `arrow` | UIAnim | --- | Rate direction arrow; bank `sanity_arrow`, build `sanity_arrow`. |
+| `marker` | UIAnim | --- | Bad moisture threshold marker; bank `status_wet_wx`. Scaled to 0 by default. |
+| `right_sparks` | UIAnim | --- | Right-side spark effect; bank `status_wet_wx`. |
+| `left_sparks` | UIAnim | --- | Left-side spark effect; bank `status_wet_wx`. |
+| `num` | Text | --- | Numeric moisture display; hidden by default, shown on gain focus. |
+| `ondorobotspark` | function | --- | Event callback that triggers `DoSpark()`. |
+| `onupgrademoduleownerupdate` | function | --- | Event callback that triggers `UpdateBadMoistureMarkerLevel()`. |
+| `FRAME_RADIUS` | constant (local) | `30` | Radius constant used in spark angle calculation. |
 
 ## Main functions
-### `SetValue(moisture, max, ratescale)`
-* **Description:** Updates the meter’s visual state based on current moisture, maximum moisture, and the rate of change (`ratescale`). Shows/hides the meter, updates the fill percentage, numeric display, and arrow animation.
-* **Parameters:**
-  * `moisture` (number) – Current moisture value.
-  * `max` (number) – Maximum possible moisture (used to compute fill percentage).
-  * `ratescale` (RATE_SCALE constant) – Indicates direction and magnitude of change (`INCREASE_*` or `DECREASE_*`).
-* **Returns:** Nothing.
-* **Error states:** If `moisture <= 0`, the meter is deactivated (hidden). If `moisture > 0`, it is activated (shown). No effect occurs if the values do not change the active state or rate.
+### `_ctor(owner)`
+* **Description:** Initialises the widget, calls `Widget._ctor(self, "WX78MoistureMeter")`, creates all child UIAnim and Text widgets, configures animation banks/builds, sets up event listeners on the owner entity, and calls `UpdateBadMoistureMarkerLevel()`.
+* **Parameters:** `owner` -- the WX-78 character entity that owns this widget
+* **Returns:** nil
+* **Error states:** None — Widget._ctor handles nil internally; event listeners gracefully handle nil owner.
+
+### `UpdateBadMoistureMarkerLevel()`
+* **Description:** Queries the owner's `GetMinimumAcceptableMoisture()` method (if available) and passes the result as a percentage to `SetBadMoistureMarkerLevel()`. Called on construction and when upgrade module events fire.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None — guards missing `GetMinimumAcceptableMoisture` with `and` check, defaults to 0.
+
+### `SetBadMoistureMarkerLevel(new_percent)`
+* **Description:** Sets the bad moisture marker animation percent to `(1 - new_percent)` and calculates spark angles based on the meter percent. Rotates left and right sparks symmetrically around the marker position.
+* **Parameters:** `new_percent` -- number between 0 and 1 representing the threshold position
+* **Returns:** nil
+* **Error states:** None.
 
 ### `Activate()`
-* **Description:** Opens the meter UI by playing "open" animations on backing and frame, shows the fill bar, scales up the warning marker, and plays the opening sound.
-* **Parameters:** None.
-* **Returns:** Nothing.
+* **Description:** Plays open animations on backing and circleframe, shows the main anim bar, scales marker from 0 to 1 over 5 frames, starts the updating loop, and plays the open sound. Sets `self.active = true`.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
 ### `Deactivate()`
-* **Description:** Closes the meter UI by playing "close" animations, hides the fill bar, shrinks the marker, stops updates, and plays the closing sound.
-* **Parameters:** None.
-* **Returns:** Nothing.
-
-### `UpdateBadMoistureMarkerLevel(new_percent)`
-* **Description:** Configures the warning marker and spark positions to indicate the moisture threshold (`BADMOISTURE_PERCENT`). Updates marker and spark rotation/scale.
-* **Parameters:** `new_percent` (number) – Threshold moisture ratio (e.g., `0.3` for 30%). Note: In practice, `BADMOISTURE_PERCENT` is precomputed and used directly.
-* **Returns:** Nothing.
+* **Description:** Plays close animations on backing and circleframe, hides the main anim bar, scales marker from 1 to 0 over 5 frames, stops the updating loop, and plays the close sound. Sets `self.active = false`.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
 ### `DoSpark()`
-* **Description:** Triggers spark animations on both sides of the meter (used when WX-78 receives an electrical shock).
-* **Parameters:** None.
-* **Returns:** Nothing.
+* **Description:** Plays the `right_spark` and `left_spark` animations on the respective spark widgets. Triggered by the `do_robot_spark` event from the owner.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
 ### `OnGainFocus()`
-* **Description:** Makes the numeric moisture value visible when the HUD is focused.
-* **Parameters:** None.
-* **Returns:** Nothing.
+* **Description:** Calls base `Widget:OnGainFocus()`, then shows the numeric text label (`self.num`).
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
 ### `OnLoseFocus()`
-* **Description:** Hides the numeric moisture value when the HUD loses focus.
-* **Parameters:** None.
-* **Returns:** Nothing.
+* **Description:** Calls base `Widget:OnLoseFocus()`, then hides the numeric text label (`self.num`).
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
+
+### `SetValue(moisture, max, ratescale)`
+* **Description:** Updates the moisture display. If `moisture > 0` and widget is inactive, activates the widget. Sets the anim bar percent to `1 - moisture / max` and updates the numeric text. If `moisture <= 0` and widget is active, deactivates. Updates the arrow animation based on `ratescale` and current moisture state.
+* **Parameters:**
+  - `moisture` -- current moisture value (number)
+  - `max` -- maximum moisture capacity (number)
+  - `ratescale` -- rate scale enum from `RATE_SCALE` table. Valid values:
+    - `RATE_SCALE.INCREASE_HIGH` -- fast moisture increase arrow
+    - `RATE_SCALE.INCREASE_MED` -- medium moisture increase arrow
+    - `RATE_SCALE.INCREASE_LOW` -- slow moisture increase arrow
+    - `RATE_SCALE.DECREASE_HIGH` -- fast moisture decrease arrow
+    - `RATE_SCALE.DECREASE_MED` -- medium moisture decrease arrow
+    - `RATE_SCALE.DECREASE_LOW` -- slow moisture decrease arrow
+* **Returns:** nil
+* **Error states:** None.
 
 ### `OnUpdate(dt)`
-* **Description:** Runs periodically while the meter is active to animate the fill bar and marker scale in sync with the meter’s animation frame loop. Stops automatically after completion.
-* **Parameters:** `dt` (number) – Time delta since last frame.
-* **Returns:** Nothing.
-* **Error states:** Early-exits if the game is server-paused (`TheNet:IsServerPaused()`).
+* **Description:** **Updating loop.** Checks if server is paused (returns early if so). Reads the current animation frame of `circleframe` and applies frame-based scale values to `anim` and `marker` widgets to create a pulsing effect. Stops updating after frame 5. Called automatically while widget is active.
+* **Parameters:** `dt` -- delta time since last update (unused)
+* **Returns:** nil
+* **Error states:** None.
 
 ## Events & listeners
-- **Listens to:** `do_robot_spark` – triggered on the `owner` entity; calls `DoSpark()` to animate sparks.
-- **Pushes:** None identified.
+**Listens to:**
+- `do_robot_spark` -- on owner entity; triggers `DoSpark()` to play spark animations
+- `upgrademodulesdirty` -- on owner entity; triggers `UpdateBadMoistureMarkerLevel()` to recalculate marker position
+- `energylevelupdate` -- on owner entity; triggers `UpdateBadMoistureMarkerLevel()` to recalculate marker position
+
+**Pushes:** None.

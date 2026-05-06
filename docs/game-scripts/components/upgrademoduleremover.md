@@ -1,41 +1,51 @@
 ---
 id: upgrademoduleremover
 title: Upgrademoduleremover
-description: A placeholder component with no functional behavior, typically used as a stub for future functionality or placeholder logic.
-tags: [stub]
+description: Marks entities that allow upgrade modules to be removed via specific actions.
+tags: [inventory, crafting, upgrade]
 sidebar_position: 10
-
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-18
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: b6491c66
+source_hash: 04e33b3e
 system_scope: entity
 ---
 
 # Upgrademoduleremover
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-18
 
 ## Overview
-`UpgradeModuleRemover` is a minimal, non-functional component that currently serves no operational purpose in the game logic. It only initializes `self.inst` and exits. This component is likely a stub intended for future use, possibly related to removing upgrade modules from entities (e.g., in the context of modded content or planned features), but it is not actively used in any core DST systems.
+`Upgrademoduleremover` is a marker component indicating an entity supports the removal of upgrade modules. It relies on external action definitions rather than containing internal logic. This component is typically added to structures or items that can be modified or stripped of upgrades during gameplay.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
+-- Add the marker component to enable module removal interactions
 inst:AddComponent("upgrademoduleremover")
--- No methods are currently available or functional.
+
+-- Removal actions are handled via componentactions.lua
+-- No direct methods are called on this component
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** None identified
+**External dependencies:**
+- `componentactions.lua` -- registers actions interacting with this component
+
+**Components used:**
+None identified.
+
+**Tags:**
+None identified.
 
 ## Properties
-No public properties
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| None | | | No properties are defined. |
 
 ## Main functions
-No public functions
+None.
 
 ## Events & listeners
-No events or listeners identified
+None.

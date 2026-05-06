@@ -1,50 +1,56 @@
 ---
 id: scrapbook_prefabs
 title: Scrapbook Prefabs
-description: Defines a static list of prefabs to include or exclude from the scrapbook and achievement visibility filtering.
-tags: [scrapbook, achievement, filtering, data]
+description: Defines the PREFABS table containing a whitelist of entity prefab names enabled for the scrapbook system.
+tags: [data, config, prefabs, scrapbook, entities]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
-category_type: root
-source_hash: 46ff46c7
-system_scope: world
+category_type: data_config
+source_hash: 7bfef6ce
+system_scope: entity
 ---
 
 # Scrapbook Prefabs
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-`scrapbook_prefabs.lua` defines a global `PREFABS` table that acts as a whitelist or blacklist for prefabs included or excluded from scrapbook entry visibility and achievement tracking. The file contains no runtime logic, component behaviors, or event listeners — it is a pure data configuration file composed of a large, theme-grouped table literal where keys are prefab names and values are booleans (`true` for inclusion, `false` or commented for exclusion). Prefabs marked as `--` (commented) are explicitly excluded due to incomplete implementation, irrelevance, or being proxies/POI items that should not appear in the scrapbook.
+`scrapbook_prefabs.lua` is a data configuration file that defines a static table of prefab names authorized for use with the scrapbook system. This file does not attach to entities as a component and contains no constructor logic — it is simply required by other systems that need to validate or reference scrapbook-enabled prefabs. The PREFABS table serves as a whitelist, ensuring only approved entity types can be processed by scrapbook-related features.
 
 ## Usage example
 ```lua
--- In other files, the table is imported to filter scrapbook entries
-local ScrapbookPrefabs = require "scrapbook_prefabs"
+local PREFABS = require "scrapbook_prefabs"
 
-if ScrapbookPrefabs["beefalo"] then
-    -- include beefalo in scrapbook
+-- Check if a prefab is in the scrapbook whitelist
+local function IsScrapbookEnabled(prefab_name)
+    return PREFABS[prefab_name] == true
 end
 
-if ScrapbookPrefabs["rock_moon_shell"] == nil then
-    -- rock_moon_shell is commented out — intentionally excluded
+-- Iterate through all scrapbook-enabled prefabs
+for prefab, enabled in pairs(PREFABS) do
+    if enabled then
+        print("Scrapbook prefab:", prefab)
+    end
 end
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** None identified  
+**External dependencies:** None identified
+
+**Components used:** None identified
+
+**Tags:** None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `PREFABS` | `table<string, boolean>` | `{}` (populated at load time) | A lookup table mapping prefab names (strings) to inclusion flags (`true` = include, `false` or missing = exclude). Organized by thematic groups (e.g., Cotl, Rifts, Hallowed Nights). |
+| `PREFABS` | table | — | Whitelist of scrapbook-enabled prefab names. Keys are prefab name strings (e.g., "abigail", "chester"), values are boolean `true`. Use `PREFABS[prefab_name] == true` to check membership, or `pairs(PREFABS)` to iterate. |
 
 ## Main functions
-None found — this file contains no functions. It is a pure data module exposing only the `PREFABS` table.
+None identified. This file exports a static data table only.
 
 ## Events & listeners
-None found — no event registration or dispatch occurs in this module.
+None.

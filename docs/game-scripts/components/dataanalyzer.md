@@ -1,69 +1,98 @@
 ---
 id: dataanalyzer
-title: Dataanalyzer
-description: Manages creature data collection, regeneration, and consumption for scanner-like entities in the game.
-tags: [scanner, data, entity]
+title: DataAnalyzer
+description: Manages creature scan data history with periodic regeneration for WX-78 module systems.
+tags: [wx78, data, scanning]
 sidebar_position: 10
 
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-27
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: 87a23ed2
+source_hash: 86c91703
 system_scope: entity
 ---
 
-# Dataanalyzer
+# DataAnalyzer
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-27
 
 ## Overview
-`DataAnalyzer` is a component that tracks and manages creature scan data for an entity. It maintains a history of data values per prefab, supports periodic regeneration of data up to creature-specific maximums, and allows data to be spent (consumed). It integrates with external definition data via `GetCreatureScanData`, which defines maximum data limits for each creature type. This component is designed for use with scanner-like prefabs that gather and use creature-specific data.
+`DataAnalyzer` tracks and manages creature scan data history for entities, typically used with WX-78 scanning modules. It stores data values per creature prefab, supports periodic data regeneration over time, and persists data across save/load cycles. The component integrates with `wx78_moduledefs` to retrieve creature data definitions including maximum data caps.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
 inst:AddComponent("dataanalyzer")
-inst.components.dataanalyzer:StartDataRegen(1.0) -- regenerate every 1 second
-local data = inst.components.dataanalyzer:GetData("bee")
-local spent = inst.components.dataanalyzer:SpendData("bee")
+
+-- Start automatic data regeneration every 60 seconds
+inst.components.dataanalyzer:StartDataRegen(60)
+
+-- Query data for a specific creature
+local data = inst.components.dataanalyzer:GetData("spider")
+
+-- Spend accumulated data (returns amount spent)
+local spent = inst.components.dataanalyzer:SpendData("spider")
+
+-- Stop regeneration when no longer needed
 inst.components.dataanalyzer:StopDataRegen()
 ```
 
 ## Dependencies & tags
-**Components used:** None directly accessed via `inst.components.X`. Relies on `GetCreatureScanData` from `wx78_moduledefs`.
-**Tags:** None identified.
+**External dependencies:**
+- `wx78_moduledefs.GetCreatureScanDataDefinition` -- retrieves creature scan data definitions including maxdata caps
+
+**Components used:**
+- None identified
+
+**Tags:**
+- None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `datahistory` | table | `{}` | Maps prefab names to current data values (stored as floating-point numbers). |
+| `inst` | entity | --- | The entity instance that owns this component. |
+| `datahistory` | table | `{}` | Maps prefab/scan IDs to accumulated data values. Persists across save/load. |
+| `_process_data_task` | task | `nil` | Scheduled periodic task handle for data regeneration. Cancelled on StopDataRegen(). |
 
 ## Main functions
 ### `StartDataRegen(dt)`
-*   **Description:** Starts a periodic task that increases stored data for all known prefabs at intervals of `dt` seconds, up to their respective maximums defined by `GetCreatureScanData`.
-*   **Parameters:** `dt` (number) - the interval in seconds between regeneration ticks.
-*   **Returns:** Nothing.
-*   **Error states:** If called multiple times, previous regeneration tasks are cancelled before starting a new one.
+*   **Description:** Starts periodic data regeneration that increases stored data values over time. Cancels any existing regeneration task before creating a new one. Regeneration increases each prefab's data by `maxdata/16` per interval, capped at `maxdata`.
+*   **Parameters:** `dt` (number) -- time interval in seconds between regeneration ticks.
+*   **Returns:** nil
+*   **Error states:** None
 
 ### `StopDataRegen()`
-*   **Description:** Cancels the periodic data regeneration task, if active.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
-*   **Error states:** No effect if no regeneration task is running.
+*   **Description:** Cancels the active data regeneration periodic task and clears the task handle. Safe to call multiple times or when no task is active.
+*   **Parameters:** None
+*   **Returns:** nil
+*   **Error states:** None
 
-### `GetData(prefab)`
-*   **Description:** Returns the current floor value of stored data for the specified prefab. If no data exists yet, initializes it to the prefab’s maximum data value (from `GetCreatureScanData`) and returns that value.
-*   **Parameters:** `prefab` (string) - the name of the creature prefab.
-*   **Returns:** number - the stored data amount (rounded down), or `0` if the prefab has no associated data definition.
-*   **Error states:** Returns `0` if `GetCreatureScanData(prefab)` returns `nil`.
+### `GetData(ent_or_prefab)`
+*   **Description:** Retrieves the current accumulated data value for a creature. If the prefab has no history entry but has a creature definition, initializes it to `maxdata` before returning. Returns 0 if no data exists and no definition is available.
+*   **Parameters:** `ent_or_prefab` (entity or string) -- entity instance or prefab name string to query.
+*   **Returns:** number -- floor of accumulated data value, or 0 if unavailable.
+*   **Error states:** None
 
 ### `SpendData(prefab)`
-*   **Description:** Deducts all currently stored data for the given prefab and returns the amount spent. The internal data value is reset to `0`.
-*   **Parameters:** `prefab` (string) - the name of the creature prefab.
-*   **Returns:** number - the amount of data spent (an integer), or `0` if no data was available.
-*   **Error states:** If `GetCreatureScanData(prefab)` is `nil`, `prefab` entry is not created in `datahistory`, and `0` is returned.
+*   **Description:** Extracts and returns the floor of accumulated data for a prefab, then reduces the stored value by that amount. If no history entry exists but a creature definition is available, initializes to `maxdata` before spending. Returns 0 if no data is available.
+*   **Parameters:** `prefab` (string) -- prefab name to spend data from.
+*   **Returns:** number -- amount of data spent (floor of stored value before deduction), or 0.
+*   **Error states:** None
+
+### `OnSave()`
+*   **Description:** Returns a table containing the `datahistory` for persistence. Called automatically when the world saves.
+*   **Parameters:** None
+*   **Returns:** table -- `{ datahistory = self.datahistory }`
+*   **Error states:** None
+
+### `OnLoad(data, newents)`
+*   **Description:** Restores `datahistory` from saved data. Called automatically when the world loads. Safely handles nil or missing `datahistory` in the load table.
+*   **Parameters:**
+    - `data` (table or nil) -- saved component data table
+    - `newents` (table) -- entity remapping table (unused by this component)
+*   **Returns:** nil
+*   **Error states:** None
 
 ## Events & listeners
-- **Listens to:** None identified.
-- **Pushes:** None identified.
+None identified.

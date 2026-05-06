@@ -5,11 +5,11 @@ description: Holds and manages asset paths and metadata for skin-related UI and 
 tags: [skin, asset, ui]
 sidebar_position: 10
 
-last_updated: 2026-04-11
-build_version: 719586
+last_updated: 2026-04-28
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: 8ab38790
+source_hash: 5807b396
 system_scope: ui
 ---
 

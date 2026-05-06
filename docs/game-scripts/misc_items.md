@@ -5,11 +5,11 @@ description: This component manages logic and behavior for miscellaneous item pr
 tags: [entity, inventory, misc]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-28
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: d5ce96d5
+source_hash: 8cf79bf3
 system_scope: entity
 ---
 

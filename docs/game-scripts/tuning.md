@@ -5,11 +5,11 @@ description: Defines and initializes the global TUNING table containing all game
 tags: [tuning, configuration, world, player, entity]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
-change_status: stable
+last_updated: 2026-04-28
+build_version: 722832
+change_status: data_patched
 category_type: root
-source_hash: 8aa25b56
+source_hash: b78944d8
 system_scope: world
 ---
 

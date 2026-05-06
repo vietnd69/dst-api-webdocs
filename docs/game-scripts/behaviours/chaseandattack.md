@@ -1,81 +1,110 @@
 ---
 id: chaseandattack
 title: Chaseandattack
-description: A behavior node that orchestrates chasing and attacking logic by interacting with the combat, locomotor, and health components.
-tags: [combat, ai, behavior]
+description: AI behaviour node that makes entities chase and attack a target with configurable limits.
+tags: [ai, behaviour, combat, locomotion]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
-category_type: behavior
-source_hash: c38a8ac6
-system_scope: ai
+category_type: behaviours
+source_hash: b3fe565b
+system_scope: brain
 ---
 
 # Chaseandattack
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`ChaseAndAttack` is a behavior node that implements AI logic for entities to pursue and engage a target. It manages movement, targeting validation, attack initiation, and termination conditions such as time limits, distance thresholds, or attack counts. It integrates closely with the `combat` component to handle target selection and engagement, the `health` component to detect target death, and the `locomotor` component to control movement (chasing, stopping, facing).
+`ChaseAndAttack` is a behaviour node that controls AI entity combat pursuit. It manages chasing a target, attacking within range, and giving up based on configurable constraints like maximum chase time, attack count, and distance thresholds. This behaviour integrates with the `combat` and `locomotor` components to coordinate movement and attacks, and is typically used within AI brain definitions for hostile entities.
 
 ## Usage example
 ```lua
-local inst = CreateEntity()
-inst:AddComponent("combat")
-inst:AddComponent("health")
-inst:AddComponent("locomotor")
+local brain = Brain(inst)
+local chase = ChaseAndAttack(inst, 30, 40, 5, FindNearestEnemy, false, 10)
 
-local function findTargetFn(inst)
-    -- Example: find nearest enemy
-    return inst.components.combat:GetNearestEnemy()
-end
+brain:AddNode(
+    PriorityNode(
+        function() return A(ChaseAndAttack, inst, 30, 40, 5, FindNearestEnemy, false) end,
+        "Chase and Attack",
+        PRIORITY.URGENT
+    )
+)
 
-inst:AddBehaviourNode("chaseandattack", ChaseAndAttack(inst, 10, 100, 3, findTargetFn, false, 2))
+RunBrain(inst, brain)
 ```
 
 ## Dependencies & tags
-**Components used:** `combat`, `health`, `locomotor`
-**Tags:** Checks `attack`, `canrotate`, `jumping`, `longattack`, `hiding` (via target); no tags are added or removed directly by this component.
+**External dependencies:**
+- `BehaviourNode` -- parent class for behaviour tree nodes
+
+**Components used:**
+- `combat` -- validates target, sets target, triggers battle cry, attempts attacks, calculates attack range, gives up target
+- `locomotor` -- stops movement, moves to point, checks run state
+- `health` (on target) -- checks if target is dead
+- `sg` -- checks state tags for attack and movement conditions
+
+**Tags:**
+- `longattack` -- checked before executing attack logic
+- `jumping` -- checked before stopping locomotion
+- `canrotate` -- checked before facing the target
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | The entity this behavior node is attached to. |
-| `findnewtargetfn` | function? | `nil` | Optional callback to find a new target; called when no target is set. |
-| `max_chase_time` | number? | `nil` | Maximum duration (in seconds) to continue chasing before giving up. |
-| `give_up_dist` | number? | `nil` | Distance threshold (squared) beyond which the target is considered unreachable. |
-| `max_attacks` | number? | `nil` | Maximum number of successful attacks before success condition is met. |
-| `numattacks` | number | `0` | Counter for number of attacks made. |
-| `walk` | boolean | `false` | Whether movement should be walking (`true`) or running (`false`). |
-| `distance_from_ocean_target` | function? | `nil` | Optional callback to compute offset distance from ocean target (used for water-based enemies). |
-| `onattackfn` | function | — | Internal event callback for `onattackother` and `onmissother`. |
-| `startruntime` | number? | `nil` | Timestamp marking when chase started; reset on each attack. |
+| `inst` | entity | `nil` | The entity instance this behaviour is attached to. |
+| `findnewtargetfn` | function | `nil` | Callback function to find a new target when none exists. |
+| `max_chase_time` | number | `nil` | Maximum time in seconds to chase before giving up. |
+| `give_up_dist` | number | `nil` | Distance threshold squared at which to abandon the chase. |
+| `max_attacks` | number | `nil` | Maximum number of attacks before marking behaviour as successful. |
+| `numattacks` | number | `0` | Counter tracking how many attacks have been performed. |
+| `walk` | boolean | `nil` | If true, entity walks instead of runs when chasing. |
+| `distance_from_ocean_target` | number/function | `nil` | Special distance handling for targets on invalid ground (ocean). |
+| `onattackfn` | function | `nil` | Internal callback bound to attack events. |
+| `startruntime` | number | `nil` | Timestamp when the chase began, used for timeout calculation. |
+| `status` | string | `READY` | Behaviour status: READY, RUNNING, FAILED, or SUCCESS. |
 
 ## Main functions
-### `Visit()`
-*   **Description:** Main behavior logic; handles target validation, chase initiation, movement, attack attempts, and termination conditions (success, failure).
-*   **Parameters:** None.
-*   **Returns:** Nothing (calls `self:Sleep(.125)` when still running).
-*   **Error states:** Returns early if `combat.target` is invalid or dead; may set status to `SUCCESS` or `FAILED` based on runtime conditions.
 
-### `OnAttackOther()`
-*   **Description:** Callback invoked on `onattackother` or `onmissother` events; increments `numattacks` and resets the chase timer.
-*   **Parameters:** None (called via event).
-*   **Returns:** Nothing.
-*   **Error states:** None.
-
-### `OnStop()`
-*   **Description:** Cleans up event listeners when the behavior node is stopped.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+### `ChaseAndAttack(inst, max_chase_time, give_up_dist, max_attacks, findnewtargetfn, walk, distance_from_ocean_target)`
+* **Description:** Constructor that initializes the behaviour node with chase and attack parameters. Registers event listeners for attack outcomes.
+* **Parameters:**
+  - `inst` -- entity instance to attach behaviour to
+  - `max_chase_time` -- maximum chase duration in seconds (optional)
+  - `give_up_dist` -- squared distance threshold to abandon chase (optional)
+  - `max_attacks` -- maximum attacks before success (optional)
+  - `findnewtargetfn` -- function to find new targets when current target is nil
+  - `walk` -- boolean to walk instead of run during chase
+  - `distance_from_ocean_target` -- distance value or function for ocean target handling
+* **Returns:** New ChaseAndAttack behaviour instance.
+* **Error states:** Errors if `inst` has no `combat` or `locomotor` component when `Visit()` is called (nil dereference on `self.inst.components.combat` or `self.inst.components.locomotor` — no guard present in Visit logic).
 
 ### `__tostring()`
-*   **Description:** String representation used for debugging; shows current target.
-*   **Parameters:** None.
-*   **Returns:** String: `"target <prefab_name>"` or `"target nil"`.
+* **Description:** Returns a string representation showing the current combat target.
+* **Parameters:** None.
+* **Returns:** String in format "target `{target_name}`" or "target nil".
+* **Error states:** None.
+
+### `OnStop()`
+* **Description:** Cleanup function called when the behaviour stops. Removes event listeners registered during construction.
+* **Parameters:** None.
+* **Returns:** None.
+* **Error states:** None.
+
+### `OnAttackOther()`
+* **Description:** Callback triggered when the entity attacks or misses another entity. Increments attack counter and resets chase timer.
+* **Parameters:** None.
+* **Returns:** None.
+* **Error states:** None.
+
+### `Visit()`
+* **Description:** Main behaviour logic executed each tick. Validates target, manages chase state, controls locomotion, attempts attacks, and checks termination conditions (max attacks, timeout, distance).
+* **Parameters:** None.
+* **Returns:** None. Updates `self.status` to READY, RUNNING, FAILED, or SUCCESS.
+* **Error states:** Errors if `self.inst.components.combat` is nil (no guard before accessing combat methods). Errors if `self.inst.components.locomotor` is nil (no guard before calling Stop/GoToPoint). Errors if `combat.target` exists but has no `entity` component (accesses `combat.target.entity:IsValid()` without nil check).
 
 ## Events & listeners
-- **Listens to:** `onattackother` (via `self.onattackfn`), `onmissother` (via `self.onattackfn`)
-- **Pushes:** None directly (uses `combat:GiveUp()` and `combat:SetTarget(nil)` internally).
+- **Listens to:** `onattackother` - increments attack counter and resets chase timer.
+- **Listens to:** `onmissother` - increments attack counter and resets chase timer.
+- **Pushes:** None directly (calls `combat:GiveUp()` which pushes `giveuptarget` event from combat component).

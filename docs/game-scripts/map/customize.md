@@ -1,139 +1,238 @@
 ---
 id: customize
 title: Customize
-description: Central registry and API for world generation and world settings customization options used by the sandbox menu and world configuration systems.
-tags: [world, configuration, ui, modding]
+description: Defines the schema and API for world generation and server settings configuration options.
+tags: [config, worldgen, settings, ui, modding]
 sidebar_position: 10
-
-last_updated: 2026-02-27
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: map
+source_hash: 79b82313
 system_scope: world
-source_hash: 1e36626c
 ---
 
 # Customize
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-
-The `customize.lua` module serves as the backend registry for all world generation and world settings customization options in Don't Starve Together. It defines structured metadata for options such as "hounds frequency", "season length", "starting items", and many others. These options are consumed by the sandbox menu UI and world configuration logic to present and enforce user choices when creating or editing a world.
-
-The module does not operate on a per-entity basis. Instead, it is a shared data store and query engine used by the server and client to configure world behavior at creation time. It interacts with `Levels`, `tasksets`, `tasks`, `startlocations`, and `worldsettings_overrides.lua` to enforce structure, validation, and mod compatibility.
+`customize.lua` serves as the central configuration module for world generation and server settings. It defines the structure of customization options (grouped by categories like monsters, resources, and survivors) and provides the API for mods to register, remove, or query these options. This file aggregates data from task sets, levels, and start locations to validate and apply user settings during world creation.
 
 ## Usage example
-
-This component is not intended to be attached to entities. Instead, mods or game code interact with its exported API to register or query options.
-
 ```lua
--- Example: Register a new world generation customization option via mod code
 local Customize = require("map/customize")
 
--- Define a new group (optional)
-Customize.AddCustomizeGroup(
-    "mymod",                        -- modname
-    "worldgen",                     -- category (LEVELCATEGORY.WORLDGEN or LEVELCATEGORY.SETTINGS)
-    "my_custom_group",              -- group name
-    STRINGS.UI.SANDBOXMENU.MY_GROUP_LABEL,
-    nil,                            -- description (nil = use default)
-    "images/my_custom_group.xml",   -- atlas
-    10                              -- order
-)
+-- Add a custom option to the World Settings menu
+Customize.AddCustomizeItem("mymod", LEVELCATEGORY.SETTINGS, "misc", "my_option", {
+    value = "default",
+    image = "myicon.tex",
+    desc = { { text = "Off", data = "off" }, { text = "On", data = "on" } }
+})
 
--- Register a new option under that group
-Customize.AddCustomizeItem(
-    "mymod",
-    "worldgen",
-    "my_custom_group",
-    "my_custom_option",
-    {
-        value = "default",
-        image = "my_custom_option.tex",
-        desc = { -- custom description list
-            { text = "Never", data = "never" },
-            { text = "Default", data = "default" },
-        },
-        world = { "forest", "cave" }
-    }
-)
+-- Get all available world gen options for the forest
+local options = Customize.GetWorldGenOptions("forest", true)
 
--- Later, query option metadata
-local option = Customize.GetOption("my_custom_option")
-if option then
-    print("Default value:", option.value)
-end
+-- Validate a setting value
+local valid = Customize.ValidateOption("beefaloheat", "often", "forest")
 ```
 
 ## Dependencies & tags
+**External dependencies:**
+- `map/tasksets` -- retrieves task list definitions for world generation.
+- `map/tasks` -- required for task data (internal usage).
+- `map/startlocations` -- retrieves starting location definitions.
+- `map/levels` -- accesses level data and location-specific overrides.
+- `worldsettings_overrides` -- validates that customization options have corresponding override handlers.
 
-**Components used:** None. This is a pure data and API module with no component instances.
+**Components used:**
+None identified
 
-**Tags:** None identified.
+**Tags:**
+None identified
 
 ## Properties
-
-No properties are initialized as instance variables because this is not a component. Instead, it exports a set of public functions and precomputed data tables.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `ITEM_EXPORTS` | table | — | Map of exporter functions used to format option data for the UI. |
+| `ITEM_EXPORTS.atlas` | function | — | Returns the atlas path for the option icon (item or group atlas). |
+| `ITEM_EXPORTS.name` | function | — | Returns the option name string. |
+| `ITEM_EXPORTS.image` | function | — | Returns the image texture name for the option. |
+| `ITEM_EXPORTS.options` | function | — | Returns the list of selectable values for the option (calls desc function). |
+| `ITEM_EXPORTS.default` | function | — | Returns the default value string for the option. |
+| `ITEM_EXPORTS.group` | function | — | Returns the group name the option belongs to. |
+| `ITEM_EXPORTS.grouplabel` | function | — | Returns the localized group label text. |
+| `ITEM_EXPORTS.widget_type` | function | — | Returns the UI widget type (defaults to `"optionsspinner"`). |
+| `ITEM_EXPORTS.options_remap` | function | — | Returns image remapping data for the option UI element. |
 
 ## Main functions
-
-### `GetOption(option_name)`
-* **Description:** Retrieves metadata for a customization option by its key name (e.g., `"hounds"`, `"season_start"`).
-* **Parameters:**  
-  `option_name` (`string`) — The internal key name of the option.
-* **Returns:**  
-  `table` — Option metadata table (includes `name`, `value`, `desc`, `world`, `order`, `group`, etc.) or `nil` if not found (including if disabled).
-* **Error states:** Returns `nil` if the option is disabled by a mod or not registered.
-
 ### `GetOptions(location, is_master_world)`
-* **Description:** Returns a list of all customization options available for a given location (e.g., `"forest"`, `"cave"`) and world type. Filters by `world` key and `master_controlled` flag.
-* **Parameters:**  
-  `location` (`string?`) — The world location name. `nil` means no location filtering.  
-  `is_master_world` (`boolean`) — If true, includes master-controlled options; otherwise excludes them.
-* **Returns:**  
-  `table` — Array of option summaries, each containing `{name = "…", options = [...], default = "…", group = "…"}`.
+* **Description:** Retrieves a list of all available customization options filtered by location and host permissions.
+* **Parameters:**
+  - `location` -- string world location (e.g., `"forest"`, `"cave"`) or nil for all.
+  - `is_master_world` -- boolean indicating if the query is for the master shard.
+* **Returns:** Array of option tables containing `name`, `options`, `default`, and `group`.
+* **Error states:** None.
 
-### `AddCustomizeItem(modname, category, group, name, itemsettings)`
-* **Description:** Registers a new customization option from a mod. Valid only during mod initialization; duplicate keys are silently ignored.
-* **Parameters:**  
-  `modname` (`string`) — Mod identifier.  
-  `category` (`string`) — `"worldgen"` or `"settings"` (`LEVELCATEGORY.WORLDGEN` / `LEVELCATEGORY.SETTINGS`).  
-  `group` (`string?`) — Existing group name to attach to, or `nil` to add as a misc option.  
-  `name` (`string`) — Unique option key.  
-  `itemsettings` (`table`) — Configuration: `value`, `image`, `desc`, `world`, `order`, etc.
-* **Returns:** `nil`.
+### `GetOptionsWithLocationDefaults(location, is_master_world)`
+* **Description:** Retrieves options with default values overridden by location-specific data if available.
+* **Parameters:**
+  - `location` -- string world location or nil.
+  - `is_master_world` -- boolean indicating if the query is for the master shard.
+* **Returns:** Array of option tables with location-adjusted defaults.
+* **Error states:** None.
 
-### `RemoveCustomizeItem(modname, category, name)`
-* **Description:** Removes or disables a customization option. If `modname` matches the option’s mod, the option is removed entirely. Otherwise, it is disabled for that mod only.
-* **Parameters:**  
-  `modname` (`string`) — Mod identifier.  
-  `category` (`string`) — `"worldgen"` or `"settings"`.  
-  `name` (`string`) — Option key to remove/disable.
-* **Returns:** `nil`.
+### `GetWorldSettingsOptions(location, is_master_world)`
+* **Description:** Retrieves only the World Settings category options (survival, events, giants, etc.).
+* **Parameters:**
+  - `location` -- string world location or nil.
+  - `is_master_world` -- boolean indicating if the query is for the master shard.
+* **Returns:** Array of formatted option tables for settings.
+* **Error states:** None.
+
+### `GetWorldSettingsOptionsWithLocationDefaults(location, is_master_world)`
+* **Description:** Retrieves World Settings options with location-specific default overrides applied.
+* **Parameters:**
+  - `location` -- string world location or nil.
+  - `is_master_world` -- boolean indicating if the query is for the master shard.
+* **Returns:** Array of formatted option tables.
+* **Error states:** None.
+
+### `GetWorldGenOptions(location, is_master_world)`
+* **Description:** Retrieves only the World Generation category options (monsters, animals, resources, etc.).
+* **Parameters:**
+  - `location` -- string world location or nil.
+  - `is_master_world` -- boolean indicating if the query is for the master shard.
+* **Returns:** Array of formatted option tables for world gen.
+* **Error states:** None.
+
+### `GetWorldGenOptionsWithLocationDefaults(location, is_master_world)`
+* **Description:** Retrieves World Generation options with location-specific default overrides applied.
+* **Parameters:**
+  - `location` -- string world location or nil.
+  - `is_master_world` -- boolean indicating if the query is for the master shard.
+* **Returns:** Array of formatted option tables.
+* **Error states:** None.
+
+### `GetWorldSettingsFromLevelSettings(overrides)`
+* **Description:** Filters a table of overrides to return only those belonging to the World Settings category.
+* **Parameters:**
+  - `overrides` -- table of option name-value pairs.
+* **Returns:** Table containing only settings category overrides.
+* **Error states:** None.
+
+### `GetMasterOptions()`
+* **Description:** Returns a table of option names that are controlled by the master server only.
+* **Parameters:** None
+* **Returns:** Table mapping option names to `true`.
+* **Error states:** None.
+
+### `GetSyncOptions()`
+* **Description:** Returns a table of option names that must be synchronized across shards.
+* **Parameters:** None
+* **Returns:** Table mapping option names to `true`.
+* **Error states:** None.
+
+### `GetLocationDefaultForOption(location, option)`
+* **Description:** Retrieves the default value for an option specific to a location, falling back to global default.
+* **Parameters:**
+  - `location` -- string world location.
+  - `option` -- string option name.
+* **Returns:** Default value string or nil.
+* **Error states:** None.
 
 ### `ValidateOption(option_name, option_value, location)`
-* **Description:** Checks whether `option_value` is a valid value for `option_name` at the given `location`, based on the option’s `desc` list.
-* **Parameters:**  
-  `option_name` (`string`)  
-  `option_value` (`string`)  
-  `location` (`string?`)
-* **Returns:**  
-  `boolean` — `true` if the value is valid; `false` otherwise.
+* **Description:** Checks if a given value is valid for the specified option.
+* **Parameters:**
+  - `option_name` -- string name of the customization option.
+  - `option_value` -- string value to validate.
+  - `location` -- string world location context.
+* **Returns:** `true` if valid, `false` otherwise.
+* **Error states:** None.
 
-### `GetDescription(description_name)`
-* **Description:** Returns a deep copy of a predefined description list (e.g., `"frequency_descriptions"`, `"day_descriptions"`).
-* **Parameters:**  
-  `description_name` (`string`) — Key of the description list to retrieve.
-* **Returns:**  
-  `table` — Array of `{text = "Label", data = "value"}` tables, or `nil` if not found.
+### `GetDefaultForOption(option_name)`
+* **Description:** Returns the global default value for a customization option.
+* **Parameters:**
+  - `option_name` -- string name of the option.
+* **Returns:** Default value string or nil.
+* **Error states:** None.
+
+### `GetCategoryForOption(option_name)`
+* **Description:** Returns the category (World Gen or Settings) for a given option.
+* **Parameters:**
+  - `option_name` -- string name of the option.
+* **Returns:** `LEVELCATEGORY` enum value or nil.
+* **Error states:** None.
+
+### `IsCustomizeOption(option_name)`
+* **Description:** Checks if an option name exists in the customization registry.
+* **Parameters:**
+  - `option_name` -- string name to check.
+* **Returns:** `true` if exists, `false` otherwise.
+* **Error states:** None.
+
+### `GetGroupForOption(target)`
+* **Description:** Deprecated function to retrieve group data for an option.
+* **Parameters:**
+  - `target` -- option target identifier.
+* **Returns:** `nil` (currently returns nil in source).
+* **Error states:** None.
+
+### `AddCustomizeGroup(modname, category, name, text, desc, atlas, order)`
+* **Description:** Registers a new group of options for a mod in the customization menu.
+* **Parameters:**
+  - `modname` -- string unique identifier for the mod.
+  - `category` -- `LEVELCATEGORY` enum (SETTINGS or WORLDGEN).
+  - `name` -- string internal group name.
+  - `text` -- string localized display name.
+  - `desc` -- table or function describing option values.
+  - `atlas` -- string image atlas path.
+  - `order` -- number sort order (optional).
+* **Returns:** None
+* **Error states:** None (silently returns if group already exists).
+
+### `RemoveCustomizeGroup(modname, category, name)`
+* **Description:** Removes a mod-registered group or disables a default group for a mod.
+* **Parameters:**
+  - `modname` -- string mod identifier.
+  - `category` -- `LEVELCATEGORY` enum.
+  - `name` -- string group name.
+* **Returns:** None
+* **Error states:** None.
+
+### `AddCustomizeItem(modname, category, group, name, itemsettings)`
+* **Description:** Adds a new customization option item to a group.
+* **Parameters:**
+  - `modname` -- string mod identifier.
+  - `category` -- `LEVELCATEGORY` enum.
+  - `group` -- string group name (optional, if nil adds to misc).
+  - `name` -- string option name.
+  - `itemsettings` -- table containing value, image, desc, etc.
+* **Returns:** None
+* **Error states:** None (silently returns if item already exists).
+
+### `RemoveCustomizeItem(modname, category, name)`
+* **Description:** Removes a mod-registered item or disables a default item for a mod.
+* **Parameters:**
+  - `modname` -- string mod identifier.
+  - `category` -- `LEVELCATEGORY` enum.
+  - `name` -- string option name.
+* **Returns:** None
+* **Error states:** None.
+
+### `GetDescription(description)`
+* **Description:** Returns a deep copy of a predefined description table by key.
+* **Parameters:**
+  - `description` -- string key (e.g., `"frequency_descriptions"`).
+* **Returns:** Table copy or nil.
+* **Error states:** None.
 
 ### `ClearModData(modname)`
-* **Description:** Removes all customization data associated with a specific mod, including groups and items. If `modname` is `nil`, clears all mod-added data.
-* **Parameters:**  
-  `modname` (`string?`)
-* **Returns:** `nil`.
+* **Description:** Clears all customization data registered by a specific mod.
+* **Parameters:**
+  - `modname` -- string mod identifier or nil to clear all mods.
+* **Returns:** None
+* **Error states:** None.
 
 ## Events & listeners
-
-None. This module does not use event-based interactions. It is entirely static data with getter/setter functions.
+None.

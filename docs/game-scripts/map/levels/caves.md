@@ -1,54 +1,64 @@
 ---
 id: caves
 title: Caves
-description: Registers and configures cave-level world generation presets and settings for the Caves dimension in Don't Starve Together, including default, enhanced (Cave Plus), and Terraria-style variants.
-tags: [worldgen, level, configuration]
+description: Defines cave level presets and world generation configurations for Don't Starve Together survival mode.
+tags: [map, worldgen, config, survival, caves]
 sidebar_position: 10
-
-last_updated: 2026-02-27
-build_version: 714014
+last_updated: 2026-04-22
+build_version: 722832
 change_status: stable
 category_type: map
+source_hash: 3bbb1517
 system_scope: world
-source_hash: d3d0dafd
 ---
 
 # Caves
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **722832** | Last updated: 2026-04-22
 
 ## Overview
-This file registers predefined Caves-level configurations used in world generation and game settings menus. It defines three preset levels—`DST_CAVE`, `DST_CAVE_PLUS`, and `TERRARIA_CAVE`—each with specific resource and mob density overrides. These presets are registered via `AddLevel`, `AddWorldGenLevel`, and `AddSettingsPreset` for use across survival mode world creation and in-game settings UI.
-
-Each preset specifies a `location` (`"cave"`), `version` (`4`), `name`, `desc`, and `overrides` (resource/mob spawn frequencies) that modify world generation behavior. The `background_node_range` is consistently set to `{0,1}`, indicating default background node usage.
+`caves.lua` defines multiple cave level preset configurations for survival mode world generation. It registers level definitions using `AddLevel()`, `AddWorldGenLevel()`, and `AddSettingsPreset()` functions. The file includes three distinct cave presets: `DST_CAVE` (standard), `DST_CAVE_PLUS` (enhanced resources), and `TERRARIA_CAVE` (cross-over themed). Platform-specific naming is applied via `IsConsole()` check for PS4 builds. This is a configuration file that runs at world initialization to populate the level selection menu.
 
 ## Usage example
 ```lua
--- Registering a custom cave preset with elevated wormlight density
-AddLevel(LEVELTYPE.SURVIVAL, {
-    id = "MY_CAVE_PRESET",
-    name = STRINGS.UI.CUSTOMIZATIONSCREEN.PRESETLEVELS.MY_CAVE_PRESET,
-    desc = STRINGS.UI.CUSTOMIZATIONSCREEN.PRESETLEVELDESC.MY_CAVE_PRESET,
-    location = "cave",
-    version = 4,
-    overrides = {
-        wormlights = "often",
-        bats_setting = "common",
-        cave_spiders = "rare",
-    },
-    background_node_range = {0,1},
-})
+-- This file auto-executes at world initialization - do not require() it
+-- Preset IDs are referenced when creating custom worlds via level system APIs
+
+-- Example: Reference preset ID in custom world configuration
+local preset_id = "DST_CAVE_PLUS"  -- Use in AddWorldGenLevel or AddSettingsPreset calls
+
+-- Presets appear in customization screen under STRINGS.UI.CUSTOMIZATIONSCREEN.PRESETLEVELS
+-- Access via: STRINGS.UI.CUSTOMIZATIONSCREEN.PRESETLEVELS.DST_CAVE_PLUS
 ```
 
 ## Dependencies & tags
-**Components used:** None — this script does not interact with components directly.  
-**Tags:** None identified.
+**External dependencies:**
+- `STRINGS` -- localization strings for preset names and descriptions
+- `IsConsole()` -- platform detection function for console-specific naming
+- `AddLevel()` -- registers level preset in survival mode
+- `AddWorldGenLevel()` -- registers world generation level configuration
+- `AddSettingsPreset()` -- registers settings preset for customization screen
+- `LEVELTYPE.SURVIVAL` -- enum constant for survival game mode
 
-## Properties
-No public properties or state variables are defined in this file. All configuration data is embedded in inline table arguments passed to registration functions.
+**Components used:** None identified
+
+**Tags:** None identified
+
+## Config table schema
+The following fields define the structure of config tables passed to `AddLevel`, `AddWorldGenLevel`, and `AddSettingsPreset`. This file does not export a table via return statement - it registers presets via engine API calls.
+
+| Field | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `id` | string | --- | Unique preset identifier (e.g., `DST_CAVE`, `DST_CAVE_PLUS`, `TERRARIA_CAVE`) |
+| `name` | string | --- | Display name from `STRINGS.UI.CUSTOMIZATIONSCREEN.PRESETLEVELS` |
+| `desc` | string | --- | Description from `STRINGS.UI.CUSTOMIZATIONSCREEN.PRESETLEVELDESC` |
+| `location` | string | --- | World location type (`cave`) |
+| `version` | number | --- | Preset version number (4) |
+| `overrides` | table | --- | World setting overrides (boons, cave_spiders, rabbits, etc.) |
+| `background_node_range` | table | --- | Background node distribution range |
 
 ## Main functions
-No custom functions are defined in this file. All logic resides in external registration calls.
+This file contains no local function definitions. It registers preset data by calling external engine APIs (`AddLevel`, `AddWorldGenLevel`, `AddSettingsPreset`). These functions are part of the Don't Starve Together world generation system and are not defined in this file.
 
 ## Events & listeners
-No event listeners or event pushes are present in this file.
+None.

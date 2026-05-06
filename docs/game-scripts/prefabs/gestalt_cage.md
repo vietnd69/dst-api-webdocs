@@ -1,111 +1,153 @@
 ---
 id: gestalt_cage
 title: Gestalt Cage
-description: Manages the gestalt cage item, including its equippable state, weapon damage, and three upgradeable filled states (1–3) that can deploy wagdrones when placed.
-tags: [combat, inventory, deployment, boss]
+description: Defines the Gestalt Cage item, its filled variants for capturing Wagdrones, and associated deployment prefabs.
+tags: [item, capture, boss, wagpunk]
 sidebar_position: 10
-
-last_updated: 2026-03-05
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 4dd252c8
-system_scope: inventory
+source_hash: 7eccdd98
+system_scope: entity
 ---
 
 # Gestalt Cage
 
-> Based on game build **714014** | Last updated: 2026-03-05
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`gestalt_cage.lua` defines the gestalt cage item and its associated prefabs, including the base cage, equippable swap effects, and three progressively enhanced filled states (`filled1`, `filled2`, `filled3`). The component supports equipping (with animation overrides and FX attachment), weapon damage, and deployment into wagdrones upon meeting specific world conditions (e.g., `wagboss_defeated`). It integrates with `equippable`, `weapon`, `deployable`, `placer`, `inventoryitem`, `inspectable`, `bloomer`, and `colouradder` components for visual, gameplay, and networked behavior.
+The `gestalt_cage` prefab file defines the empty cage item, the swap visual effects, and three levels of filled cages (`gestalt_cage_filled1`, `2`, `3`) used in the WAGPUNK event. It handles logic for equipping, capturing Gestalts, and deploying Wagdrones upon boss defeat. The file also includes placer prefabs and a placer indicator for deployment positioning.
 
 ## Usage example
 ```lua
-local inst = Prefab("gestalt_cage")
-inst:AddComponent("gestaltcage") -- implicitly added by the prefab constructor
+-- Spawn the empty cage
+local cage = SpawnPrefab("gestalt_cage")
 
--- Adjust weapon damage
-inst.components.weapon:SetDamage(TUNING.GESTALT_CAGE_DAMAGE)
+-- Spawn a filled cage (Level 2)
+local filled = SpawnPrefab("gestalt_cage_filled2")
+filled:SetIsPlanar(true)
+filled:StartCapture()
 
--- Initiate capture animation sequence for level 2 (must be called on server)
-if inst.components.gestaltcage and inst.level == 2 then
-    inst.StartCapture(inst)
-end
-
--- Deploy filled cage (server-side only)
-if inst.components.deployable then
-    inst.components.deployable.ondeploy(inst, pt, deployer)
-end
+-- Check cage properties
+local level = filled.level           -- capture level (1-3)
+local is_planar = filled:GetIsPlanar() -- planar state (filled2 only)
 ```
 
 ## Dependencies & tags
-**Components used:** `inspectable`, `tradable`, `inventoryitem`, `equippable`, `weapon`, `deployable`, `placer`, `bloomer`, `colouradder`, `wagboss_tracker`, `wagpunk_arena_manager`.  
-**Tags added:** `weapon`, `gestalt_cage`, `gestalt_cage_filled`, `usedeploystring`, `CLASSIFIED`, `NOCLICK`, `placer`, `irreplaceable` (level 3 only), `gestalt_cage_filled_placerindicator` (placer indicator only).
+**External dependencies:**
+- `TUNING` -- accesses damage values and placement radii
+- `TheWorld` -- checks `wagboss_tracker` and `wagpunk_arena_manager` components
+- `TheSim` -- finds entities for placement validation
+- `TheNet` -- checks for dedicated server status
+- `FRAMES` -- used in DoFlicker for time-based task scheduling
+- `DEPLOYMODE` -- deployment mode constants for deployable component
+
+**Components used:**
+- `inspectable` -- provides status text for filled cages
+- `tradable` -- allows trading between players
+- `inventoryitem` -- manages inventory state and events
+- `equippable` -- handles equip/unequip visuals for base cage
+- `weapon` -- sets damage for base cage
+- `gestaltcage` -- custom component for base cage logic
+- `useabletargeteditem` -- enables targeted use on chassis for filled cages
+- `deployable` -- enables deployment after boss defeat (filled cages)
+- `deployhelper` -- manages placement indicators
+- `placer` -- handles placement preview logic
+- `bloomer` -- accessed on owner entity to attach FX (not added to cage)
+- `colouradder` -- accessed on owner entity to attach FX (not added to cage)
+
+**Tags:**
+- `weapon` -- added to base cage
+- `gestalt_cage` -- added to base cage
+- `FX` -- added to swap effect prefab
+- `gestalt_cage_filled` -- added to filled variants
+- `usedeploystring` -- added to gestalt_cage_filled1 and gestalt_cage_filled2 only
+- `irreplaceable` -- added to level 3 filled cage
+- `CLASSIFIED` -- added to FX, placer indicator, and helper decal
+- `NOCLICK` -- added to helper decal entity created by deployhelper (not indicator prefab)
+- `placer` -- added to helper decal entity created by deployhelper (not indicator prefab)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `level` | number | `1`, `2`, or `3` | Current filled state of the cage; affects visuals, sound, and deployment behavior. |
-| `replacementprefab` | string | `"wagdrone_rolling"` or `"wagdrone_flying"` | Prefab name to spawn on deployment (set per filled level). |
-| `_custom_candeploy_fn` | function | `CLIENT_CanDeployGestaltCage` | Client-side check for whether placement is allowed near an indicator. |
-| `StartCapture` | function | `StartCapture` (bound at runtime) | Method to begin capture animation sequence (not attached to base `gestalt_cage`). |
-| `_flickertask` | task handle | `nil` | Task handle for LED flicker animation (level 1–2 only). |
-| `_soundtask` | task handle | `nil` | Task handle for sound scheduling/loop management. |
+| `level` | number | `1` (filled1), `2` (filled2), `3` (filled3) | Capture level of the filled cage (1-3). Applies to gestalt_cage_filled1/2/3. |
+| `isplanar` | boolean | `nil` | Whether the captured Gestalt is planar. Applies to gestalt_cage_filled2 only. |
+| `replacementprefab` | string | `wagdrone_rolling` (filled1), `wagdrone_flying` (filled2) | Prefab name to spawn when deployed. Applies to gestalt_cage_filled1/2 (nil for filled3). |
+| `deployhelper_key` | string | `gestalt_cage_filled_placerindicator` | Key used by deploy helper to find indicator. Applies to placer prefabs only. |
+| `scrapbook_proxy` | string | `gestalt_cage` | Proxy name for scrapbook recording. Applies to gestalt_cage_filled1/2/3. |
+
 
 ## Main functions
-### `StartCapture(inst)`
-* **Description:** Initiates the capture animation sequence for a filled cage (levels 1–3). Plays `catch` → `success_N` → `success_N_loop`, manages sound playback, and sets facing mode.
-* **Parameters:** `inst` (entity) – the filled cage instance.
-* **Returns:** Nothing.
-* **Error states:** No internal error handling; assumes `inst.level` is 1, 2, or 3. Resets facing model only after `onputininventory` (server-side).
+### `StartCapture()`
+*   **Description:** Triggers the capture animation and sound based on the cage level. Called on filled cage instance.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** None
 
-### `OnDeploy(inst, pt, deployer)`
-* **Description:** Server-side deployment callback. Spawns the configured `replacementprefab`, registers it with `wagpunk_arena_manager`, removes any overlapping placer indicator, and fires the `ms_wagpunk_constructrobot` event.
-* **Parameters:**  
-  - `inst` (entity) – filled cage being deployed.  
-  - `pt` (vector) – deployment position.  
-  - `deployer` (entity) – entity performing deployment (not used directly).
-* **Returns:** Nothing.
-* **Error states:** Silently skips `wagpunk_arena_manager` tracking if missing.
+### `SetIsPlanar(planar)`
+*   **Description:** Sets the planar state and updates inventory image/animation accordingly. Called on gestalt_cage_filled2 instance.
+*   **Parameters:** `planar` -- boolean indicating planar state
+*   **Returns:** None
+*   **Error states:** None
 
-### `CLIENT_CanDeployGestaltCage(inst, pt, mouseover, deployer, rotation)`
-* **Description:** Client-side predicate to enable placement UI (e.g., cursor feedback) when a `gestalt_cage_filled_placerindicator` is within `GESTALT_CAGE_FILLED_PLACEMENT_RADIUS`.
-* **Parameters:** Same as `placer` deploy checks.
-* **Returns:** `true` if one or more indicator entities exist in radius, otherwise `false`.
+### `GetIsPlanar()`
+*   **Description:** Returns the current planar state of the cage. Called on gestalt_cage_filled2 instance.
+*   **Parameters:** None
+*   **Returns:** Boolean `isplanar` value.
+*   **Error states:** None
 
-### `DoFlicker(inst, i)`
-* **Description:** Recursively animates LED flicker for levels 1–2 using alternating multicolours and random delays (1–2 FRAMES or 1–3 FRAMES). Handles initial low-intensity flicker (`i=10`) then transitions to loop.
-* **Parameters:**  
-  - `inst` (entity) – the cage instance.  
-  - `i` (number) – recursion depth counter.
-* **Returns:** Nothing (schedules next task).
-* **Error states:** No error handling; relies on `inst.AnimState` and `inst.level`.
+### `AttachToOwner(owner)`
+*   **Description:** Attaches the swap FX entity to the owner and syncs bloom/color components. Called on gestalt_cage_swap_fx instance.
+*   **Parameters:** `owner` -- player entity to attach to
+*   **Returns:** None
+*   **Error states:** None
 
-### `Filled_StartSoundLoop(inst)`
-* **Description:** Plays looping sound `rifts5/gestalt_cage/caught[_level]_LP`, respecting `inst.level`.
-* **Parameters:** `inst` (entity).
-* **Returns:** Nothing.
+### `GetUseItemOnVerb(target, doer)`
+*   **Description:** Returns the verb string for using this item on a target. Called on gestalt_cage_filled1/2/3 instances.
+*   **Parameters:**
+  - `target` -- target entity
+  - `doer` -- player entity attempting to use
+*   **Returns:** String "GESTALT_POSSESS"
+*   **Error states:** None
 
-### `OnCaptureLevel3AnimQueueOver(inst)`
-* **Description:** Level 3–specific post-animation callback. Triggers `success_3_jiggle` + randomized loops, and a wiggle sound.
-* **Parameters:** `inst` (entity).
-* **Returns:** Nothing.
+### `UseableTargetedItem_ValidTarget(target, doer)`
+*   **Description:** Checks if target is valid for using this item. Called on gestalt_cage_filled1/2/3 instances.
+*   **Parameters:**
+  - `target` -- target entity to validate
+  - `doer` -- player entity attempting to use
+*   **Returns:** Boolean true if target has "possessable_chassis" tag
+*   **Error states:** None
 
-### `fx_AttachToOwner(inst, owner)`
-* **Description:** Attaches the `gestalt_cage_swap_fx` prefab to owner’s `swap_object` symbol, registers highlight tracking, and informs `bloomer`/`colouradder` components of child attachment.
-* **Parameters:**  
-  - `inst` (entity) – FX instance.  
-  - `owner` (entity) – owning character/actor.
-* **Returns:** Nothing.
+### `OnEntitySleep()`
+*   **Description:** Handles entity sleep state - stops flicker and sound loops. Called on gestalt_cage_filled1/2/3 instances.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** None
+
+### `OnEntityWake()`
+*   **Description:** Handles entity wake state - restores flicker and sound loops if not held. Called on gestalt_cage_filled1/2/3 instances.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** None
+
+### `OnSave(data)`
+*   **Description:** Saves instance state to data table. Called on gestalt_cage_filled2 (saves isplanar) and gestalt_cage_filled_placerindicator (saves rotation) instances.
+*   **Parameters:** `data` -- table to save state into
+*   **Returns:** None
+*   **Error states:** None
+
+### `OnLoad(data)`
+*   **Description:** Loads instance state from data table. Called on gestalt_cage_filled2 (loads isplanar) and gestalt_cage_filled_placerindicator (loads rotation) instances.
+*   **Parameters:** `data` -- table containing saved state
+*   **Returns:** None
+*   **Error states:** None
 
 ## Events & listeners
-- **Listens to:**  
-  - `onremove` (via `bloomer:AttachChild`, `colouradder:AttachChild`) – cleans up child registration.  
-  - `onputininventory` – stops flicker/sound (levels 1–2) and clears facing model (level 3).  
-  - `ondropped` – resumes flicker/sound.  
-  - `wagboss_defeated` – dynamically adds `deployable` component if not yet met.  
-  - `animqueueover` (level 3 only) – triggers `OnCaptureLevel3AnimQueueOver`.  
-  - `onEntityReplicated` (client-only FX) – registers highlight owner.
-- **Pushes:**  
-  - `ms_wagpunk_constructrobot` (server) – fires once cage is deployed.
+- **Listens to:**
+    - `onputininventory` -- stops flicker and sound loops when pocketed.
+    - `ondropped` -- restores flicker and sound loops when dropped.
+    - `wagboss_defeated` -- unlocks deployable component on gestalt_cage_filled1 and gestalt_cage_filled2 only (not filled3).
+    - `animqueueover` -- triggers jiggle animation for level 3 capture.
+- **Pushes:**
+    - `ms_wagpunk_constructrobot` -- fired on world when a Wagdrone is deployed.

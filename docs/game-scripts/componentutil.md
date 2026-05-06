@@ -1,869 +1,1124 @@
 ---
 id: componentutil
 title: Componentutil
-description: Provides utility functions for entity state checking, tile change handling, bridge deployment, rose residue management, luck-based probability calculations, corpse conversion, impact sound selection, topology parsing, inventory tracking, and world migration logic.
-tags: [utility, entities, combat, world, inventory]
+description: A comprehensive utility module providing helper functions for entity state validation, tile transition handling, bridge deployment, combat effects, lightning mechanics, luck calculations, and mutation logic across multiple game systems.
+tags: [utility, entities, combat, environment, luck]
 sidebar_position: 10
 
-last_updated: 2026-03-21
-build_version: 714014
+last_updated: 2026-04-22
+build_version: 722832
 change_status: stable
 category_type: root
-source_hash: 78c2d24e
-system_scope: utility
+source_hash: 31ded6c4
+system_scope: entity
 ---
 
 # Componentutil
 
-> Based on game build **714014** | Last updated: 2026-03-21
+> Based on game build **722832** | Last updated: 2026-04-22
 
 ## Overview
-
-The `componentutil` module is a comprehensive utility library that provides helper functions across multiple game systems. It handles entity state validation (death, ghost status, electric immunity), tile change management for ocean and void transitions, bridge deployment validation and execution, rose-inspectable residue and fuel creation, luck-based probability calculations with configurable formulas, corpse creation and lunar mutation logic, combat impact sound selection, topology data parsing, inventory item source tracking, hermit crab decoration area validation, set bonus verification, jousting data initialization, world migration portal location computation, and passable area testing. This component serves as a central utility hub that other components and systems depend on for common operations.
+`componentutil.lua` is a standalone utility module that exports a comprehensive collection of helper functions used throughout the game's systems. It provides entity state checking utilities (`IsEntityDead`, `IsEntityElectricImmune`), tile transition handlers for ocean and void boundaries, vine bridge deployment validation, Charlie residue management, and rose point fuel configurations. The module also includes combat-related utilities for electrocution logic, lightning strikes, impact sound determination, and combat FX sizing. Additional functions handle inventory operations, luck-based chance calculations, lunar mutation logic, corpse transformation, socketable item helpers, and various spatial queries for migration portals and passable ground tests. This file is required by multiple components and systems that need shared utility functionality without duplicating code.
 
 ## Usage example
-
 ```lua
-local ComponentUtil = require("componentutil")
+require "componentutil"
 
--- Check if entity is dead or ghost
-if ComponentUtil.IsEntityDeadOrGhost(player, true) then
-    return
-end
+-- Check if an entity is dead or in ghost state
+local isDead = IsEntityDeadOrGhost(inst)
 
--- Apply luck-based chance modification
-local base_chance = 0.5
-local modified_chance = ComponentUtil.GetEntityLuckChance(player, base_chance, LuckFormulas.CommonChanceLuckAdditive(1))
+-- Calculate luck-based chance for an entity
+local chance = GetEntityLuckChance(inst, 0.5, LuckFormulas.CriticalStrike)
 
--- Perform luck roll
-if ComponentUtil.TryLuckRoll(player, modified_chance, LuckFormulas.CommonChanceLuckAdditive(1)) then
-    SpawnPrefab("horrorfuel")
-end
+-- Get impact sound based on creature size
+local sound = GetCreatureImpactSound(inst)
 
--- Check set bonus on entity
-if ComponentUtil.EntityHasSetBonus(player, "shadowdagger") then
-    player.components.skilltreeupdater:ActivateBonus("shadow_set")
-end
+-- Check if entity has a set bonus equipped
+local hasBonus = EntityHasSetBonus(inst, "setname")
 ```
 
 ## Dependencies & tags
 
 **External dependencies:**
-- `components/raindome` -- Loaded to register global functions used by RainDome component
-- `components/temperatureoverrider` -- Loaded to register global functions used by TemperatureOverrider component
-- `worldtiledefs` -- Required as GroundTiles; provides tile and turf definitions
-- `TheWorld` -- Used as _world in multiple tile change handlers to access Map, ismastersim, and global state
-- `TheSim` -- Used in FindEntities calls across multiple functions
-- `TUNING` -- Used for default bridge maxlength and tuning constants
-- `TILE_SCALE` -- Used in geometry calculations for tile handling
-- `TWOPI` -- Used in PushAwayItemsOnBoatPlace for random angle calculation
-- `MAX_PHYSICS_RADIUS` -- Used as default radius in FindVirtualOceanEntity
-- `GROUND_INVISIBLETILES` -- Used in Bridge_Deploy_Raytrace to check for invisible tile adjacency
-- `WORLD_TILES` -- Used in Bridge_DeployCheck_ShouldStopAtTile to exclude FARMING_SOIL
-- `TileGroupManager` -- Used to query tile types
-- `Vector3` -- Used to wrap shore/teleport points in TempTile handlers
-- `Point` -- Used to construct offset points in bridge ray tracing
-- `FindRandomPointOnShoreFromOcean` -- Used in temp ocean/void tile handlers
-- `DestroyEntity` -- Used in TempTile handlers to fully destroy entities
-- `Remap` -- Used in PushAwayItemsOnBoatPlace to map distance to launch delay
-- `ConcatArrays` -- Used to construct SOULLESS_TARGET_TAGS
-- `ThePlayer` -- Used to notify axis-aligned interval refreshes
-- `STRINGS` -- Used for UI option labels in axis-aligned placement cycling
-- `FRAMES` -- Used for frame-based delays
-- `PI2` -- Used in random angle generation
-- `FindWalkableOffset` -- Used in GetMigrationPortalLocation
-- `SpawnPrefab` -- Used to spawn FX prefabs
-- `Bridge_DeployCheck_Helper` -- Used in RosePoint_VineBridge_Check
-- `TryLuckRoll` -- Used in OnResidueActivated_Fuel_Internal
-- `LuckFormulas` -- Used for upgrade odds formulas
-- `ShardPortals` -- Used in GetMigrationPortalFromMigrationData
-- `WOBYCOURIER_NO_CHEST_COORD` -- Used in GetWobyCourierChestPosition
-- `FOODTYPE` -- Used in HasMeatInInventoryFor_Checker
-- `FUELTYPE` -- Used to build LIGHTNING_EXCLUDE_TAGS
-- `AXISALIGNMENT_VALUES` -- Used for axis-aligned cycling
-- `DataGrid` -- Instantiated in GetHermitCrabOccupiedGrid
-- `EQUIPSLOTS` -- Used to access HEAD and BODY slot indices
-- `GetGenderStrings` -- Used in GetPlayerDeathDescription
-- `GetDescription` -- Used in GetPlayerDeathDescription
-- `GetPhysicsRadius` -- Called on blockers for IsPointCoveredByBlocker
-- `TheWorld.Map` -- Accessed for tile land queries and topology lookup
-- `Math.atan2` -- Used in directional calculations
-- `SPECIAL_EVENTS` -- Referenced in SpawnPerd to check active event
+- `components/raindome` -- Required to load global functions for rain dome queries
+- `components/temperatureoverrider` -- Required to load global functions for temperature queries
+- `worldtiledefs` -- Required as GroundTiles for turf name lookup
+- `TheSim` -- Used for FindEntities queries
+- `TheWorld` -- Used for ismastersim check and Map component access
+- `TILE_SCALE` -- Global constant for tile dimension calculations
+- `TUNING` -- Accessed for ROPEBRIDGE_LENGTH_TILES constant
+- `TileGroupManager` -- Used for tile type checking (IsOceanTile, IsInvalidTile, IsLandTile, etc.)
+- `GROUND_INVISIBLETILES` -- Table for checking invisible tile types
+- `WORLD_TILES` -- Used for FARMING_SOIL tile comparison
+- `MAX_PHYSICS_RADIUS` -- Default search radius for entity queries
+- `TWOPI` -- Constant for random angle calculation
+- `Vector3` -- Used for position vector creation
+- `Point` -- Used for position point creation
+- `ConcatArrays` -- Used to combine tag arrays
+- `Launch2` -- Called to launch items away from boat
+- `Remap` -- Used to calculate launch delay based on distance
+- `DestroyEntity` -- Called to destroy entities on tile change
+- `FindRandomPointOnShoreFromOcean` -- Called to find shore teleport point
+- `ThePlayer` -- Pushed refreshaxisalignedplacementintervals event when exists
+- `STRINGS` -- Accessed for UI.OPTIONS axis-aligned placement text labels
+- `FOODTYPE` -- Referenced for MEAT foodtype in inventory checker
+- `FUELTYPE` -- Iterated for lightning exclude tags generation
+- `ShardPortals` -- Iterated to find migration portal by worldid and portalid
+- `FRAMES` -- Used for frame-based task timing in fuel presentation
+- `PI2` -- Used for random angle calculation in fuel spawn positioning
+- `SpawnPrefab` -- Called for FX, fuel, and lightning spawn
+- `FindWalkableOffset` -- Called to find valid spawn offset near migration portal
+- `TryLuckRoll` -- Called with LuckFormulas.ResidueUpgradeFuel for skill upgrade chance
+- `FunctionOrValue` -- Called to resolve lunar mutation chance from entity or default
+- `DataGrid` -- Create grid data structures in GetHermitCrabOccupiedGrid
+- `EQUIPSLOTS` -- Access HEAD and BODY slot constants in EntityHasSetBonus
+- `SPECIAL_EVENTS` -- Used in SpawnPerd formula to check for Year of the Gobbler event
+- `IsSpecialEventActive` -- Called to check if special events are active
+- `TWOTHIRDS` -- Constant used in luck formula calculations
 
 **Components used:**
-- `inventory` -- Used for insulation check (IsInsulated) in IsEntityElectricImmune
-- `inventoryitem` -- Used in HandleDugGround and TempTile handlers to inherit moisture and set landed state
-- `walkableplatform` -- Used in PushAwayItemsOnBoatPlace to get platform_radius
-- `amphibiouscreature` -- Checked and used in temp tile handlers to detect water-favoring entities
-- `drownable` -- Checked and used in temp tile handlers to manage drowning/void-falling logic
-- `stackable` -- Referenced via replica in GetStackSize
-- `health` -- Referenced via replica in IsEntityDead
-- `roseinspectableuser` -- Used in Decay* functions to handle residue and cooldown
-- `skilltreeupdater` -- Used to check charlie upgrades and roll luck
-- `vinebridgemanager` -- Required for RosePoint_VineBridge_Do and ROSEPOINT_CONFIGURATIONS
-- `locomotor` -- Checked by CLOSEINSPECTORUTIL.IsValidTarget on both server and client
-- `rider` -- Used by CLOSEINSPECTORUTIL.CanCloseInspect to check IsRiding on server
-- `burnable` -- Used in StrikeLightningAtPoint to ignite flammable entities
-- `edible` -- Used in HasMeatInInventoryFor_Checker to verify foodtype
-- `roseinspectable` -- Attached and configured in MakeRoseTarget functions
-- `worldmigrator` -- Used to get portal destination and activated by other
-- `playerspawner` -- Used in GetMigrationPortalLocation to get default spawn point
-- `riftspawner` -- Accessed via TheWorld.components.riftspawner to check lunar portal state
-- `corpsepersistmanager` -- Accessed via TheWorld.components.corpsepersistmanager for corpse persistence rules
-- `container` -- Referenced inside MakeComponentAnInventoryItemSource to verify container validity
-- `setbonus` -- Accessed on head and body items to verify matching setname
-- `luckuser` -- Used via inst.components.luckuser:GetLuck() in GetEntityLuck
+- `health` -- Accessed via inst.replica.health for death checking
+- `inventory` -- Checked for insulation via IsInsulated()
+- `inventoryitem` -- InheritWorldWetnessAtXZ and SetLanded called for item handling
+- `walkableplatform` -- platform_radius accessed for boat placement
+- `amphibiouscreature` -- Checked for nil to exclude from drowning logic
+- `drownable` -- Checked for drowning handling on tile changes
+- `roseinspectableuser` -- ForceDecayResidue and GoOnCooldown called for Charlie residue
+- `stategraph` -- Accessed via inst.sg for abyss_fall state check
+- `roseinspectable` -- Added to inst for residue activation callbacks
+- `vinebridgemanager` -- Accessed via TheWorld.components for queueing vine bridge creation/destruction
+- `rider` -- Checked for IsRiding in close inspector validation
+- `edible` -- Checked for foodtype in meat inventory checker
+- `pickable` -- Checked for product in food source detection
+- `burnable` -- Called Ignite for lightning-induced burning
+- `worldmigrator` -- Accessed for portal migration and ActivatedByOther call
+- `playerspawner` -- Called GetAnySpawnPoint for default migration location
+- `locomotor` -- Checked in close inspector target validation
+- `setbonus` -- Check setname property in EntityHasSetBonus
+- `joustsource` -- Check source component in CreatingJoustingData
+- `container` -- Check container component in storeincontainer helper
+- `riftspawner` -- Access via TheWorld.components.riftspawner in CanLunarRiftMutateFromCorpse
+- `corpsepersistmanager` -- Access via TheWorld.components.corpsepersistmanager in CanEntityBecomeCorpse
+- `luckuser` -- Accessed via inst.components.luckuser to get entity luck value
+- `socketable` -- Added and configured for socketable items
+- `socketholder` -- Checked and used for socket validation and insertion
+- `useabletargeteditem` -- Configured with custom onusefn for socket holder interactions
+- `itemmimic` -- Checked to determine if item is a mimic
+- `socket_shadow_mimicry` -- Checked on user to determine mimic revelation
+- `player_classified` -- Accessed to set playluckeffect netvar for visual feedback
 
 **Tags:**
 - `playerghost` -- check
 - `electricdamageimmune` -- check
+- `virtualocean` -- check
+- `INLIMBO` -- check
 - `ignorewalkableplatforms` -- check
 - `activeprojectile` -- check
 - `flying` -- check
 - `FX` -- check
 - `DECOR` -- check
-- `INLIMBO` -- check
 - `herd` -- check
 - `walkableplatform` -- check
 - `bird` -- check
+- `structure` -- check
+- `wall` -- check
+- `balloon` -- check
+- `groundspike` -- check
+- `smashable` -- check
+- `veggie` -- check
+- `deck_of_cards` -- check
+- `soulless` -- check
+- `chess` -- check
+- `shadow` -- check
+- `shadowcreature` -- check
+- `shadowminion` -- check
+- `shadowchesspiece` -- check
+- `ignorewalkableplatformdrowning` -- check
 - `player` -- check
-- `fireimmune` -- check
-- `controlled_burner` -- check
+- `cave` -- check
 - `character` -- check
 - `locomotor` -- check
-- `closeinspector` -- check
-- `hidesmeats` -- check
 - `smallcreature` -- check
-- `NOCLICK` -- check
-- `irreplaceable` -- check
+- `smallcreaturecorpse` -- check
+- `small` -- check
 - `epic` -- check
 - `epiccorpse` -- check
 - `largecreature` -- check
 - `largecreaturecorpse` -- check
-- `creaturecorpse` -- check
-- `small` -- check
-- `lightningblocker` -- check
-- `teeteringplatform` -- check
-- `noelectrocute` -- check
 - `large` -- check
-- `forcefield` -- check
-- `sanity` -- check
-- `lunarplant` -- check
-- `dreadstone` -- check
-- `metal` -- check
-- `marble` -- check
-- `shell` -- check
-- `wood` -- check
-- `grass` -- check
-- `fur` -- check
-- `cloth` -- check
+- `creaturecorpse` -- check
+- `lightningblocker` -- check
+- `fence` -- check
+- `plant` -- check
+- `_inventoryitem` -- check
+- `bush` -- check
+- `pickable` -- check
+- `teeteringplatform` -- check
+- `hidesmeats` -- check
+- `closeinspector` -- check
 - `player_damagescale` -- check
-- `gestaltprotection` -- check
-- `blocker` -- check
+- `grass` -- check
 - `stone` -- check
-- `clay` -- check
+- `marble` -- check
 - `fence_electric` -- check
+- `clay` -- check
 - `hive` -- check
 - `eyeturret` -- check
 - `houndmound` -- check
 - `ghost` -- check
 - `insect` -- check
 - `spider` -- check
-- `chess` -- check
 - `mech` -- check
 - `brightmare` -- check
 - `brightmareboss` -- check
 - `mound` -- check
-- `shadow` -- check
-- `shadowminion` -- check
-- `shadowchesspiece` -- check
 - `tree` -- check
 - `wooden` -- check
-- `veggie` -- check
 - `hedge` -- check
+- `shell` -- check
 - `rocky` -- check
 - `fossil` -- check
+- `blocker` -- check
+- `forcefield` -- check
+- `sanity` -- check
+- `lunarplant` -- check
+- `dreadstone` -- check
+- `metal` -- check
+- `wood` -- check
+- `fur` -- check
+- `cloth` -- check
 
 ## Properties
 
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| None | | | No properties are defined. |
+| `LuckFormulas` | table | --- | Table of luck calculation formula functions (CriticalStrike, LightningStrike, SpawnPerd, etc.) |
+| `ROSEPOINT_CONFIGURATIONS` | table | --- | Table of rose point configuration objects with contextname, checkfn, callbackfn |
+| `AXISALIGNMENT_VALUES` | table | --- | Table of axis-aligned placement options with text and data fields |
+| `PICKABLE_FOOD_PRODUCTS` | table | --- | Table mapping pickable product names to true for food source detection |
+| `NON_LIFEFORM_TARGET_TAGS` | table | --- | Array of tags for targets that are not considered lifeforms |
+| `SOULLESS_TARGET_TAGS` | table | --- | Array of tags for soulless targets (concatenated with NON_LIFEFORM_TARGET_TAGS) |
+| `DesiredMaxTakeCountFunctions` | table | --- | Table mapping prefab names to max take count callback functions |
+| `WAGPUNK_ARENA_COLLISION_DATA` | table | --- | Array of collision data tables with x, z, rotation, sfxlooper fields |
+| `CLOSEINSPECTORUTIL` | table | --- | Table with utility functions for close inspection validation (IsValidTarget, IsValidPos, CanCloseInspect) |
 
 ## Main functions
 
 ### `IsEntityDead(inst, require_health)`
-* **Description:** Determines if an entity is dead by checking its health replica's IsDead() method or presence.
+* **Description:** Checks if an entity is dead by examining its health replica. Returns true if health replica is nil and require_health is true, or if health:IsDead() returns true.
 * **Parameters:**
-  - `inst` -- Entity to check; must have health replica if require_health is true
-  - `require_health` -- boolean; if true, returns true if entity lacks health replica
-* **Returns:** boolean: true if dead (or missing health when required), false otherwise
+  - `inst` -- Entity instance to check for death state
+  - `require_health` -- Boolean - if true, entity is considered dead if it lacks health replica
+* **Returns:** boolean - true if entity is dead, false otherwise
+* **Error states:** Errors if inst.replica is nil (no guard present)
 
 ### `IsEntityDeadOrGhost(inst, require_health)`
-* **Description:** Checks if an entity is dead or is a ghost (playerghost tag).
+* **Description:** Checks if an entity is dead or a player ghost. Returns true immediately if entity has playerghost tag, otherwise delegates to IsEntityDead.
 * **Parameters:**
-  - `inst` -- Entity to check
-  - `require_health` -- boolean; passed to IsEntityDead
-* **Returns:** boolean: true if dead or ghost, false otherwise
+  - `inst` -- Entity instance to check
+  - `require_health` -- Boolean passed to IsEntityDead for health replica requirement
+* **Returns:** boolean - true if entity is dead or a player ghost
 
 ### `IsEntityElectricImmune(inst)`
-* **Description:** Determines if an entity is immune to electric damage via tag or inventory insulation.
+* **Description:** Checks if an entity is immune to electric damage by testing for electricdamageimmune tag or insulated inventory.
 * **Parameters:**
-  - `inst` -- Entity to check
-* **Returns:** boolean: true if immune, false otherwise
+  - `inst` -- Entity instance to check for electric immunity
+* **Returns:** boolean - true if entity is electric immune
 
 ### `GetStackSize(inst)`
-* **Description:** Returns the current stack size of an entity via its stackable replica, defaulting to 1.
+* **Description:** Returns the stack size of an entity via its stackable replica, or 1 if no stackable component exists.
 * **Parameters:**
-  - `inst` -- Entity to check for stackable component
-* **Returns:** number: stack size
+  - `inst` -- Entity instance to get stack size from
+* **Returns:** number - stack size or 1 if no stackable replica
 
 ### `HandleDugGround(dug_ground, x, y, z)`
-* **Description:** Spawns a turf prefab if the dug_ground tile has a defined turf, or spawns a sinkhole FX otherwise.
+* **Description:** Spawns turf loot when ground is dug, inheriting world wetness and applying physics velocity. Spawns sinkhole spawn fx if no turf defined.
 * **Parameters:**
-  - `dug_ground` -- string or table; tile name or info used to look up turf
-  - `x` -- number; X world coordinate
-  - `y` -- number; Y world coordinate
-  - `z` -- number; Z world coordinate
-* **Returns:** nil
+  - `dug_ground` -- Ground tile type that was dug
+  - `x` -- X coordinate for spawn position
+  - `y` -- Y coordinate for spawn position
+  - `z` -- Z coordinate for spawn position
+* **Returns:** None
 
 ### `FindVirtualOceanEntity(x, y, z, r)`
-* **Description:** Finds the first virtual ocean entity within the given radius where the point lies inside its physics radius.
+* **Description:** Finds virtual ocean entities within radius that have virtualocean tag but not INLIMBO tag, verifying entity is within physics radius.
 * **Parameters:**
-  - `x` -- number; X center coordinate
-  - `y` -- number; Y center coordinate (usually 0)
-  - `z` -- number; Z center coordinate
-  - `r` -- number or nil; search radius (defaults to MAX_PHYSICS_RADIUS)
-* **Returns:** Entity or nil
+  - `x` -- X coordinate to search from
+  - `y` -- Y coordinate to search from
+  - `z` -- Z coordinate to search from
+  - `r` -- Search radius (defaults to MAX_PHYSICS_RADIUS if nil)
+* **Returns:** Entity instance or nil if none found
 
 ### `PushAwayItemsOnBoatPlace(inst)`
-* **Description:** Pushes away items and entities standing on the platform when a boat is deployed, using delayed physics launches.
+* **Description:** Pushes away items and entities when a boat is placed, launching them with delay based on distance. Handles birds specially with flyaway event.
 * **Parameters:**
-  - `inst` -- Entity (boat) that just placed; must have walkableplatform component
-* **Returns:** nil
+  - `inst` -- Boat entity instance being placed
+* **Returns:** None
+* **Error states:** Errors if inst.components.walkableplatform is nil (no guard present)
 
 ### `TempTile_HandleTileChange_Ocean(x, y, z)`
-* **Description:** Handles entities on an ocean tile when the tile changes to ocean, triggering drown/walk-off logic and launching items.
+* **Description:** Handles entities when tile changes to ocean - pushes onsink event and destroys entities not on adjacent land/dock tiles.
 * **Parameters:**
-  - `x` -- number; tile X coordinate
-  - `y` -- number; tile Y coordinate
-  - `z` -- number; tile Z coordinate
-* **Returns:** nil
+  - `x` -- X coordinate of tile change
+  - `y` -- Y coordinate of tile change
+  - `z` -- Z coordinate of tile change
+* **Returns:** None
 
 ### `TempTile_HandleTileChange_Ocean_Warn(x, y, z)`
-* **Description:** Sends 'abandon_ship' and 'onpresink' events to players on temporary tiles before actual tile removal.
+* **Description:** Warns entities before ocean tile change - pushes abandon_ship and onpresink events for players on visual ground.
 * **Parameters:**
-  - `x` -- number; tile X coordinate
-  - `y` -- number; tile Y coordinate
-  - `z` -- number; tile Z coordinate
-* **Returns:** nil
+  - `x` -- X coordinate of tile change
+  - `y` -- Y coordinate of tile change
+  - `z` -- Z coordinate of tile change
+* **Returns:** None
 
 ### `TempTile_HandleTileChange_Void(x, y, z)`
-* **Description:** Handles entities on an invalid (void) tile when removed, triggering void-fall logic and teleporting drowning entities.
+* **Description:** Handles entities when tile changes to void - pushes onfallinvoid event and destroys entities that cannot fall into abyss.
 * **Parameters:**
-  - `x` -- number; tile X coordinate
-  - `y` -- number; tile Y coordinate
-  - `z` -- number; tile Z coordinate
-* **Returns:** nil
+  - `x` -- X coordinate of tile change
+  - `y` -- Y coordinate of tile change
+  - `z` -- Z coordinate of tile change
+* **Returns:** None
 
 ### `TempTile_HandleTileChange_Void_Warn(x, y, z)`
-* **Description:** Sends 'onprefallinvoid' events to entities on temporary void tiles before removal.
+* **Description:** Warns entities before void tile change - pushes onprefallinvoid event for entities on visual ground.
 * **Parameters:**
-  - `x` -- number; tile X coordinate
-  - `y` -- number; tile Y coordinate
-  - `z` -- number; tile Z coordinate
-* **Returns:** nil
+  - `x` -- X coordinate of tile change
+  - `y` -- Y coordinate of tile change
+  - `z` -- Z coordinate of tile change
+* **Returns:** None
 
 ### `TempTile_HandleTileChange(x, y, z, tile)`
-* **Description:** Dispatches to ocean or void handlers based on tile group type.
+* **Description:** Dispatches tile change handling to ocean or void handlers based on tile type.
 * **Parameters:**
-  - `x` -- number; tile X coordinate
-  - `y` -- number; tile Y coordinate
-  - `z` -- number; tile Z coordinate
-  - `tile` -- string; tile identifier
-* **Returns:** nil
+  - `x` -- X coordinate of tile change
+  - `y` -- Y coordinate of tile change
+  - `z` -- Z coordinate of tile change
+  - `tile` -- Tile type being changed to
+* **Returns:** None
 
 ### `TempTile_HandleTileChange_Warn(x, y, z, tile)`
-* **Description:** Dispatches to warning handlers for ocean or void tiles before removal.
+* **Description:** Dispatches tile change warning to ocean or void warning handlers based on tile type.
 * **Parameters:**
-  - `x` -- number; tile X coordinate
-  - `y` -- number; tile Y coordinate
-  - `z` -- number; tile Z coordinate
-  - `tile` -- string; tile identifier
-* **Returns:** nil
+  - `x` -- X coordinate of tile change
+  - `y` -- Y coordinate of tile change
+  - `z` -- Z coordinate of tile change
+  - `tile` -- Tile type being changed to
+* **Returns:** None
+
+
 
 ### `Bridge_DeployCheck_Helper(inst, pt, options)`
-* **Description:** Validates bridge placement by raytracing from a tile center point to find valid land targets.
+* **Description:** Main bridge deployment validation function - transforms player position and validates tile raytrace for bridge construction.
 * **Parameters:**
-  - `inst` -- Entity attempting bridge deployment
-  - `pt` -- Point (x,y,z) to test deployment
-  - `options` -- table or nil; optional overrides for max length, tile validation, etc.
-* **Returns:** boolean, spots table or false
+  - `inst` -- Entity instance deploying bridge
+  - `pt` -- Position point for deployment
+  - `options` -- Optional table with maxlength, isvalidtileforbridgeatpointfn, candeploybridgeatpointfn, deployskipfirstlandtile, requiredworldcomponent
+* **Returns:** boolean success, spots table or false
 
 ### `DecayCharlieResidueAndGoOnCooldownIfItExists(inst)`
-* **Description:** Immediately decays rose residue and sets cooldown if component exists.
+* **Description:** Forces Charlie residue decay and puts roseinspectableuser on cooldown if component exists.
 * **Parameters:**
-  - `inst` -- Entity that may have roseinspectableuser component
-* **Returns:** nil
+  - `inst` -- Entity instance with potential roseinspectableuser component
+* **Returns:** None
 
-### `DecayCharlieResidueIfItExists(inst)`
-* **Description:** Immediately decays rose residue if component exists, without setting cooldown.
-* **Parameters:**
-  - `inst` -- Entity that may have roseinspectableuser component
-* **Returns:** nil
 
-### `OnFuelPresentation3(inst)`
-* **Description:** Returns the inst to scene and drops it as an inventory item.
-* **Parameters:**
-  - `inst` -- Entity instance that triggered the fuel presentation; used to return to scene and drop item
-* **Returns:** nil
-
-### `OnFuelPresentation2(inst, x, z, upgraded)`
-* **Description:** Spawns a shadow_puff or shadow_puff_solid FX at (x,0,z) and schedules OnFuelPresentation3 after 3 frames.
-* **Parameters:**
-  - `inst` -- Entity instance; passed for timing context
-  - `x` -- X coordinate for shadow_puff spawn
-  - `z` -- Z coordinate for shadow_puff spawn
-  - `upgraded` -- Boolean indicating if the fuel is upgraded (horrorfuel vs nightmarefuel)
-* **Returns:** nil
-
-### `OnFuelPresentation1(inst, x, z, upgraded)`
-* **Description:** Spawns charlie_snap or charlie_snap_solid FX at (x,2,z) and schedules OnFuelPresentation2 after 25 frames.
-* **Parameters:**
-  - `inst` -- Entity instance; passed for timing context
-  - `x` -- X coordinate for charlie_snap spawn
-  - `z` -- Z coordinate for charlie_snap spawn
-  - `upgraded` -- Boolean indicating if the fuel is upgraded
-* **Returns:** nil
-
-### `OnResidueActivated_Fuel_Internal(inst, doer, odds)`
-* **Description:** Calculates if upgraded fuel should spawn using skilltreeupdater and luck; spawns nightmarefuel or horrorfuel offset from inst position; schedules FX chain.
-* **Parameters:**
-  - `inst` -- Target entity where fuel is spawned (residue target)
-  - `doer` -- Doer entity (typically player); used to check skilltreeupdater and LuckRoll
-  - `odds` -- Float probability threshold used in TryLuckRoll to decide upgrade
-* **Returns:** nil
-
-### `OnResidueActivated_Fuel(inst, doer)`
-* **Description:** Wrapper calling OnResidueActivated_Fuel_Internal with standard upgrade odds from TUNING.
-* **Parameters:**
-  - `inst` -- Target entity where fuel is spawned
-  - `doer` -- Doer entity (player); used for skill/lottery checks
-* **Returns:** nil
-
-### `OnResidueActivated_Fuel_IncreasedHorror(inst, doer)`
-* **Description:** Wrapper calling OnResidueActivated_Fuel_Internal with increased upgrade odds from TUNING.
-* **Parameters:**
-  - `inst` -- Target entity where fuel is spawned
-  - `doer` -- Doer entity (player); used for skill/lottery checks
-* **Returns:** nil
 
 ### `MakeRoseTarget_CreateFuel(inst)`
-* **Description:** Attaches the roseinspectable component and sets OnResidueActivated to create standard nightmare/horror fuel.
+* **Description:** Adds roseinspectable component with standard fuel activation callback and forced cooldown on activate.
 * **Parameters:**
-  - `inst` -- Entity instance to attach roseinspectable component and configure fuel hook
+  - `inst` -- Entity instance to add roseinspectable component
 * **Returns:** nil
 
 ### `MakeRoseTarget_CreateFuel_IncreasedHorror(inst)`
-* **Description:** Attaches the roseinspectable component and sets OnResidueActivated to create increased-horror fuel variant.
+* **Description:** Adds roseinspectable component with increased horror fuel activation callback and forced cooldown on activate.
 * **Parameters:**
-  - `inst` -- Entity instance to attach roseinspectable component and configure increased horror fuel hook
+  - `inst` -- Entity instance to add roseinspectable component
 * **Returns:** nil
 
-### `IsValidTileForVineBridgeAtPoint_Wrapper(_map, x, y, z)`
-* **Description:** Wrapper to call _map:IsValidTileForVineBridgeAtPoint.
-* **Parameters:**
-  - `_map` -- Map table with vine bridge checks
-  - `x` -- X coordinate
-  - `y` -- Y coordinate (height)
-  - `z` -- Z coordinate
-* **Returns:** Boolean result of map query
 
-### `CanDeployVineBridgeAtPoint_Wrapper(_map, x, y, z)`
-* **Description:** Wrapper to call _map:CanDeployVineBridgeAtPoint.
-* **Parameters:**
-  - `_map` -- Map table with vine bridge checks
-  - `x` -- X coordinate
-  - `y` -- Y coordinate (height)
-  - `z` -- Z coordinate
-* **Returns:** Boolean result of map query
 
-### `RosePoint_VineBridge_Check(inst, pt)`
-* **Description:** Calls Bridge_DeployCheck_Helper with vine bridge options.
+### `CLOSEINSPECTORUTIL.IsValidTarget(doer, target)`
+* **Description:** Validates if target is eligible for close inspection by checking mass, locomotor, inventoryitem, and character tags differently on master sim vs client.
 * **Parameters:**
-  - `inst` -- Entity instance performing the check
-  - `pt` -- Point Vector3 to test for vine bridge placement
-* **Returns:** Boolean indicating if placement is valid
+  - `doer` -- Player entity performing inspection
+  - `target` -- Target entity to validate
+* **Returns:** boolean -- true if target is valid for close inspection
 
-### `RosePoint_VineBridge_Do(inst, pt, spots)`
-* **Description:** Queues creation and destruction of vine bridges for each spot using vinebridgemanager.
+### `CLOSEINSPECTORUTIL.IsValidPos(doer, pos)`
+* **Description:** Checks if position is valid for close inspection by iterating ROSEPOINT_CONFIGURATIONS and checking cooldown state.
 * **Parameters:**
-  - `inst` -- Entity instance performing the deployment
-  - `pt` -- Point Vector3 (unused in this function body)
-  - `spots` -- Array of points with x,y,z and direction; each spot schedules vine bridge creation and destruction
-* **Returns:** true
+  - `doer` -- Player entity
+  - `pos` -- Position to validate
+* **Returns:** boolean -- true if position is valid
 
-### `HasMeatInInventoryFor_Checker(item)`
-* **Description:** Predicate to verify item is edible meat and not a smallcreature.
+### `CLOSEINSPECTORUTIL.CanCloseInspect(doer, targetorpos)`
+* **Description:** Main validation function checking if player has closeinspector equipment, is not riding, and target/position is valid.
 * **Parameters:**
-  - `item` -- Inventory item entity to check
-* **Returns:** Boolean
+  - `doer` -- Player entity attempting inspection
+  - `targetorpos` -- Entity or position to inspect
+* **Returns:** boolean -- true if close inspection is permitted
+
+
 
 ### `HasMeatInInventoryFor(inst)`
-* **Description:** Returns true if inst has edible meat in inventory and isn't hiding meat (hidesmeats tag).
+* **Description:** Checks if entity inventory contains meat items, returns false if hidesmeats tag is equipped.
 * **Parameters:**
-  - `inst` -- Entity instance (typically player) to check inventory of
-* **Returns:** Boolean
+  - `inst` -- Entity with inventory component
+* **Returns:** boolean -- true if meat found in inventory
 
 ### `SetDesiredMaxTakeCountFunction(prefab, callback)`
-* **Description:** Registers a custom count function for items being taken into a player inventory.
+* **Description:** Registers a callback function for controlling max take count logic for items entering player inventory.
 * **Parameters:**
-  - `prefab` -- String prefab name
-  - `callback` -- Function accepting (doer, target) and returning desired count
+  - `prefab` -- Prefab name string
+  - `callback` -- Function to set as max take count handler
 * **Returns:** nil
 
 ### `GetDesiredMaxTakeCountFunction(prefab)`
-* **Description:** Retrieves a previously registered custom take count function.
+* **Description:** Retrieves registered max take count callback function for a prefab.
 * **Parameters:**
-  - `prefab` -- String prefab name
-* **Returns:** Function or nil
+  - `prefab` -- Prefab name string
+* **Returns:** function or nil -- registered callback or nil if not found
 
 ### `IsFoodSourcePickable(inst)`
-* **Description:** Returns true if inst is a pickable and its product is in the whitelist of food products.
+* **Description:** Checks if entity has pickable component with product listed in PICKABLE_FOOD_PRODUCTS table.
 * **Parameters:**
   - `inst` -- Entity instance to check
-* **Returns:** Boolean
+* **Returns:** boolean -- true if entity is a food source pickable
 
 ### `GetWobyCourierChestPosition(inst)`
-* **Description:** Returns stored chest coordinates or nil if not set or invalid.
+* **Description:** Retrieves stored chest position coordinates from woby classified component, returns nil if no chest set.
 * **Parameters:**
-  - `inst` -- Entity instance with woby_commands_classified
-* **Returns:** Number, Number or nil, nil
+  - `inst` -- Woby entity with woby_commands_classified
+* **Returns:** number, number or nil, nil -- x and z coordinates or nil pair
 
 ### `UpdateAxisAlignmentValues(intervals)`
-* **Description:** Updates axis-aligned placement tuning and notifies local player of refresh.
+* **Description:** Updates TUNING axis-aligned placement values and pushes refresh event to ThePlayer if exists.
 * **Parameters:**
-  - `intervals` -- Float interval used for axis-aligned placement grid; updated in TUNING
+  - `intervals` -- Number of axis-aligned placement intervals
 * **Returns:** nil
 
 ### `CycleAxisAlignmentValues()`
-* **Description:** Cycles through AXISALIGNMENT_VALUES table, updates TUNING, and notifies client.
+* **Description:** Cycles through AXISALIGNMENT_VALUES to next interval setting, wraps to first if at end.
 * **Parameters:** None
 * **Returns:** nil
 
-### `GetMigrationPortalFromMigrationData(migrationdata)`
-* **Description:** Finds and returns a portal entity matching worldid/portalid from ShardPortals.
-* **Parameters:**
-  - `migrationdata` -- Table with worldid and portalid fields
-* **Returns:** Entity or nil
-
-### `GetMigrationPortalLocation(ent, migrationdata, portaloverride)`
-* **Description:** Computes spawn location near a portal, at saved coords, or default spawn point.
-* **Parameters:**
-  - `ent` -- Entity being migrated
-  - `migrationdata` -- Migration data containing worldid, portalid, or destination coordinates
-  - `portaloverride` -- Optional portal entity to use instead of lookup
-* **Returns:** Number, Number, Number
-
 ### `ClearSpotForRequiredPrefabAtXZ(x, z, r)`
-* **Description:** Finds and destroys entities at position that prevent placement, ignoring entities with CLEARSPOT_CANT_TAGS.
+* **Description:** Finds and destroys entities within radius that lack INLIMBO, NOCLICK, FX, or irreplaceable tags.
 * **Parameters:**
-  - `x` -- X coordinate center
-  - `z` -- Z coordinate center
-  - `r` -- Additional radius padding
+  - `x` -- X coordinate
+  - `z` -- Z coordinate
+  - `r` -- Radius offset for clearance
 * **Returns:** nil
+
+### `IsSmallCreature(inst)`
+* **Description:** Checks if entity has smallcreature, smallcreaturecorpse, or small tag.
+* **Parameters:**
+  - `inst` -- Entity instance to check
+* **Returns:** boolean -- true if entity is small creature
+
+### `IsEpicCreature(inst)`
+* **Description:** Checks if entity has epic or epiccorpse tag.
+* **Parameters:**
+  - `inst` -- Entity instance to check
+* **Returns:** boolean -- true if entity is epic creature
+
+### `IsLargeCreature(inst)`
+* **Description:** Checks if entity has largecreature, largecreaturecorpse, or large tag.
+* **Parameters:**
+  - `inst` -- Entity instance to check
+* **Returns:** boolean -- true if entity is large creature
 
 ### `GetCombatFxSize(ent)`
-* **Description:** Returns radius, size string, and height string appropriate for combat/FX (small/med/large, low/high).
+* **Description:** Calculates combat FX radius, size category, and height based on creature size tags and physics radius.
 * **Parameters:**
-  - `ent` -- Entity to size FX for
-* **Returns:** Number, String, String?
+  - `ent` -- Entity instance for FX sizing
+* **Returns:** number, string, string or nil -- radius, size category, height level
 
 ### `GetElectrocuteFxAnim(sz, ht)`
-* **Description:** Returns animation name based on size and height (e.g., shock_small_low).
+* **Description:** Returns electrocute FX animation name formatted with size and optional height.
 * **Parameters:**
-  - `sz` -- Size string (tiny/small/med/large)
-  - `ht` -- Height string (low/high) or nil
-* **Returns:** String
+  - `sz` -- Size category string
+  - `ht` -- Height level string or nil
+* **Returns:** string -- animation name like shock_small_low or shock_large
 
 ### `CanEntityBeElectrocuted(inst)`
-* **Description:** Returns true if the entity's stategraph supports electrocution and it is not marked noelectrocute.
+* **Description:** Checks if entity stategraph supports electrocution based on electrocute state, burn_on_electrocute memory, and noelectrocute flag.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** Boolean
+  - `inst` -- Entity instance to check
+* **Returns:** boolean -- true if entity can be electrocuted
 
 ### `CalcEntityElectrocuteDuration(inst, override)`
-* **Description:** Returns electrocution duration considering per-entity, burn_on_electrocute, and override.
+* **Description:** Calculates electrocute duration from entity override, stategraph memory, or TUNING defaults with optional override clamping.
 * **Parameters:**
   - `inst` -- Entity instance
-  - `override` -- Optional numeric override duration
-* **Returns:** Number
+  - `override` -- Optional override duration value
+* **Returns:** number -- calculated duration in seconds
 
 ### `SpawnElectricHitSparks(inst, target, flash)`
-* **Description:** Spawns electrichitsparks or electricimmune variant aligned to target.
+* **Description:** Spawns electric hit sparks FX prefab aligned to target, uses electricimmune variant if target is immune.
 * **Parameters:**
-  - `inst` -- Source entity (may be nil)
-  - `target` -- Target entity (may be nil)
-  - `flash` -- Boolean indicating if flash effect is needed
+  - `inst` -- Source entity
+  - `target` -- Target entity for FX alignment
+  - `flash` -- Flash parameter for FX
 * **Returns:** nil
-* **Error states:** Early return if inst or target invalid
 
 ### `LightningStrikeAttack(inst)`
-* **Description:** Applies lightning damage based on wetness, and triggers electrocute stategraph event; returns false if immune.
+* **Description:** Applies lightning damage to entity health based on wetness multiplier and pushes electrocute event immediately.
 * **Parameters:**
-  - `inst` -- Entity struck by lightning
-* **Returns:** Boolean: true if damage applied, false if immune
-* **Error states:** Returns false if immune or already in noelectrocute state
+  - `inst` -- Entity to strike with lightning
+* **Returns:** boolean -- true if attack succeeded, false if immune
 
 ### `StrikeLightningAtPoint(strike_prefab, hit_player, x, y, z)`
-* **Description:** Performs AOE lightning strike at point: electrocutes eligible entities, ignites flammable objects.
+* **Description:** Strikes lightning at position, applies electrocution or burning to entities in radius based on tags and immunity.
 * **Parameters:**
-  - `strike_prefab` -- Lightning prefab name; if 'lightning', AOE is applied
-  - `hit_player` -- Boolean indicating if the primary target is a player
-  - `x` -- X center
-  - `y` -- Y center
-  - `z` -- Z center
+  - `strike_prefab` -- Lightning prefab name
+  - `hit_player` -- Boolean indicating if player was hit
+  - `x` -- X coordinate or Vector3
+  - `y` -- Y coordinate (nil if x is Vector3)
+  - `z` -- Z coordinate (nil if x is Vector3)
 * **Returns:** nil
-* **Error states:** No AOE applied if strike_prefab is not 'lightning'
+
+
+
+### `GetMigrationPortalFromMigrationData(migrationdata)`
+* **Description:** Finds migration portal entity from ShardPortals matching migration data world and portal IDs.
+* **Parameters:**
+  - `migrationdata` -- Table with worldid and portalid
+* **Returns:** Entity or nil -- portal entity if found
+
+### `GetMigrationPortalLocation(ent, migrationdata, portaloverride)`
+* **Description:** Calculates spawn location for migrating entity using portal, explicit coordinates, or default playerspawner point.
+* **Parameters:**
+  - `ent` -- Entity being migrated
+  - `migrationdata` -- Migration data table
+  - `portaloverride` -- Optional portal entity override
+* **Returns:** number, number, number -- x, y, z spawn coordinates (y is always 0)
 
 ### `GetActionPassableTestFnAt(x, y, z)`
-* **Description:** Returns an appropriate passability test function (e.g., for platform, arena, vault) or default map passable.
+* **Description:** Returns appropriate passable test function based on platform type, arena, or vault location at position.
 * **Parameters:**
   - `x` -- X coordinate
   - `y` -- Y coordinate
   - `z` -- Z coordinate
-* **Returns:** Function, Boolean
+* **Returns:** function, boolean -- test function and special area flag
 
 ### `GetActionPassableTestFn(inst)`
-* **Description:** Convenience wrapper to call GetActionPassableTestFnAt at inst's position.
+* **Description:** Gets action passable test function for entity current position.
 * **Parameters:**
-  - `inst` -- Entity instance; uses its world position
-* **Returns:** Function, Boolean
+  - `inst` -- Entity instance
+* **Returns:** function -- passable test function
+
+### `IsFlyingPermittedFromPointToPoint(fx, fy, fz, tx, ty, tz)`
+* **Description:** Checks if flying is permitted between two points considering arena barrier and vault restrictions.
+* **Parameters:**
+  - `fx` -- From X coordinate
+  - `fy` -- From Y coordinate
+  - `fz` -- From Z coordinate
+  - `tx` -- To X coordinate
+  - `ty` -- To Y coordinate
+  - `tz` -- To Z coordinate
+* **Returns:** boolean -- true if flying is permitted
+
+### `IsFlyingPermittedFromPoint(fx, fy, fz)`
+* **Description:** Checks if flying is permitted from a single point considering vault adjacency restrictions.
+* **Parameters:**
+  - `fx` -- X coordinate
+  - `fy` -- Y coordinate
+  - `fz` -- Z coordinate
+* **Returns:** boolean -- true if flying is permitted
+
+### `IsTeleportingPermittedFromPointToPoint(fx, fy, fz, tx, ty, tz)`
+* **Description:** Checks if teleporting is permitted between two points considering arena barrier and vault restrictions.
+* **Parameters:**
+  - `fx` -- From X coordinate
+  - `fy` -- From Y coordinate
+  - `fz` -- From Z coordinate
+  - `tx` -- To X coordinate
+  - `ty` -- To Y coordinate
+  - `tz` -- To Z coordinate
+* **Returns:** boolean -- true if teleporting is permitted
+
+### `IsTeleportLinkingPermittedFromPoint(fx, fy, fz)`
+* **Description:** Checks if teleport linking is permitted from a point considering arena barrier and vault restrictions.
+* **Parameters:**
+  - `fx` -- X coordinate
+  - `fy` -- Y coordinate
+  - `fz` -- Z coordinate
+* **Returns:** boolean -- true if teleport linking is permitted
 
 ### `EntityHasCorpse(inst)`
-* **Description:** Returns true if entity has corpse state and nocorpse flag is not set.
+* **Description:** Checks if entity stategraph has corpse state and lacks nocorpse memory flag.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** Boolean
+  - `inst` -- Entity instance to check
+* **Returns:** boolean -- true if entity has corpse
 
 ### `CanEntityBeGestaltMutated(inst)`
-* **Description:** Returns true if entity can undergo gestalt mutation based on stategraph and tuning.
+* **Description:** Checks if entity can undergo gestalt lunar rift mutation based on state, memory flags, and TUNING.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** Boolean
+  - `inst` -- Entity instance to check
+* **Returns:** boolean -- true if gestalt mutation is possible
 
 ### `CanEntityBeNonGestaltMutated(inst)`
-* **Description:** Returns true if entity can undergo non-gestalt lunar mutation.
+* **Description:** Checks if entity can undergo non-gestalt pre-rift mutation based on state, memory flags, and TUNING.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** Boolean
+  - `inst` -- Entity instance to check
+* **Returns:** boolean -- true if non-gestalt mutation is possible
 
 ### `GetLunarPreRiftMutationChance(inst)`
-* **Description:** Returns base mutation chance multiplied by lunacy area modifier.
+* **Description:** Calculates pre-rift lunar mutation chance from entity override or TUNING multiplied by lunacy area modifier.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** Number
+* **Returns:** number -- mutation chance value
 
 ### `GetLunarRiftMutationChance(inst)`
-* **Description:** Returns gestalt_possession_chance or 1.
+* **Description:** Returns gestalt possession chance from entity or defaults to 1.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** Number
+* **Returns:** number -- mutation chance value
+
+
 
 ### `CanLunarPreRiftMutateFromCorpse(inst)`
-* **Description:** Runs full pre-ritual mutation checks and caches result; returns true if mutation succeeds.
+* **Description:** Determines if an entity corpse can mutate via lunar pre-rift mechanics, checking mutation eligibility, tuning settings, water status, burn status, and cached results before performing a luck roll.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** Boolean
-* **Error states:** Returns false if in water, burning, or luck roll fails; uses cached result if available
+  - `inst` -- Entity instance to check for lunar pre-rift mutation eligibility
+* **Returns:** boolean indicating mutation eligibility
 
 ### `CanLunarRiftMutateFromCorpse(inst)`
-* **Description:** Determines if an entity can mutate into a lunar rift gestalt corpse based on Tuning, rift state, burn status, and luck roll.
+* **Description:** Determines if an entity corpse can mutate via lunar rift mechanics, checking gestalt mutation eligibility, tuning settings, rift portal status, ocean position, burn status, and cached results before performing a luck roll.
 * **Parameters:**
-  - `inst` -- Entity to check for rift mutation; must pass EntityHasCorpse and be burnable/non-burning, not on ocean, and valid for gestalt mutation
-* **Returns:** boolean: true if rift mutation is possible, false otherwise
-* **Error states:** Returns early false for invalid candidates, burning entities, ocean positions, or if cached result exists; uses cached result if present.
+  - `inst` -- Entity instance to check for lunar rift mutation eligibility
+* **Returns:** boolean indicating mutation eligibility
 
 ### `CanEntityBecomeCorpse(inst)`
-* **Description:** Checks whether an entity can become a corpse, considering forced corpses, burnable status, persistence rules, and lunar mutations.
+* **Description:** Determines if an entity can become a corpse by checking corpse eligibility, force corpse flag, burn status, corpse persist manager retention, and lunar mutation possibilities.
 * **Parameters:**
-  - `inst` -- Entity to check for corpse conversion eligibility
-* **Returns:** boolean: true if entity can become a corpse, false otherwise
-* **Error states:** Returns false early if EntityHasCorpse fails or entity is burning.
+  - `inst` -- Entity instance to check for corpse conversion eligibility
+* **Returns:** boolean indicating corpse conversion eligibility
 
 ### `TryEntityToCorpse(inst, corpseprefab)`
-* **Description:** Converts an entity into a corpse prefab if eligible, preserving position, rotation, scale, animations, loot, and save data; removes burnable component if original lacked it.
+* **Description:** Converts an entity to a corpse prefab if eligible, copying position, rotation, scale, animation build/bank, death loot, and corpse data. Handles lunar mutation states and removes burnable component if needed.
 * **Parameters:**
-  - `inst` -- Source entity to convert into a corpse
-  - `corpseprefab` -- Prefab name of the corpse to spawn
-* **Returns:** Entity or nil: spawned corpse or nil if conversion not possible
-* **Error states:** Returns nil if CanEntityBecomeCorpse fails.
+  - `inst` -- Entity instance to convert to corpse
+  - `corpseprefab` -- Prefab name for the corpse to spawn
+* **Returns:** Corpse entity instance or nil if conversion failed
 
 ### `CanApplyPlayerDamageMod(target)`
-* **Description:** Checks if the target is a player or has the player_damagescale tag.
+* **Description:** Checks if a target entity should receive player damage modification by verifying it is a player or has the player_damagescale tag.
 * **Parameters:**
-  - `target` -- Target entity to evaluate for damage scaling
-* **Returns:** boolean
-* **Error states:** Returns false if target is nil.
+  - `target` -- Target entity to check for player damage modification
+* **Returns:** boolean indicating if damage mod applies
 
 ### `PlayerDamageMod(target, damage, mod)`
-* **Description:** Applies a damage multiplier to the target if eligible, otherwise returns raw damage.
+* **Description:** Applies player damage modification multiplier if target is eligible, otherwise returns base damage unchanged.
 * **Parameters:**
-  - `target` -- Entity receiving damage
-  - `damage` -- Raw damage value
-  - `mod` -- Multiplier applied if CanApplyPlayerDamageMod(target) is true
-* **Returns:** number: modified damage or original damage
-* **Error states:** Returns original damage if target cannot be modified.
+  - `target` -- Target entity receiving damage
+  - `damage` -- Base damage value
+  - `mod` -- Damage modification multiplier
+* **Returns:** Modified damage value or original damage
 
 ### `GetArmorImpactSound(inventory, weaponmod)`
-* **Description:** Selects an armor impact sound based on the highest-priority armor tag found in the inventory's armor slots.
+* **Description:** Returns armor impact sound path based on armor tags in priority order (forcefield, sanity, lunarplant, dreadstone, metal, marble, shell, wood, grass, fur, cloth).
 * **Parameters:**
-  - `inventory` -- Inventory component used to query armor tags
-  - `weaponmod` -- Weapon impact modifier (e.g., 'dull', 'sharp'), defaults to 'dull'
-* **Returns:** string or nil: path to sound file or nil if no matching armor tag found
-* **Error states:** Returns nil if no armor with a known tag is equipped.
+  - `inventory` -- Inventory component to check armor tags
+  - `weaponmod` -- Weapon modifier string (default: 'dull')
+* **Returns:** Sound path string or nil if no matching armor tag
 
 ### `GetWallImpactSound(inst, weaponmod)`
-* **Description:** Returns a wall impact sound based on wall tags: grass, stone, marble, fence_electric, or default wood.
+* **Description:** Returns wall impact sound path based on wall tags (grass, stone, marble, fence_electric) with wood_wall as fallback.
 * **Parameters:**
-  - `inst` -- Wall entity being hit
-  - `weaponmod` -- Weapon impact modifier, defaults to 'dull'
-* **Returns:** string: path to impact sound
-* **Error states:** Defaults to wood if none of the tags match.
+  - `inst` -- Wall entity instance to check tags
+  - `weaponmod` -- Weapon modifier string (default: 'dull')
+* **Returns:** Sound path string
 
 ### `GetObjectImpactSound(inst, weaponmod)`
-* **Description:** Returns an object impact sound based on clay or stone tags, defaulting to generic object.
+* **Description:** Returns object impact sound path based on object tags (clay, stone) with object as fallback.
 * **Parameters:**
-  - `inst` -- Object entity being hit
-  - `weaponmod` -- Weapon impact modifier, defaults to 'dull'
-* **Returns:** string: path to impact sound
-* **Error states:** Falls back to 'object_' if no tag matches.
+  - `inst` -- Object entity instance to check tags
+  - `weaponmod` -- Weapon modifier string (default: 'dull')
+* **Returns:** Sound path string
 
 ### `GetCreatureImpactSound(inst, weaponmod)`
-* **Description:** Returns a creature impact sound based on tags, size, wetness, and optional override_combat_impact_sound.
+* **Description:** Returns creature impact sound path based on creature type tags and size modifiers (sml, lrg, med, wet). Checks tags in priority order including hive, ghost, insect, mech, shadow, tree, veggie, shell, rocky.
 * **Parameters:**
-  - `inst` -- Creature entity being hit
-  - `weaponmod` -- Weapon impact modifier, defaults to 'dull'
-* **Returns:** string: path to impact sound
-* **Error states:** Defaults to 'flesh_' and size prefix if no tag match.
+  - `inst` -- Creature entity instance to check tags
+  - `weaponmod` -- Weapon modifier string (default: 'dull')
+* **Returns:** Sound path string
 
-### `SplitTopologyId(s)`
-* **Description:** Splits a topology ID string on ':' or '/' delimiters into a list of components.
-* **Parameters:**
-  - `s` -- Topology ID string in format 'task/index/room' or 'StaticLayoutIsland/layout'
-* **Returns:** table: array of string segments
+
 
 ### `ConvertTopologyIdToData(idname)`
-* **Description:** Parses a topology ID string into structured data: layout_id, task_id, index_id, and room_id.
+* **Description:** Converts a topology ID string into structured data with task_id, layout_id, index_id, and room_id fields. Handles special START case and StaticLayoutIsland format.
 * **Parameters:**
-  - `idname` -- Topology ID string
-* **Returns:** table: mapping of topology components to keys; returns empty table if idname is nil
-* **Error states:** Returns `{task_id = 'START'}` for 'START' input; layout-only IDs parsed differently.
+  - `idname` -- Topology ID name to convert
+* **Returns:** Table with topology data fields
 
 ### `GetPlayerDeathDescription(inst, viewer)`
-* **Description:** Generates a localized death description string for a player corpse using saved metadata and viewer context.
+* **Description:** Returns formatted death description string for player corpses, graves, and skeletons. Handles player killer name, death cause translation, and viewer-based cause variations.
 * **Parameters:**
-  - `inst` -- Corpse instance with char, playername, pkname, and cause fields
-  - `viewer` -- Entity or string identifier of the viewer (e.g., 'waxwell', 'waxwell', or 'waxwell')
-* **Returns:** string or nil: formatted death description string or nil if invalid
-* **Error states:** Returns nil if inst.char is nil or viewer is a playerghost; normalizes unknown/moose causes and temporary translations.
+  - `inst` -- Dead player entity instance
+  - `viewer` -- Viewer entity or character name
+* **Returns:** Formatted description string or nil
 
 ### `GetTopologyDataAtPoint(x, y, z)`
-* **Description:** Retrieves topology ID at world coordinates, then parses it into structured data.
+* **Description:** Retrieves topology data at world coordinates, supporting Vector3, (x, z), or (x, y, z) parameter formats.
 * **Parameters:**
   - `x` -- X coordinate or Vector3
-  - `y` -- Y coordinate (defaults to 0 if z missing)
-  - `z` -- Z coordinate (optional)
-* **Returns:** table: result of ConvertTopologyIdToData for the found ID
-* **Error states:** Returns empty table if GetTopologyIDAtPoint returns nil.
+  - `y` -- Y coordinate (0 if x is Vector3)
+  - `z` -- Z coordinate
+* **Returns:** Table with topology data from ConvertTopologyIdToData
 
 ### `GetTopologyDataAtInst(inst)`
-* **Description:** Calls GetTopologyDataAtPoint using the entity's world position.
+* **Description:** Retrieves topology data at an entity's world position using GetTopologyDataAtPoint.
 * **Parameters:**
-  - `inst` -- Entity with Transform component to query position from
-* **Returns:** table: structured topology data
+  - `inst` -- Entity instance to get topology data for
+* **Returns:** Table with topology data
 
 ### `MakeComponentAnInventoryItemSource(cmp, owner)`
-* **Description:** Attaches item source tracking callbacks to the component for onputininventory, ondropped, and onremove events.
+* **Description:** Sets up a component to track inventory item ownership and container storage. Registers event listeners for onputininventory, ondropped, and onremove events. Manages itemsource_owner and itemsource_container references.
 * **Parameters:**
-  - `cmp` -- Component table to extend with item source tracking methods
-  - `owner` -- Owner entity for initial state; defaults to cmp.inst
-* **Returns:** nil
+  - `cmp` -- Component to make an inventory item source
+  - `owner` -- Owner entity (default: cmp.inst)
+* **Returns:** None
 
 ### `RemoveComponentInventoryItemSource(cmp, owner)`
-* **Description:** Removes item source event callbacks and resets tracked fields on the component.
+* **Description:** Removes inventory item source tracking from a component by removing event listeners and clearing itemsource references.
 * **Parameters:**
-  - `cmp` -- Component with previously attached item source callbacks
-  - `owner` -- Owner entity used during MakeComponentAnInventoryItemSource
-* **Returns:** nil
+  - `cmp` -- Component to remove inventory item source from
+  - `owner` -- Owner entity (default: cmp.inst)
+* **Returns:** None
+
+
 
 ### `GetHermitCrabOccupiedGrid(x, z)`
-* **Description:** Calculates up to MAX_TILES ocean tiles around a point, excluding shore-surrounded tiles and limited to MAX_SHORELINE_TILES shoreline iterations.
-* **Parameters:**
-  - `x` -- Center X tile coordinate of pearl placement
-  - `z` -- Center Z tile coordinate of pearl placement
-* **Returns:** DataGrid: grid of tiles considered occupied for hermit crab decoration scoring
-* **Error states:** May return fewer than MAX_TILES if less valid tiles exist.
-
-### `IsInValidHermitCrabDecorArea(inst)`
-* **Description:** Verifies the entity is not on HermitcrabIsland, MonkeyIsland, or Moon Island layouts.
-* **Parameters:**
-  - `inst` -- Entity to test; must have a position within the world map
-* **Returns:** boolean: true if decor area is valid, false otherwise
-* **Error states:** Returns false for known invalid layouts; relies on GetTopologyDataAtInst.
-
-### `IsEntityGestaltProtected(inst)`
-* **Description:** Checks for gestaltprotection equipment in head/body slots or active 'hermitcrabtea_moon_tree_blossom_buff' debuff.
-* **Parameters:**
-  - `inst` -- Entity to check for gestalt protection
-* **Returns:** boolean
-* **Error states:** Returns false if inventory component is missing or no protection found.
-
-### `IsPointCoveredByBlocker(x, y, z, extra_radius)`
-* **Description:** Finds any entity with the blocker tag within the specified radius and checks if it covers the point.
+* **Description:** Calculates the occupation space grid for hermit crab decoration, considering shoreline tiles and land tiles up to MAX_TILES limit. Uses flood-fill algorithm to find valid decoration areas.
 * **Parameters:**
   - `x` -- X world coordinate
-  - `y` -- Y world coordinate (unused; always 0)
   - `z` -- Z world coordinate
-  - `extra_radius` -- Additional radius margin; defaults to 0
-* **Returns:** boolean or nil: true if covered, otherwise nil
+* **Returns:** DataGrid with occupied tile data
+
+### `IsInValidHermitCrabDecorArea(inst)`
+* **Description:** Checks if an entity is in a valid hermit crab decoration area by excluding HermitcrabIsland, MonkeyIsland, and MoonIsland topology regions.
+* **Parameters:**
+  - `inst` -- Entity instance to check decoration area validity
+* **Returns:** boolean indicating valid decoration area
+
+### `IsEntityGestaltProtected(inst)`
+* **Description:** Checks if an entity has gestalt protection via equipped inventory item with gestaltprotection tag or hermitcrabtea_moon_tree_blossom_buff debuff.
+* **Parameters:**
+  - `inst` -- Entity instance to check gestalt protection
+* **Returns:** boolean indicating gestalt protection status
+
+### `IsPointCoveredByBlocker(x, y, z, extra_radius)`
+* **Description:** Checks if a point is covered by any entity with the blocker tag within the search radius. Returns true if covered, nil if not covered.
+* **Parameters:**
+  - `x` -- X world coordinate
+  - `y` -- Y world coordinate
+  - `z` -- Z world coordinate
+  - `extra_radius` -- Additional radius for blocker search (default: 0)
+* **Returns:** true if point is covered by blocker, nil if not covered
 
 ### `EntityHasSetBonus(inst, setname)`
-* **Description:** Verifies that both head and body inventory slots contain items with matching setbonus.setname.
+* **Description:** Checks if an entity has matching set bonus on both head and body equipment slots.
 * **Parameters:**
-  - `inst` -- Entity to check for set bonus items
-  - `setname` -- Expected set name shared by head and body items
-* **Returns:** boolean
-* **Error states:** Returns false if inventory is missing, equipment slots are nil, or setbonus components are absent.
+  - `inst` -- Entity instance to check set bonus
+  - `setname` -- Set bonus name to verify
+* **Returns:** boolean indicating set bonus match
 
 ### `CreatingJoustingData(inst)`
-* **Description:** Initializes jousting data structure with direction and joustsource source item if available.
+* **Description:** Creates jousting data table with direction angle and source reference from buffered action target and lance object.
 * **Parameters:**
-  - `inst` -- Entity performing jousting action
-* **Returns:** table: joustdata with dir and optional source
-* **Error states:** Defaults direction to inst's rotation if no target is valid.
+  - `inst` -- Entity instance creating jousting data
+* **Returns:** Jousting data table with dir and source fields
 
-### `CommonChanceLuckAdditive(mult)`
-* **Description:** Returns a function that adds luck*mult to chance only when luck > 0.
-* **Parameters:**
-  - `mult` -- Multiplier applied to positive luck for additive bonus
-* **Returns:** function(inst, chance, luck): modified chance
-* **Error states:** Returns original chance if `luck <= 0.`
 
-### `CommonChanceUnluckMultAndLuckHyperbolic(reciprocal, mult)`
-* **Description:** Returns a function that multiplies chance by a hyperbolic expression for positive luck, or by (1+|luck|*mult) for negative luck.
-* **Parameters:**
-  - `reciprocal` -- Reciprocal constant for hyperbolic luck curve
-  - `mult` -- Multiplier applied to negative luck for multiplicative penalty
-* **Returns:** function(inst, chance, luck): modified chance
-* **Error states:** Returns original chance if luck == 0.
-
-### `CommonChanceLuckHyperbolic(mult_max, reciprocal, subtract)`
-* **Description:** Returns a function that applies a hyperbolic curve for positive luck.
-* **Parameters:**
-  - `mult_max` -- Upper bound multiplier in hyperbolic formula
-  - `reciprocal` -- Reciprocal constant
-  - `subtract` -- Offset subtracted from luck before computation
-* **Returns:** function(inst, chance, luck): modified chance
-* **Error states:** Returns original chance if `luck <= 0.`
-
-### `CommonChanceUnluckHyperbolicAndLuckMult(reciprocal, mult)`
-* **Description:** Returns a function that uses a hyperbolic penalty for negative luck and linear growth for positive luck.
-* **Parameters:**
-  - `reciprocal` -- Reciprocal constant for negative luck multiplier
-  - `mult` -- Multiplier applied to positive luck
-* **Returns:** function(inst, chance, luck): modified chance
-* **Error states:** Returns original chance if luck == 0.
-
-### `CommonChanceUnluckHyperbolicAndLuckAdditive(reciprocal, mult)`
-* **Description:** Returns a function that uses a hyperbolic penalty for negative luck and additive bonus for positive luck.
-* **Parameters:**
-  - `reciprocal` -- Reciprocal constant for negative luck curve
-  - `mult` -- Additive multiplier for positive luck
-* **Returns:** function(inst, chance, luck): modified chance
-* **Error states:** Returns original chance if luck == 0.
-
-### `CommonChanceUnluckHyperbolicAndLuckHyperbolic(mult_max, asymptote, subtract, reciprocal)`
-* **Description:** Returns a function using hyperbolic penalties for negative and positive luck with shared offset.
-* **Parameters:**
-  - `mult_max` -- Maximum multiplier for negative luck
-  - `asymptote` -- Asymptote constant for negative luck hyperbolic
-  - `subtract` -- Offset for both luck polarities
-  - `reciprocal` -- Reciprocal constant for positive luck hyperbolic
-* **Returns:** function(inst, chance, luck): modified chance
-* **Error states:** Returns original chance if luck == 0.
-
-### `CommonChanceLuckHyperbolicLower(reciprocal)`
-* **Description:** Returns a function that applies a lower-bounded hyperbolic curve only for positive luck.
-* **Parameters:**
-  - `reciprocal` -- Reciprocal constant for hyperbolic formula
-* **Returns:** function(inst, chance, luck): modified chance
-* **Error states:** Returns original chance if `luck <= 0.`
 
 ### `GetEntityLuck(inst)`
-* **Description:** Retrieves the effective luck value of an entity by calling GetLuck() on its luckuser component, or 0 if no luckuser exists.
+* **Description:** Returns the luck value from an entity's luckuser component, or 0 if the component does not exist.
 * **Parameters:**
-  - `inst` -- Entity: the instance to query for luck component
-* **Returns:** number: the entity's luck value (may be negative or positive)
+  - `inst` -- Entity instance to check for luckuser component
+* **Returns:** number -- luck value or 0
 
 ### `GetLuckChance(luck, chance, formula)`
-* **Description:** Applies a given luck formula to a base chance using a provided luck value, returning the modified chance or the original chance if formula returns nil.
+* **Description:** Calculates modified chance based on luck value and specified formula.
 * **Parameters:**
-  - `luck` -- number: raw luck value (e.g., sum across entities)
-  - `chance` -- number: base chance to modify
-  - `formula` -- function: a formula function accepting (inst?, chance, luck) and returning a modified chance
-* **Returns:** number: effective chance after applying formula, or original chance
+  - `luck` -- Luck value to apply to the chance calculation
+  - `chance` -- Base chance value before luck modification
+  - `formula` -- Luck formula function to apply (e.g., CommonChanceUnluckMultAndLuckHyperbolic)
+* **Returns:** number -- modified chance value or original chance if formula returns nil
 
 ### `GetEntityLuckChance(inst, chance, formula)`
-* **Description:** Computes chance modification for a single entity by retrieving its luck via GetEntityLuck and passing it to the formula.
+* **Description:** Gets an entity's luck value and applies it to calculate modified chance using the specified formula.
 * **Parameters:**
-  - `inst` -- Entity: entity whose luck is used to modify chance
-  - `chance` -- number: base chance to modify
-  - `formula` -- function: a formula function accepting (inst?, chance, luck) and returning a modified chance
-* **Returns:** number: effective chance after applying formula, or original chance
+  - `inst` -- Entity instance to get luck from
+  - `chance` -- Base chance value before luck modification
+  - `formula` -- Luck formula function to apply
+* **Returns:** number -- modified chance value or original chance
 
 ### `GetEntitiesLuckChance(instances, chance, formula)`
-* **Description:** Sums luck values across multiple entities and applies the formula to compute a combined modified chance.
+* **Description:** Sums luck values from multiple entities and applies the total to calculate modified chance.
 * **Parameters:**
-  - `instances` -- table: list or map of entities whose luck values are summed
-  - `chance` -- number: base chance to modify
-  - `formula` -- function: a formula function accepting (inst?, chance, luck) and returning a modified chance
-* **Returns:** number: effective chance after applying formula, or original chance
+  - `instances` -- Table of entity instances to sum luck from
+  - `chance` -- Base chance value before luck modification
+  - `formula` -- Luck formula function to apply
+* **Returns:** number -- modified chance value or original chance
 
-### `TryLuckRoll(inst, chance, formula)`
-* **Description:** Performs a probabilistic luck roll: compares a random number against base or luck-modified chance. When inst is provided, may trigger lucky/unlucky visual effects via DoLuckyEffect (commented out currently).
+### `GetEntityLuckWeightedTable(inst, weighted_table)`
+* **Description:** Returns a new weighted table adjusted by entity luck, redistributing value from heavily weighted items to lower weighted ones.
 * **Parameters:**
-  - `inst` -- Entity? (optional): entity whose luck modifies the roll; can be nil
-  - `chance` -- number: base probability of success (0–1)
-  - `formula` -- function: luck formula function used to adjust chance
-* **Returns:** boolean: true if roll succeeds, false otherwise
-* **Error states:** Effect triggering (DoLuckyEffect) is commented out; success condition logic partially obfuscated.
+  - `inst` -- Entity instance to get luck from
+  - `weighted_table` -- Weighted table to modify based on luck
+* **Returns:** None (function is incomplete - source contains only a comment describing intended behavior, no return statement)
 
 ### `DoLuckyEffect(inst, is_lucky)`
-* **Description:** Queues a visual luck effect on the player's client by forcing the playluckeffect netvar dirty and setting it to is_lucky. Only affects entities with a player_classified component.
+* **Description:** Triggers a network variable update on player_classified to reflect luck effect state for visual feedback.
 * **Parameters:**
-  - `inst` -- Entity: player entity whose client-side netvar is updated
-  - `is_lucky` -- boolean: whether the effect is lucky (true) or unlucky (false)
+  - `inst` -- Entity instance (typically a player)
+  - `is_lucky` -- Boolean indicating if the entity is currently lucky
+* **Returns:** None
+
+### `TryLuckRoll(inst, chance, formula)`
+* **Description:** Performs a luck-influenced random roll. If inst is provided, applies entity luck to modify chance before rolling.
+* **Parameters:**
+  - `inst` -- Entity instance to get luck from (optional)
+  - `chance` -- Base chance value for the roll
+  - `formula` -- Luck formula function to apply
+* **Returns:** boolean -- true if roll succeeds, false otherwise
+
+
+
+### `ShouldItemMimicBeRevealedFor(item, user)`
+* **Description:** Determines if an item mimic should be revealed based on whether the item has itemmimic component and the user lacks socket_shadow_mimicry component.
+* **Parameters:**
+  - `item` -- Item entity to check for itemmimic component
+  - `user` -- User entity to check for socket_shadow_mimicry component
+* **Returns:** boolean -- true if mimic should be revealed
+
+## Internal Helper Functions
+
+The following functions are defined as local within the module and are not accessible from external code. They are documented here for reference.
+
+### `Bridge_DeployCheck_ShouldStopAtTile(tile)`
+* **Description:** Internal helper - returns true if tile is temporary tile and not farming soil.
+* **Parameters:**
+  - `tile` -- Tile type to check
+* **Returns:** boolean
+* **Error states:** None
+
+### `Bridge_DeployCheck_CanStartAtTile(tile)`
+* **Description:** Internal helper - returns true if tile is land tile and should not stop bridge deployment.
+* **Parameters:**
+  - `tile` -- Tile type to check
+* **Returns:** boolean
+* **Error states:** None
+
+### `Bridge_DeployCheck_HandleOverhangs(sx, sz, TILE_SCALE, _map)`
+* **Description:** Internal helper - adjusts position if on tile overhang by reflecting over tile border.
+* **Parameters:**
+  - `sx` -- Starting X position
+  - `sz` -- Starting Z position
+  - `TILE_SCALE` -- Tile scale constant
+  - `_map` -- World map component
+* **Returns:** rsx, rsz, dirx, dirz - adjusted coordinates and direction
+* **Error states:** None
+
+### `Bridge_DeployCheck_HandleGround(sx, sz, TILE_SCALE, _map, isvalidtileforbridgeatpointfn)`
+* **Description:** Internal helper - handles ground tile bridge deployment with diamond and rectangle direction checks.
+* **Parameters:**
+  - `sx` -- Starting X position
+  - `sz` -- Starting Z position
+  - `TILE_SCALE` -- Tile scale constant
+  - `_map` -- World map component
+  - `isvalidtileforbridgeatpointfn` -- Function to validate tile for bridge placement
+* **Returns:** dirx, dirz - direction vectors or nil if too far inland
+* **Error states:** None
+
+### `IsValidTileForBridgeAtPoint_Fallback(_map, x, y, z)`
+* **Description:** Internal fallback function - checks if tile is valid for vine bridge at point.
+* **Parameters:**
+  - `_map` -- World map component
+  - `x` -- X position to check
+  - `y` -- Y position to check
+  - `z` -- Z position to check
+* **Returns:** boolean
+* **Error states:** None
+
+### `CanDeployBridgeAtPoint_Fallback(_map, x, y, z)`
+* **Description:** Internal fallback function - checks if vine bridge can be deployed at point.
+* **Parameters:**
+  - `_map` -- World map component
+  - `x` -- X position to check
+  - `y` -- Y position to check
+  - `z` -- Z position to check
+* **Returns:** boolean
+* **Error states:** None
+
+### `Bridge_Deploy_Raytrace(sx, sz, dirx, dirz, maxlength, _map, candeploybridgeatpointfn, inst)`
+* **Description:** Internal helper - raytraces in direction to find land, collecting valid bridge spots.
+* **Parameters:**
+  - `sx` -- Starting X position
+  - `sz` -- Starting Z position
+  - `dirx` -- Direction X vector
+  - `dirz` -- Direction Z vector
+  - `maxlength` -- Maximum raytrace length
+  - `_map` -- World map component
+  - `candeploybridgeatpointfn` -- Function to check if bridge can deploy at point
+  - `inst` -- Entity instance deploying bridge
+* **Returns:** boolean success, spots table with direction or false
+* **Error states:** None
+
+### `Bridge_Deploy_GetBestRayTrace(sx, sz, maxlength, _map, candeploybridgeatpointfn, inst)`
+* **Description:** Internal helper - calculates best ray trace direction from point by testing all four cardinal directions.
+* **Parameters:**
+  - `sx` -- Starting X position
+  - `sz` -- Starting Z position
+  - `maxlength` -- Maximum raytrace length
+  - `_map` -- World map component
+  - `candeploybridgeatpointfn` -- Function to check if bridge can deploy at point
+  - `inst` -- Entity instance deploying bridge
+* **Returns:** boolean success, spots table or false
+* **Error states:** None
+
+### `OnFuelPresentation3(inst)`
+* **Description:** Returns entity to scene and triggers inventory item drop with physics if inventoryitem component exists.
+* **Parameters:**
+  - `inst` -- Entity instance to return to scene and drop inventory item
 * **Returns:** nil
+* **Error states:** None
+
+### `OnFuelPresentation2(inst, x, z, upgraded)`
+* **Description:** Spawns shadow puff FX at position and schedules OnFuelPresentation3 after 3 frames.
+* **Parameters:**
+  - `inst` -- Entity instance
+  - `x` -- X coordinate for FX spawn
+  - `z` -- Z coordinate for FX spawn
+  - `upgraded` -- Boolean indicating if fuel is upgraded
+* **Returns:** nil
+* **Error states:** None
+
+### `OnFuelPresentation1(inst, x, z, upgraded)`
+* **Description:** Spawns charlie snap FX at position and schedules OnFuelPresentation2 after 25 frames.
+* **Parameters:**
+  - `inst` -- Entity instance
+  - `x` -- X coordinate for FX spawn
+  - `z` -- Z coordinate for FX spawn
+  - `upgraded` -- Boolean indicating if fuel is upgraded
+* **Returns:** nil
+* **Error states:** None
+
+### `OnResidueActivated_Fuel_Internal(inst, doer, odds)`
+* **Description:** Internal function that spawns horrorfuel or nightmarefuel based on skill tree upgrade check and random position offset.
+* **Parameters:**
+  - `inst` -- Entity instance activating residue
+  - `doer` -- Player entity performing the activation
+  - `odds` -- Luck odds for upgrade chance
+* **Returns:** nil
+* **Error states:** None
+
+### `OnResidueActivated_Fuel(inst, doer)`
+* **Description:** Wrapper calling OnResidueActivated_Fuel_Internal with standard upgrade chance from TUNING.
+* **Parameters:**
+  - `inst` -- Entity instance
+  - `doer` -- Player entity performing activation
+* **Returns:** nil
+* **Error states:** None
+
+### `OnResidueActivated_Fuel_IncreasedHorror(inst, doer)`
+* **Description:** Wrapper calling OnResidueActivated_Fuel_Internal with increased horror upgrade chance from TUNING.
+* **Parameters:**
+  - `inst` -- Entity instance
+  - `doer` -- Player entity performing activation
+* **Returns:** nil
+* **Error states:** None
+
+### `IsValidTileForVineBridgeAtPoint_Wrapper(_map, x, y, z)`
+* **Description:** Wrapper function calling map:IsValidTileForVineBridgeAtPoint for vine bridge deployment validation.
+* **Parameters:**
+  - `_map` -- Map component or object
+  - `x` -- X coordinate
+  - `y` -- Y coordinate
+  - `z` -- Z coordinate
+* **Returns:** boolean -- result from map validation
+* **Error states:** None
+
+### `CanDeployVineBridgeAtPoint_Wrapper(_map, x, y, z)`
+* **Description:** Wrapper function calling map:CanDeployVineBridgeAtPoint for vine bridge deployment check.
+* **Parameters:**
+  - `_map` -- Map component or object
+  - `x` -- X coordinate
+  - `y` -- Y coordinate
+  - `z` -- Z coordinate
+* **Returns:** boolean -- result from map validation
+* **Error states:** None
+
+### `RosePoint_VineBridge_Check(inst, pt)`
+* **Description:** Checks if vine bridge can be deployed at position using Bridge_DeployCheck_Helper with rose point options.
+* **Parameters:**
+  - `inst` -- Entity instance
+  - `pt` -- Position vector to check
+* **Returns:** boolean -- true if deployment is valid
+* **Error states:** None
+
+### `RosePoint_VineBridge_Do(inst, pt, spots)`
+* **Description:** Queues vine bridge creation and destruction at multiple spots with timed FX and shake effects.
+* **Parameters:**
+  - `inst` -- Entity instance
+  - `pt` -- Position vector
+  - `spots` -- Table of spot positions with direction
+* **Returns:** boolean -- always returns true
+* **Error states:** None
+
+### `HasMeatInInventoryFor_Checker(item)`
+* **Description:** Checker function verifying item has edible component with MEAT foodtype and lacks smallcreature tag.
+* **Parameters:**
+  - `item` -- Inventory item entity to check
+* **Returns:** boolean -- true if item is valid meat
+* **Error states:** None
+
+### `NoHoles(pt)`
+* **Description:** Checks if position is not near a map hole for migration spawn validation.
+* **Parameters:**
+  - `pt` -- Position vector to check
+* **Returns:** boolean -- true if position is safe from holes
+* **Error states:** None
+
+### `GetCauseOfDeath(inst)`
+* **Description:** Local helper function that retrieves the cause of death entity from the health component if valid.
+* **Parameters:**
+  - `inst` -- Entity instance to check for cause of death
+* **Returns:** Entity instance or nil if no valid cause of death
+* **Error states:** None
+
+### `SplitTopologyId(s)`
+* **Description:** Local helper function that splits a topology ID string by '/' and ':' delimiters into an array of components.
+* **Parameters:**
+  - `s` -- Topology ID string to split
+* **Returns:** Array of string components
+* **Error states:** None
+
+### `GetAngleTowardsLand(x, y)`
+* **Description:** Local helper function that calculates the angle towards land from a given tile position by checking surrounding tiles.
+* **Parameters:**
+  - `x` -- X tile coordinate
+  - `y` -- Y tile coordinate
+* **Returns:** Angle in radians
+* **Error states:** None
+
+### `CommonChanceLuckAdditive(mult)`
+* **Description:** Local factory function that returns a luck calculation function using additive luck formula for positive luck values.
+* **Parameters:**
+  - `mult` -- Luck multiplier value
+* **Returns:** Function that calculates chance with luck
+* **Error states:** None
+
+### `CommonChanceUnluckMultAndLuckHyperbolic(reciprocal, mult)`
+* **Description:** Local factory function that returns a luck calculation function using multiplicative unluck and hyperbolic luck formulas.
+* **Parameters:**
+  - `reciprocal` -- Reciprocal value for hyperbolic calculation
+  - `mult` -- Luck multiplier value (default: 1)
+* **Returns:** Function that calculates chance with luck
+* **Error states:** None
+
+### `CommonChanceLuckHyperbolic(mult_max, reciprocal, subtract)`
+* **Description:** Local factory function that returns a luck calculation function using hyperbolic luck formula for positive luck values.
+* **Parameters:**
+  - `mult_max` -- Maximum multiplier value
+  - `reciprocal` -- Reciprocal value for hyperbolic calculation
+  - `subtract` -- Subtract value for luck offset (default: 0)
+* **Returns:** Function that calculates chance with luck
+* **Error states:** None
+
+### `CommonChanceUnluckHyperbolicAndLuckMult(reciprocal, mult)`
+* **Description:** Local factory function that returns a luck calculation function using hyperbolic unluck and multiplicative luck formulas.
+* **Parameters:**
+  - `reciprocal` -- Reciprocal value for hyperbolic calculation
+  - `mult` -- Luck multiplier value (default: 1)
+* **Returns:** Function that calculates chance with luck
+* **Error states:** None
+
+### `CommonChanceUnluckHyperbolicAndLuckAdditive(reciprocal, mult)`
+* **Description:** Local factory function that returns a luck calculation function using hyperbolic unluck and additive luck formulas.
+* **Parameters:**
+  - `reciprocal` -- Reciprocal value for hyperbolic calculation
+  - `mult` -- Luck multiplier value (default: 1)
+* **Returns:** Function that calculates chance with luck
+* **Error states:** None
+
+### `CommonChanceUnluckHyperbolicAndLuckHyperbolic(mult_max, asymptote, subtract, reciprocal)`
+* **Description:** Local factory function that returns a luck calculation function using hyperbolic formulas for both unluck and luck.
+* **Parameters:**
+  - `mult_max` -- Maximum multiplier value
+  - `asymptote` -- Asymptote value for hyperbolic calculation
+  - `subtract` -- Subtract value for luck offset (default: 0)
+  - `reciprocal` -- Reciprocal value for hyperbolic calculation
+* **Returns:** Function that calculates chance with luck
+* **Error states:** None
+
+### `CommonChanceLuckHyperbolicLower(reciprocal)`
+* **Description:** Local factory function that returns a luck calculation function using lower hyperbolic luck formula for positive luck values.
+* **Parameters:**
+  - `reciprocal` -- Reciprocal value for hyperbolic calculation
+* **Returns:** Function that calculates chance with luck
+* **Error states:** None
+
+### `UseableTargetedItem_ValidTarget_SocketHolder(inst, target, doer, ...)`
+* **Description:** Local validation function that checks if a socketable item can be socketed into a target socketholder component.
+* **Parameters:**
+  - `inst` -- The socketable item being used
+  - `target` -- The target entity (potential socket holder)
+  - `doer` -- The entity performing the action
+  - `...` -- Additional variadic arguments
+* **Returns:** boolean -- result of CanTryToSocket or chained validation
+* **Error states:** None
+
+### `MakeItemSocketable_Client(inst, socketname)`
+* **Description:** Client-side setup that adds socketable component and overrides UseableTargetedItem_ValidTarget to support socket holder validation.
+* **Parameters:**
+  - `inst` -- Entity instance to make socketable
+  - `socketname` -- Name identifier for the socket type
+* **Returns:** None
+* **Error states:** None
+
+### `OnPotentialSocketHolderUsed(inst, target, doer, ...)`
+* **Description:** Local callback that attempts to socket an item into a socketholder, falling back to original useabletargeteditem onusefn if socketing is not applicable.
+* **Parameters:**
+  - `inst` -- The socketable item being used
+  - `target` -- The target socketholder entity
+  - `doer` -- The entity performing the action
+  - `...` -- Additional variadic arguments
+* **Returns:** boolean, string -- success status and optional fail reason
+* **Error states:** None
+
+### `MakeItemSocketable_Server(inst)`
+* **Description:** Server-side setup that configures useabletargeteditem component to use socket holder usage callback.
+* **Parameters:**
+  - `inst` -- Entity instance to make socketable on server
+* **Returns:** None
+* **Error states:** None
+
+### `MakeInstSocketHolder_Client(inst, socketnames)`
+* **Description:** Client-side setup that adds socketholder component and configures socket positions based on input type (table, string, or number).
+* **Parameters:**
+  - `inst` -- Entity instance to add socketholder to
+  - `socketnames` -- Table of socket names, single string, or number for max sockets
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
 
 **Listens to:**
-- `onputininventory` -- Called when the component's owner entity is placed into an inventory (used for tracking item source owner)
-- `ondropped` -- Called when the component's owner entity is dropped from inventory (used for cleanup)
-- `onremove` -- Called when the component's owner entity is removed (used for cleanup)
+- `onputininventory` — Listened in MakeComponentAnInventoryItemSource to track container ownership changes
+- `ondropped` — Listened in MakeComponentAnInventoryItemSource to track item drop events
+- `onremove` — Listened in MakeComponentAnInventoryItemSource to track entity removal
 
 **Pushes:**
-- `on_no_longer_landed` -- Pushed by inventoryitem:SetLanded when entity leaves landed state
-- `on_landed` -- Pushed by inventoryitem:SetLanded when entity enters landed state
-- `flyaway` -- Pushed to birds in PushAwayItemsOnBoatPlace to trigger flight
-- `onsink` -- Pushed to entities during ocean tile changes
-- `abandon_ship` -- Pushed to entities during ocean temp tile removal
-- `onpresink` -- Pushed to players before ocean tile sink
-- `onfallinvoid` -- Pushed to entities during void temp tile removal
-- `onprefallinvoid` -- Pushed before void tile removal
-- `healthdelta` -- Pushed by Health:DoDelta to notify listeners of health changes
-- `ondropped` -- Pushed by InventoryItem:OnDropped after dropping item
-- `migration_activate_other` -- Pushed by WorldMigrator:ActivatedByOther when activated by another entity
-- `electrocute` -- Pushed immediately by LightningStrikeAttack to trigger electrocute stategraph
-- `refreshaxisalignedplacementintervals` -- Pushed by local player when axis-aligned placement intervals are updated
+- `onsink` — Pushed when tile changes to ocean, includes boat and shore_pt data
+- `abandon_ship` — Pushed as warning before ocean tile change
+- `onpresink` — Pushed to players before ocean tile change
+- `onfallinvoid` — Pushed when tile changes to void, includes teleport_pt data
+- `onprefallinvoid` — Pushed as warning before void tile change
+- `flyaway` — Pushed to bird entities when boat is placed
+- `refreshaxisalignedplacementintervals` — Pushed to ThePlayer when axis alignment values are updated
+- `electrocute` — Pushed immediately to entity during LightningStrikeAttack
+- `migration_activate_other` — Pushed via worldmigrator:ActivatedByOther during portal migration

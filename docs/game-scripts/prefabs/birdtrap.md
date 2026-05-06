@@ -1,81 +1,132 @@
 ---
 id: birdtrap
 title: Birdtrap
-description: A portable trap prefab that captures birds when baited and sprung, supporting multiple bird species with symbol swaps and finite uses.
-tags: [trap, bird, inventory, loot, entity]
+description: Spawnable trap entity that catches birds using bait, with finite uses and visual feedback for trapped bird type.
+tags: [prefab, trap, inventory, creature]
 sidebar_position: 10
-
-last_updated: 2026-03-04
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 3b5aa122
+source_hash: 0fe4b446
 system_scope: entity
 ---
 
 # Birdtrap
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-`birdtrap` is a prefab that defines a portable trap designed to catch birds. It leverages the `trap` and `finiteuses` components to handle springing behavior and use-count tracking. When a bird steps on the trap, it is captured, removed from the world, and the trap’s animation updates to reflect the trapped bird type. The trap supports multiple bird species by swapping animation symbols based on the caught bird’s `trappedbuild` property. It also includes persistence support (`OnSave`/`OnLoad`) and state graph integration via `SGtrap`.
+`birdtrap.lua` registers a spawnable trap entity designed to catch birds. The prefab's `fn()` constructor builds the physics body, attaches client-side components (AnimState, SoundEmitter, MiniMap), and adds the "trap" tag. On the server (master-only block within `fn()`, guarded by `if not TheWorld.ismastersim then return end`), it attaches gameplay components (`trap`, `finiteuses`, `inspectable`, `inventoryitem`) and configures bird-specific trapping behavior. The trap visually displays the caught bird type via symbol overrides and depletes uses on each successful harvest.
 
 ## Usage example
 ```lua
+-- Spawn a birdtrap at world origin:
 local inst = SpawnPrefab("birdtrap")
-inst.Transform:SetPosition(x, y, z)
-inst.components.finiteuses:SetUses(3)
-inst.components.trap.targettag = "bird"
+inst.Transform:SetPosition(0, 0, 0)
+
+-- Place bait (seeds) near the trap:
+local bait = SpawnPrefab("seeds")
+bait.Transform:SetPosition(0, 1, 0)
+-- The trap component will automatically claim nearby bait when a creature approaches
+
+-- Check if trap is baited and ready:
+if inst.components.trap:IsBaited() then
+    print("Trap is set and waiting for birds")
+end
 ```
 
 ## Dependencies & tags
-**Components used:** `trap`, `finiteuses`, `inspectable`, `inventoryitem`, `transform`, `animstate`, `soundemitter`, `minimapentity`, `network`  
-**Tags added:** `trap`  
-**Tags checked (via target):** `bird`, `baitstealer`, `mole`, `molebait`
+**External dependencies:**
+- `MakeInventoryPhysics` -- applies physics and floatable behavior for inventory items
+- `MakeInventoryFloatable` -- configures the entity to float on water as an inventory item
+- `SGtrap` -- stategraph attached via `inst:SetStateGraph("SGtrap")` for animation control
+- `scripts/prefabs/wortox_soul_common.lua` -- SCRIPT asset for soul handling on trapped creatures
+- `birdspawner` -- accessed via TheWorld.components.birdspawner in CatchOffScreen for off-screen bird spawning
+
+**Components used:**
+- `trap` -- core trapping logic; configured with `targettag = "bird"`, harvest/spring callbacks
+- `finiteuses` -- tracks remaining uses; set to `TUNING.TRAP_USES`, removes entity when depleted
+- `inspectable` -- allows players to inspect the trap
+- `inventoryitem` -- enables the trap to be picked up and carried
+
+**Tags:**
+- `trap` -- added in `fn()`; used for entity identification and targeting
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `trappedbuild` | string? | `nil` | Animation build name used for the `trapped` symbol swap; set when a bird is caught and persisted via save/load. |
-| `_sleeptask` | Task? | `nil` | Delayed task for off-screen catching logic; managed during entity sleep/wake. |
-| `scrapbook_animoffsetbgx` | number | `5` | Offset used in Scrapbook UI rendering. |
-| `scrapbook_animoffsetbgy` | number | `30` | Offset used in Scrapbook UI rendering. |
-| `sounds` | table | `close`/`rustle` sound paths | Sound names mapped for trap close/rustle events. |
+| `assets` | table | --- | Array of `Asset(...)` entries for animations (birdtrap, bird builds), sounds, and scripts. |
+| `prefabs` | table | `{...}` | Array of bird prefab names that can be trapped and may need symbol swaps (crow, robin, canary, etc.). |
+| `sounds` | table | `{close, rustle}` | Local table mapping sound names to FMOD paths; assigned to `inst.sounds` for stategraph access. |
+| `trappedbuild` | string | `nil` | Stores the build name of the trapped bird for symbol override persistence across save/load. |
+| `_sleeptask` | task | `nil` | Scheduled task reference for off-screen bird catching; managed in `OnEntitySleep`/`OnEntityWake`. |
+| `scrapbook_animoffsetbgx` | number | `5` | X offset for scrapbook animation background (master only). |
+| `scrapbook_animoffsetbgy` | number | `30` | Y offset for scrapbook animation background (master only). |
 
 ## Main functions
-### `SetTrappedSymbols(inst, build)`
-*   **Description:** Updates the trap’s `trapped` animation symbol to reflect the specified build (e.g., `robin`, `crow`), allowing visual identification of the captured bird type.
-*   **Parameters:** `build` (string) — the build name to use for the symbol override.
-*   **Returns:** Nothing.
-*   **Error states:** Only applies to the client; safe to call on both server and client.
+### `CatchOffScreen(inst)` (local)
+* **Description:** Handles off-screen bird catching when the trap is sleeping. Spawns a bird via `birdspawner`, teleports it to trap position, assigns it as the trap target, and triggers `DoSpring()` to catch it. Only executes if trap is baited and passes a 50% random check.
+* **Parameters:** `inst` -- trap entity instance
+* **Returns:** None
+* **Error states:** None — `birdspawner` is nil-checked before use; function exits gracefully if missing.
 
-### `OnHarvested(inst)`
-*   **Description:** Called when the trap is harvested manually; consumes one use via `finiteuses:Use()`.
-*   **Parameters:** `inst` (Entity instance).
-*   **Returns:** Nothing.
-*   **Error states:** No effect if `finiteuses` component is absent.
+### `OnEntitySleep(inst)` (local)
+* **Description:** Called when the trap entity goes to sleep (players far away). Cancels any existing sleep task and schedules `CatchOffScreen` to run after 1 second, allowing off-screen trapping to continue.
+* **Parameters:** `inst` -- trap entity instance
+* **Returns:** None
+* **Error states:** None.
 
-### `OnSpring(inst, target, bait)`
-*   **Description:** Called when the trap springs; sets the `trappedbuild` symbol swap if the caught `target` has a `trappedbuild` property defined.
-*   **Parameters:**  
-  - `inst` (Entity) — the trap entity.  
-  - `target` (Entity) — the caught bird entity.  
-  - `bait` (Entity?) — the bait consumed during springing.  
-*   **Returns:** Nothing.
-*   **Error states:** No effect if `target.trappedbuild` is `nil`.
+### `OnEntityWake(inst)` (local)
+* **Description:** Called when the trap entity wakes up (players nearby). Cancels the pending sleep task and clears `_sleeptask` reference to prevent duplicate scheduling.
+* **Parameters:** `inst` -- trap entity instance
+* **Returns:** None
+* **Error states:** None.
 
-### `CatchOffScreen(inst)`
-*   **Description:** Attempted fallback for catching birds that are off-screen (e.g., during world generation or large gaps); spawns a bird using `TheWorld.components.birdspawner` and triggers springing.
-*   **Parameters:** `inst` (Entity) — the trap entity.
-*   **Returns:** Nothing.
-*   **Error states:** Early exit if the world lacks `birdspawner` component or random chance fails (`< 0.5`).
+### `OnHarvested(inst)` (local)
+* **Description:** Called when the trap is harvested by a player. Clears `trappedbuild` and decrements `finiteuses` by 1. When uses reach 0, the trap is removed via `SetOnFinished` callback.
+* **Parameters:** `inst` -- trap entity instance
+* **Returns:** None
+* **Error states:** None — `finiteuses` component is nil-checked before access; function skips use decrement if missing.
 
-### `OnEntitySleep(inst)` / `OnEntityWake(inst)`
-*   **Description:** Manages the off-screen catching task. On sleep, schedules `CatchOffScreen` after 1 second; on wake, cancels the task.
-*   **Parameters:** `inst` (Entity) — the trap entity.
-*   **Returns:** Nothing.
-*   **Error states:** None identified.
+### `SetTrappedSymbols(inst, build)` (local)
+* **Description:** Applies visual symbol override to display the trapped bird type. Sets `trappedbuild` and overrides the "trapped" symbol with the specified build's trapped symbol.
+* **Parameters:**
+  - `inst` -- trap entity instance
+  - `build` -- string build name (e.g., "crow_build", "robin_build")
+* **Returns:** None
+* **Error states:** None.
+
+### `OnSpring(inst, target, bait)` (local)
+* **Description:** Called when the trap springs and catches a target. If the target has a `trappedbuild` property, applies the corresponding symbol override to display the caught bird type visually.
+* **Parameters:**
+  - `inst` -- trap entity instance
+  - `target` -- caught bird entity
+  - `bait` -- bait entity used (may be nil)
+* **Returns:** None
+* **Error states:** None.
+
+### `OnSave(inst, data)` (local)
+* **Description:** Saves the trap's state when the world saves. Stores `trappedbuild` in the data table if set, enabling visual persistence across save/load cycles.
+* **Parameters:**
+  - `inst` -- trap entity instance
+  - `data` -- table to populate with save data
+* **Returns:** None (modifies `data` table in-place)
+* **Error states:** None.
+
+### `OnLoad(inst, data)` (local)
+* **Description:** Restores the trap's state when the world loads. If `trappedbuild` exists in saved data, reapplies the symbol override to restore the visual of the trapped bird.
+* **Parameters:**
+  - `inst` -- trap entity instance
+  - `data` -- table containing saved state
+* **Returns:** None
+* **Error states:** None.
+
+### `fn()`
+* **Description:** Prefab constructor that creates the entity and attaches base components. Client-side: builds physics, attaches AnimState/SoundEmitter/MiniMap components, sets default animation, and adds the "trap" tag. Returns early on clients (`if not TheWorld.ismastersim then return end`). On master: continues with gameplay component attachment (`inspectable`, `inventoryitem`, `finiteuses`, `trap`), scrapbook offset configuration, stategraph assignment, and save/load handler registration.
+* **Parameters:** None
+* **Returns:** entity instance
+* **Error states:** None — `TheNet:GetServerGameMode()` nil comparison (`~= "quagmire"`) evaluates correctly even if nil is returned.
 
 ## Events & listeners
-- **Listens to:** (None — event handlers are assigned as object methods like `inst.OnEntitySleep`, not via `inst:ListenForEvent`.)
-- **Pushes:** (None directly.)
+None — callbacks (`onharvest`, `onspring`, `onfinished`) are set via `SetOnHarvestFn`/`SetOnSpringFn`/`SetOnFinished` and invoked directly by components, not through `ListenForEvent`.

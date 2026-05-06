@@ -1,50 +1,87 @@
 ---
 id: brightmare_gestaltbrain
 title: Brightmare Gestaltbrain
-description: Controls combat and movement behavior for the Brightmare Gestalt boss based on its current behavior level and surrounding threats.
-tags: [ai, boss, combat, locomotion]
+description: Defines the behavior tree AI for the Brightmare Gestalt entity with level-based combat and avoidance patterns.
+tags: [ai, brain, boss, combat]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
-category_type: brain
-source_hash: 216461e7
+category_type: brains
+source_hash: c803692b
 system_scope: brain
 ---
 
 # Brightmare Gestaltbrain
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`GestaltBrain` is the behavior tree brain for the Brightmare Gestalt boss entity. It implements layered combat logic based on `behaviour_level`, dynamically switching between fleeing from shadows, avoiding players, facing/charging at players, and retreating when in combat cooldown. The brain uses behavior tree nodes (`PriorityNode`, `WhileNode`, `SequenceNode`, `ActionNode`, `IfNode`) to evaluate threats and select appropriate actions via a priority-ordered hierarchy. It depends on the `combat` component to manage targeting and the `locomotor` component to halt movement when necessary.
+`Brightmare Gestaltbrain` is a behavior tree brain that controls the AI for the Brightmare Gestalt entity. It implements multi-level behavior patterns that change based on `behaviour_level` (1, 2, or 3), with increasing aggression and combat capabilities at higher levels. The brain handles relocation, shadow creature avoidance, player avoidance/chase logic, and wandering behavior. It integrates with the `combat` component for attack targeting and cooldown management.
 
 ## Usage example
-This brain is automatically assigned to the Brightmare Gestalt prefab and does not need manual instantiation. Typical integration is handled in the prefab definition:
 ```lua
-inst:AddBrain("brightmare_gestaltbrain")
+local inst = SpawnPrefab("brightmare_gestalt")
+local BrainClass = require("brains/brightmare_gestaltbrain")
+RunBrain(inst, BrainClass)
+
+-- Behavior changes based on level
+inst.behaviour_level = 2
+-- Brain automatically adjusts AI priorities based on level
 ```
-The brain dynamically responds to changes in `inst.behaviour_level` and external events such as `droppedtarget`.
 
 ## Dependencies & tags
-**Components used:** `combat`, `locomotor`  
-**Tags:** Uses `oneoftags` group `"SHADOW_TAGS"` (includes `nightmarecreature`, `shadowcreature`, `shadow`, `shadowminion`, `stalker`, `stalkerminion`, `nightmare`, `shadow_fire`) for avoidance logic.
+**External dependencies:**
+- `behaviours/follow` -- provides Follow behavior node for chasing targets
+- `behaviours/wander` -- provides Wander behavior node for random movement
+- `behaviours/standstill` -- provides StandStill behavior node for stationary states
+- `brains/braincommon` -- provides shared brain utility functions including PossessChassisNode
+
+**Components used:**
+- `combat` -- accesses `target` property, calls `DropTarget()` and `InCooldown()` methods
+
+**Tags:**
+- `nightmarecreature`, `shadowcreature`, `shadow`, `shadowminion`, `stalker`, `stalkerminion`, `nightmare`, `shadow_fire` -- checked in SHADOW_TAGS for avoidance behavior
+- `jumping`, `busy` -- state tags checked to determine relocation eligibility
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst._ignorerelocating` | boolean | `nil` | If set to `true`, disables relocation logic. |
-| `inst.tracking_target` | entity or `nil` | `nil` | Tracks current target; relocation is skipped if a player is nearby. |
-| `inst.behaviour_level` | number | `1` | Controls behavior behavior layer (1 = fleeing players, 2 = cautious aggression, 3 = aggressive chase). |
+| None | | | No properties are defined. |
 
 ## Main functions
-### `OnStart()`
-* **Description:** Initializes the behavior tree. Creates a root `PriorityNode` that evaluates state tags and behavior level to select actions such as relocate, flee shadows/players, stand and attack, chase and attack, or wander.
-* **Parameters:** None.
-* **Returns:** Nothing.
-* **Error states:** Relies on external components (`combat`, `locomotor`) being attached to `self.inst`; behavior fails if components are missing.
+### `GestaltBrain:new(inst)`
+* **Description:** Constructor that initializes the brain instance. Calls the parent Brain constructor to set up the basic brain structure attached to the entity.
+* **Parameters:** `inst` -- the entity instance that will own this brain
+* **Returns:** New GestaltBrain instance
+* **Error states:** None
+
+### `GestaltBrain:OnStart()`
+* **Description:** Initializes and builds the behavior tree when the brain starts running. Creates a PriorityNode root with nested behavior nodes for relocation, avoidance, combat, and wandering. The tree structure changes based on `inst.behaviour_level` (1, 2, or 3) with different aggression patterns at each level.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if `self.inst` is nil when accessing components or stategraph methods. Errors if `combat` component is not present on the entity when combat-related nodes execute.
+
+### `ShouldRelocate(inst)`
+* **Description:** Determines if the entity should relocate based on current state. Returns true if the entity is not ignoring relocation, not in a busy state, and either has no tracking target or is far from players.
+* **Parameters:** `inst` -- the entity instance to check
+* **Returns:** boolean -- true if relocation should occur
+* **Error states:** Errors if `inst.sg` (stategraph) is nil or missing `HasStateTag` method. Errors if `inst:IsNearPlayer` method does not exist.
+
+### `Relocate(inst)`
+* **Description:** Triggers the relocate state on the entity's stategraph. Called when ShouldRelocate returns true to initiate relocation behavior.
+* **Parameters:** `inst` -- the entity instance to relocate
+* **Returns:** None
+* **Error states:** Errors if `inst.sg` is nil or `GoToState` method is unavailable.
+
+### `onrunaway(target, inst)`
+* **Description:** Callback function executed when the entity runs away from a target. Drops the current combat target to disengage from fighting during avoidance behavior.
+* **Parameters:**
+  - `target` -- the entity being avoided
+  - `inst` -- the entity performing the runaway behavior
+* **Returns:** boolean -- always returns true to indicate successful runaway
+* **Error states:** Errors if `inst.components.combat` is nil or `DropTarget` method is unavailable.
 
 ## Events & listeners
-- **Listens to:** No events registered directly; behavior reacts to `combat` component state (e.g., `combat.target`) and internal stategraph state tags (e.g., `busy`, `jumping`).
-- **Pushes:** None directly; delegates to stategraph transitions (e.g., `relocate` state via `inst.sg:GoToState("relocate")`).
+- **Listens to:** None identified
+- **Pushes:** None identified

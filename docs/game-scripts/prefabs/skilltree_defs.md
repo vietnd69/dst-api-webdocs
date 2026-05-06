@@ -1,130 +1,190 @@
 ---
 id: skilltree_defs
 title: Skilltree Defs
-description: Provides the data structure and validation logic for character-specific skill trees, including connection rules, locks, and helper utilities for modders.
-tags: [skill-tree, validation, network, utility]
+description: Defines the skill tree data structures and utility functions for character progression systems.
+tags: [progression, ui, character]
 sidebar_position: 10
-
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 1b6fa435
-system_scope: entity
+source_hash: d399bd99
+system_scope: ui
 ---
 
 # Skilltree Defs
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`skilltree_defs.lua` defines the global skill tree data structures and validation logic used by the game's character skill system. It centralizes skill tree definitions, performs strict validation on connectivity and locking rules (e.g., `root`, `connects`, `locks`), enforces network constraints (e.g., max 32 skills), and exposes helper functions for modders to define custom locks and query skill-tree state. The module is loaded at startup, aggregates per-character data from `prefabs/skilltree_<character>` files, and makes them available via the exported `SKILLTREE_DEFS` and `SKILLTREE_METAINFO` tables.
+`skilltree_defs` is a data configuration module that manages character skill tree definitions and provides utility functions for skill validation, tag checking, and lock conditions. It loads character-specific skill data from separate prefab files and aggregates them into centralized tables. The module handles networking constraints (maximum 32 networked skills per character) and validates tree structure integrity during initialization.
 
 ## Usage example
 ```lua
--- Example: Accessing skill data for a character
-local skills = require("prefabs/skilltree_defs").SKILLTREE_DEFS.wilson
-if skills then
-    for name, skill in pairs(skills) do
-        print("Skill:", name, "Tags:", table.tostring(skill.tags or {}))
-    end
-end
+local SkillTreeDefs = require("prefabs/skilltree_defs")
 
--- Example: Using a built-in lock factory
-local FN = require("prefabs/skilltree_defs").FN
-local allegiance_lock = FN.MakeFuelWeaverLock({ pos = {0, 0}, connects = {"next_skill"} }, false)
+-- Access skill definitions for a character
+local wilsonSkills = SkillTreeDefs.SKILLTREE_DEFS["wilson"]
+
+-- Check if a player has a specific skill tag
+local hasCombatTag = SkillTreeDefs.FN.HasTag("wilson", "combat", activatedSkills)
+
+-- Count total activated skills
+local skillCount = SkillTreeDefs.FN.CountSkills("wilson", activatedSkills)
+
+-- Create a custom lock condition
+local fuelWeaverLock = SkillTreeDefs.FN.MakeFuelWeaverLock({ pos = { x = 100, y = 200 } })
 ```
 
 ## Dependencies & tags
-**Components used:** None  
-**Tags:** No tags are added or removed directly — the module only *reads* tag data from skill definitions.
+**External dependencies:**
+- `prefabs/skilltree_<character>` -- character-specific skill data loaded via require()
+- `STRINGS.SKILLTREE` -- localization strings for lock descriptions
+- `TheGenericKV` -- key-value storage for boss kill tracking (Fuel Weaver, Celestial Champion)
+- `GetTableSize` -- utility function for counting table entries
+- `table.contains` -- utility function for tag checking
+- `deepcopy` -- utility function for duplicating lock tables
+- `orderedPairs` -- utility function for deterministic iteration
+
+**Components used:**
+None identified
+
+**Tags:**
+None identified
 
 ## Properties
+
+### Top-level module properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `SKILLTREE_DEFS` | table | `{}` | Global lookup table: `character_prefab_name` → `skill_definitions_table`. |
-| `SKILLTREE_METAINFO` | table | `{}` | Metadata per character, including `RPC_LOOKUP`, `TOTAL_SKILLS_COUNT`, `TOTAL_LOCKS`, and `BACKGROUND_SETTINGS`. |
-| `SKILLTREE_ORDERS` | table | `{}` | Ordered lists of skill names per character (used for UI rendering). |
-| `CUSTOM_FUNCTIONS` | table | `{}` | Per-character custom function tables defined by modders. |
-| `FN` | table | `{}` | Collection of utility functions exported for modder use (see "Main functions"). |
+| `SKILLTREE_DEFS` | table | `{}` | Maps character prefab names to their skill definition tables. |
+| `SKILLTREE_METAINFO` | table | `{}` | Contains metadata per character: RPC_LOOKUP, TOTAL_SKILLS_COUNT, TOTAL_LOCKS, BACKGROUND_SETTINGS, modded flag. |
+| `SKILLTREE_ORDERS` | table | `{}` | Stores skill ordering data per character. |
+| `FN` | table | `{}` | Table of utility functions for skill tree operations. |
+| `CUSTOM_FUNCTIONS` | table | `{}` | Stores custom character-specific functions. |
+| `CreateSkillTreeFor` | function | --- | Function to create and validate a skill tree for a character. |
+| `DEBUG_REBUILD` | function | --- | Debug function to rebuild all skill tree data. |
+
+### Skill record schema fields
+Access individual skill definitions via `SKILLTREE_DEFS[character][skill_name].*` where `skill_name` is a dynamic key (string) for each skill in the tree.
+
+| Field | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `defaultfocus` | boolean | --- | Whether this skill is the default focus for controller navigation. |
+| `infographic` | boolean | --- | Whether this skill is an infographic (visual-only, no connections). |
+| `connects` | table | --- | List of skill names this skill connects to (OR gate unlocking). |
+| `locks` | table | --- | List of skill names that must be unlocked to access this skill (AND gate). |
+| `lock_open` | function | --- | Function that returns whether the lock is open. |
+| `root` | boolean | --- | Whether this skill is a root node in the tree. |
+| `rpc_id` | number | --- | Network RPC ID assigned automatically (max 32 per character). |
+| `must_have_one_of` | table | --- | Skills where at least one must be activated. |
+| `must_have_all_of` | table | --- | Skills where all must be activated. |
+| `tags` | table | --- | List of tags associated with this skill. |
+| `desc` | string | --- | Description string from STRINGS.SKILLTREE. |
+| `group` | string | --- | Skill group identifier (e.g., "allegiance"). |
+| `pos` | table | --- | Position data for UI placement. |
+
+### Metadata fields per character
+Access via `SKILLTREE_METAINFO[character].*`.
+
+| Field | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `RPC_LOOKUP` | table | --- | Maps RPC IDs to skill names. |
+| `TOTAL_SKILLS_COUNT` | number | --- | Total count of networked skills. |
+| `TOTAL_LOCKS` | number | --- | Total count of lock conditions. |
+| `BACKGROUND_SETTINGS` | table | --- | Background visual settings for the skill tree UI. |
+| `modded` | boolean | --- | Flag set when skill tree is modified via metatable. |
 
 ## Main functions
 ### `CreateSkillTreeFor(characterprefab, skills)`
-*   **Description:** Validates and registers a skill tree definition for a given character. Performs structural validation (e.g., missing `root`, duplicate `defaultfocus`, invalid `connects`/`locks`, floating skills) and records network metadata (e.g., RPC IDs). Logs warnings via `PrintFixMe` for issues.
-*   **Parameters:**
-    *   `characterprefab` (string) — The prefab name (e.g., `"wilson"`) for which the skill tree is defined.
-    *   `skills` (table) — A map of `skill_name` → `skill_definition`. Each skill definition may include keys like `tags`, `root`, `connects`, `locks`, `lock_open`, `defaultfocus`, `infographic`.
-*   **Returns:** Nothing.
-*   **Error states:** 
-    *   Exceeding 32 non-infographic skills logs a warning and prevents networking for extra skills.
-    *   Missing `defaultfocus`, invalid `connects`/`locks`, or `infographic` misused with `connects`/`locks`/non-`root` triggers warnings.
+* **Description:** Creates and validates a skill tree for a character. Assigns RPC IDs, validates connections and locks, and populates SKILLTREE_DEFS and SKILLTREE_METAINFO. Prints FIXME warnings for validation errors.
+* **Parameters:**
+  - `characterprefab` -- string prefab name of the character
+  - `skills` -- table of skill definitions keyed by skill name
+* **Returns:** None
+* **Error states:** None
 
-### `CountSkills(prefab, activatedskills)`
-*   **Description:** Returns the total number of skills in `activatedskills` for the given character `prefab`.
-*   **Parameters:**
-    *   `prefab` (string) — Character prefab name.
-    *   `activatedskills` (table or `nil`) — A set-like table of activated skill names. If `nil`, returns `0`.
-*   **Returns:** `number` — Count of activated skills.
+### `FN.CountSkills(prefab, activatedskills)`
+* **Description:** Returns the total count of activated skills for a character. Runs on both server and client.
+* **Parameters:**
+  - `prefab` -- string character prefab name
+  - `activatedskills` -- table of activated skill names or nil
+* **Returns:** Number of activated skills, or `0` if activatedskills is nil.
+* **Error states:** None
 
-### `HasTag(prefab, targettag, activatedskills)`
-*   **Description:** Checks whether *any* activated skill for `prefab` contains `targettag` in its `tags` list.
-*   **Parameters:**
-    *   `prefab` (string) — Character prefab name.
-    *   `targettag` (string) — Tag to search for.
-    *   `activatedskills` (table or `nil`) — Set-like table of activated skill names.
-*   **Returns:** `boolean` — `true` if at least one activated skill has the tag, else `false`.
+### `FN.HasTag(prefab, targettag, activatedskills)`
+* **Description:** Checks if any activated skill for a character has the specified tag. Runs on both server and client.
+* **Parameters:**
+  - `prefab` -- string character prefab name
+  - `targettag` -- string tag to search for
+  - `activatedskills` -- table of activated skill names or nil
+* **Returns:** `true` if any activated skill has the tag, `false` otherwise.
+* **Error states:** None
 
-### `CountTags(prefab, targettag, activatedskills)`
-*   **Description:** Counts how many times `targettag` appears across all activated skills for `prefab`.
-*   **Parameters:**
-    *   `prefab` (string) — Character prefab name.
-    *   `targettag` (string) — Tag to count.
-    *   `activatedskills` (table or `nil`) — Set-like table of activated skill names.
-*   **Returns:** `number` — Total count of occurrences.
+### `FN.CountTags(prefab, targettag, activatedskills)`
+* **Description:** Counts how many activated skills for a character have the specified tag. Runs on both server and client.
+* **Parameters:**
+  - `prefab` -- string character prefab name
+  - `targettag` -- string tag to count
+  - `activatedskills` -- table of activated skill names or nil
+* **Returns:** Number of skills with the tag, or `0` if activatedskills is nil.
+* **Error states:** None
 
-### `SkillHasTags(skill, tag, prefabname)`
-*   **Description:** Checks if a *single* skill (by name) in the skill tree for `prefabname` contains `tag` in its `tags` list.
-*   **Parameters:**
-    *   `skill` (string) — Skill name to inspect.
-    *   `tag` (string) — Tag to search for.
-    *   `prefabname` (string) — Character prefab name.
-*   **Returns:** `boolean?` — `true` if the skill exists and contains the tag; `nil` if the skill or prefab data is missing.
+### `FN.SkillHasTags(skill, tag, prefabname)`
+* **Description:** Checks if a specific skill definition has a particular tag.
+* **Parameters:**
+  - `skill` -- string skill name
+  - `tag` -- string tag to check
+  - `prefabname` -- string character prefab name
+* **Returns:** `true` if the skill has the tag, `nil` otherwise (tag not found or skill/prefab not found).
+* **Error states:** None
 
-### `MakeFuelWeaverLock(extra_data, not_root)`
-*   **Description:** Constructs a lock function that opens only when `"fuelweaver_killed" == "1"` in `TheGenericKV`.
-*   **Parameters:**
-    *   `extra_data` (table or `nil`) — Optional `pos`, `connects`, `group`.
-    *   `not_root` (boolean) — If `false`, sets `root = true`; else, `root = false`.
-*   **Returns:** `table` — Lock definition table with `lock_open` and other properties.
+### `FN.MakeFuelWeaverLock(extra_data, not_root)`
+* **Description:** Creates a lock condition that opens after the Fuel Weaver boss is killed. Returns a lock table with lock_open function checking TheGenericKV.
+* **Parameters:**
+  - `extra_data` -- table with optional pos, connects, group overrides or nil
+  - `not_root` -- boolean, if true the lock is not a root node
+* **Returns:** Lock table with desc, root, group, tags, lock_open function, and optional pos/connects.
+* **Error states:** None
 
-### `MakeNoShadowLock(extra_data, not_root)`
-*   **Description:** Constructs a lock that opens only if the character has *zero* skills tagged `"shadow_favor"`. Returns `true` to unlock or `nil` (equiv. to "unknown") if not yet determinable.
-*   **Parameters:** Same as `MakeFuelWeaverLock`.
-*   **Returns:** `table` — Lock definition.
+### `FN.MakeNoShadowLock(extra_data, not_root)`
+* **Description:** Creates a lock condition that opens only if no shadow_favor tag skills are activated. Returns nil from lock_open to indicate locked state.
+* **Parameters:**
+  - `extra_data` -- table with optional pos, connects, group overrides or nil
+  - `not_root` -- boolean, if true the lock is not a root node
+* **Returns:** Lock table with lock_open function that returns true if no shadow_favor skills, nil otherwise.
+* **Error states:** None
 
-### `MakeCelestialChampionLock(extra_data, not_root)`
-*   **Description:** Constructs a lock that opens only when `"celestialchampion_killed" == "1"` in `TheGenericKV`.
-*   **Parameters:** Same as `MakeFuelWeaverLock`.
-*   **Returns:** `table` — Lock definition.
+### `FN.MakeCelestialChampionLock(extra_data, not_root)`
+* **Description:** Creates a lock condition that opens after the Celestial Champion boss is killed. Returns a lock table with lock_open function checking TheGenericKV.
+* **Parameters:**
+  - `extra_data` -- table with optional pos, connects, group overrides or nil
+  - `not_root` -- boolean, if true the lock is not a root node
+* **Returns:** Lock table with desc, root, group, tags, lock_open function, and optional pos/connects.
+* **Error states:** None
 
-### `MakeNoLunarLock(extra_data, not_root)`
-*   **Description:** Constructs a lock that opens only if the character has *zero* skills tagged `"lunar_favor"`.
-*   **Parameters:** Same as `MakeFuelWeaverLock`.
-*   **Returns:** `table` — Lock definition.
+### `FN.MakeNoLunarLock(extra_data, not_root)`
+* **Description:** Creates a lock condition that opens only if no lunar_favor tag skills are activated. Returns nil from lock_open to indicate locked state.
+* **Parameters:**
+  - `extra_data` -- table with optional pos, connects, group overrides or nil
+  - `not_root` -- boolean, if true the lock is not a root node
+* **Returns:** Lock table with lock_open function that returns true if no lunar_favor skills, nil otherwise.
+* **Error states:** None
 
-### `MakePurelyVisualLock(skills, locknametoreplicate, locknamesuffix)`
-*   **Description:** Duplicates an existing lock skill as a purely visual placeholder (e.g., for layout alignment), setting it as `root = true` and removing its connections.
-*   **Parameters:**
-    *   `skills` (table) — The `skills` table to modify (passed by reference).
-    *   `locknametoreplicate` (string) — Name of the lock to duplicate.
-    *   `locknamesuffix` (string) — Suffix appended to create the new name.
-*   **Returns:** `table` — The newly created lock definition.
+### `FN.MakePurelyVisualLock(skills, locknametoreplicate, locknamesuffix)`
+* **Description:** Creates a visual-only lock by duplicating an existing lock and removing connections. Used for UI display without functional locking.
+* **Parameters:**
+  - `skills` -- table of skill definitions to modify
+  - `locknametoreplicate` -- string name of the lock to duplicate
+  - `locknamesuffix` -- string suffix to append to the new lock name
+* **Returns:** The created lock table
+* **Error states:** Errors if `locknametoreplicate` does not exist in `skills` table (nil dereference on deepcopy).
 
 ### `DEBUG_REBUILD()`
-*   **Description:** Forces re-loading of all per-character skill tree data (clears `package.loaded` entries and calls `BuildAllData`), then pushes `debug_rebuild_skilltreedata` global event. Useful for mod development hot-reloading.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Rebuilds all skill tree data by clearing loaded character modules and calling BuildAllData again. Pushes debug_rebuild_skilltreedata event. For debugging purposes only, no safety checks.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:** None  
-- **Pushes:** `debug_rebuild_skilltreedata` — Pushed once by `DEBUG_REBUILD()` to notify systems of updated skill tree data.
+- **Pushes:** `debug_rebuild_skilltreedata` - fired when DEBUG_REBUILD() completes rebuilding all skill tree data.

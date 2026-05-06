@@ -1,78 +1,82 @@
 ---
 id: shadowheart
 title: Shadowheart
-description: An inventory item that emits periodic sound and animation cues when dropped, and halts these behaviors when held by a player.
-tags: [inventory, audio, visual, sanity]
+description: Defines the Shadowheart prefab, a socketable inventory item with pulsing animation and sound effects.
+tags: [item, inventory, socketable, wx78]
 sidebar_position: 10
-
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: c0cb83d7
+source_hash: 786a6ec6
 system_scope: inventory
 ---
 
 # Shadowheart
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-The `shadowheart` prefab represents a collectible item used in DST's sanity-related mechanics. It is an inventory object that visually and audibly "beats" (animates and plays a heartbeat sound) when dropped on the ground, and stops this behavior when picked up. It integrates with the `inventoryitem` component to trigger state changes via callback functions and includes optional `inspectable` and `tradable` components for gameplay integration.
+`Shadowheart` is a socketable inventory item prefab designed for WX-78 character interactions. When dropped on the ground, it plays a pulsing animation and sound effect at randomized intervals. When picked up or placed in inventory, the animation loop stops. It integrates with the socketable system for item enhancement mechanics.
 
 ## Usage example
 ```lua
-local inst = CreateEntity()
-inst.entity:AddTransform()
-inst.entity:AddAnimState()
-inst.entity:AddSoundEmitter()
-inst.entity:AddNetwork()
-MakeInventoryPhysics(inst)
-inst.AnimState:SetBank("shadowheart")
-inst.AnimState:SetBuild("shadowheart")
-inst.AnimState:PlayAnimation("idle")
-MakeInventoryFloatable(inst, "small", 0.05, 0.8)
-inst:AddTag("shadowheart")
-inst.entity:SetPristine()
-if not TheWorld.ismastersim then
-    return inst
+-- Spawn the Shadowheart item in the world
+local shadowheart = SpawnPrefab("shadowheart")
+
+-- Access components for modification
+shadowheart.components.socketable:SetSocketQuality(SOCKETQUALITY.MEDIUM)
+shadowheart.components.inventoryitem:SetOnDroppedFn(customDropFn)
+
+-- Check if entity has the shadowheart tag
+if shadowheart:HasTag("shadowheart") then
+    -- Entity is a Shadowheart item
 end
-inst:AddComponent("inventoryitem")
-inst.components.inventoryitem:SetOnDroppedFn(ondropped)
-inst.components.inventoryitem:SetOnPutInInventoryFn(onpickup)
-inst:AddComponent("inspectable")
-inst:AddComponent("tradable")
-MakeHauntableLaunch(inst)
-inst.beattask = nil
-ondropped(inst)
-return inst
 ```
 
 ## Dependencies & tags
-**Components used:** `inventoryitem`, `inspectable`, `tradable`  
-**Tags:** Adds `shadowheart`.
+**External dependencies:**
+- `prefabs/wx78_common` -- provides `MakeItemSocketable` function for WX-78 socket integration
+
+**Components used:**
+- `inventoryitem` -- handles drop/pickup callbacks via SetOnDroppedFn and SetOnPutInInventoryFn
+- `socketable` -- enables socket quality setting via SetSocketQuality
+- `inspectable` -- allows players to examine the item
+- `tradable` -- enables trading mechanics with other players
+
+**Tags:**
+- `shadowheart` -- added to identify this specific item type
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `beattask` | Task or `nil` | `nil` | Reference to the repeating task responsible for periodic heartbeat behavior. Cancelled on pickup. |
+| `beattask` | task | `nil` | Reference to the scheduled beat animation task. Cancelled on pickup. |
 
 ## Main functions
 ### `beat(inst)`
-*   **Description:** Plays the idle animation and heartbeat sound, then schedules the next beat after a random interval (0.75–1.5 seconds). This function recursively schedules itself via `DoTaskInTime`.
-*   **Parameters:** `inst` (Entity instance) – the shadow heart entity.
-*   **Returns:** Nothing.
+* **Description:** Internal function that plays the idle animation and shadow heart sound, then schedules the next beat cycle with randomized timing between 0.75 and 1.5 seconds.
+* **Parameters:** `inst` -- the Shadowheart entity instance
+* **Returns:** None
+* **Error states:** Errors if `inst.AnimState` or `inst.SoundEmitter` is nil (entity missing required entity components).
 
 ### `ondropped(inst)`
-*   **Description:** Called when the item is dropped onto the world. Cancels any existing beat task (to reset timing), then starts a new beat task.
-*   **Parameters:** `inst` (Entity instance) – the shadow heart entity.
-*   **Returns:** Nothing.
+* **Description:** Callback fired when the item is dropped from inventory. Cancels any existing beat task and starts a new beat animation loop.
+* **Parameters:** `inst` -- the Shadowheart entity instance
+* **Returns:** None
+* **Error states:** None
 
 ### `onpickup(inst)`
-*   **Description:** Called when the item is picked up by a player. Cancels the current beat task and nullifies it, stopping sound and animation updates.
-*   **Parameters:** `inst` (Entity instance) – the shadow heart entity.
-*   **Returns:** Nothing.
+* **Description:** Callback fired when the item is picked up or placed in inventory. Cancels the beat animation task and clears the task reference.
+* **Parameters:** `inst` -- the Shadowheart entity instance
+* **Returns:** None
+* **Error states:** None
+
+### `fn()`
+* **Description:** Prefab constructor function that creates the Shadowheart entity, attaches all required components, and initializes the beat animation system. Runs on both server and client for visual components, with server-only logic for gameplay components.
+* **Parameters:** None
+* **Returns:** Entity instance
+* **Error states:** Errors if called outside of prefab system context where `CreateEntity()` is unavailable.
 
 ## Events & listeners
-- **Listens to:** None (does not register event listeners).
-- **Pushes:** None (does not fire custom events).
+- **Listens to:** None directly (uses inventoryitem component callbacks instead of entity events)
+- **Pushes:** None identified

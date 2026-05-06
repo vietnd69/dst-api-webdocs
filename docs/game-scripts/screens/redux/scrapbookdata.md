@@ -5,11 +5,11 @@ description: Static data registry defining scrapbook entries for items, creature
 tags: [ui, data, scrapbook]
 sidebar_position: 10
 
-last_updated: 2026-03-09
-build_version: 714014
-change_status: stable
+last_updated: 2026-04-21
+build_version: 722832
+change_status: data_patched
 category_type: screens
-source_hash: d193a275
+source_hash: 2d78be00
 system_scope: ui
 ---
 

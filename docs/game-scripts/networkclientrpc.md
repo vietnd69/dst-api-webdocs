@@ -1,1431 +1,1364 @@
 ---
 id: networkclientrpc
 title: Networkclientrpc
-description: This component defines comprehensive RPC handler tables for server, client, and shard contexts, including input validation helpers, queue processing logic, and utilities for managing mod-specific RPC registration and transmission states.
-tags: [networking, rpc, validation, multiplayer, server]
+description: Defines the complete network RPC system for Don't Starve Together, including server-bound, client-bound, and shard-to-shard RPC handlers with queue management and mod extension APIs.
+tags: [network, rpc, multiplayer, modding]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
-category_type: root
-source_hash: 0814ad6a
+category_type: data_config
+source_hash: df7ccd78
 system_scope: network
 ---
 
 # Networkclientrpc
 
-> Based on game build **718694** | Last updated: 2026-04-04
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-
-The `networkclientrpc` component is the central networking layer for Don't Starve Together's Remote Procedure Call (RPC) system. It manages all communication between clients, servers, and shards by defining handler tables, input validation utilities, and queue processing logic. This component ensures secure and validated transmission of player actions including movement, combat, inventory management, crafting, and skill tree updates. It provides separate handler registries for server-bound RPCs (player actions), client-bound RPCs (server notifications), and shard-bound RPCs (multi-shard synchronization). The system includes rate limiting, timeline validation, and mod RPC extension capabilities. Input validation functions guard against malformed data, while the queue processor handles pending RPCs each simulation tick. This component is critical for maintaining game state consistency across the network and preventing cheating through server-side validation of all client-initiated actions.
+`networkclientrpc.lua` provides the core Remote Procedure Call infrastructure for Don't Starve Together multiplayer communication. This utility module handles three RPC directions: client-to-server (player actions), server-to-client (notifications and state sync), and shard-to-shard (cluster communication). It includes parameter validation helpers (`checkbool`, `checknumber`, `checkstring`, etc.), RPC queue management with tick-based processing, and extension APIs for modders to register custom RPC handlers. The module integrates with `TheNet` for actual RPC transmission, `TheWorld` for shard transaction tracking, and various game systems like skill trees, scrapbook, and world settings for specific RPC payloads.
 
 ## Usage example
-
 ```lua
--- Register a custom mod RPC handler on the server
-AddModRPCHandler("mymod", "CustomAction", function(player, data)
-    if player and player.components.inventory then
-        player.components.talker:Say("Action received!")
-    end
+require "networkclientrpc"
+
+-- Send an RPC to the server (client-side) using RPC code
+SendRPCToServer(RPC.LeftClick, action, x, z, target, isreleased, controlmods, noforce, mod_name, platform, platform_relative, spellbook, spell_id)
+
+-- Register a custom mod RPC handler (server-side)
+AddModRPCHandler("mymod", "custom_action", function(player, data)
+    -- Handle custom action from client
 end)
 
--- Send the mod RPC from client to server
-local rpc_info = GetModRPC("mymod", "CustomAction")
-if rpc_info then
-    SendModRPCToServer(rpc_info, { action_type = "greet" })
-end
-
--- Validate incoming parameters using built-in helpers
-if checknumber(data.value) and checkstring(data.name) then
-    -- Process valid data
+-- Send a mod RPC to all clients (server-side)
+if TheWorld.ismastersim then
+    SendModRPCToClient(CLIENT_MOD_RPC["mymod"].custom_action, {value = 42})
 end
 ```
 
 ## Dependencies & tags
 
 **External dependencies:**
-- `util` -- Required module for utility functions (provides `orderedPairs`, `distsq`, `VecUtil_Length`, `RunInSandboxSafe`)
-- `worldsettings_overrides` -- Required module for syncing world settings
-- `TheWorld` -- Used to push invalidrpc event
-- `Vector3` -- Used to create position vectors for coordinates
-- `BRANCH` -- Global variable checked for dev branch assertions
-- `TheNet` -- Used to send RPCs to server, client, and shards
-- `ThePlayer` -- Used to access components and push events in client handlers
-- `TheSim` -- Used to ReskinEntity in ReskinWorldMigrator
-- `TheSkillTree` -- Used to get skill names from IDs
-- `TheGenericKV` -- Used to store accomplishment data
-- `TheScrapbookPartitions` -- Used to teach scrapbook data
-- `ShardPortals` -- Iterated to find worldmigrator entities
-- `ChatHistory` -- Used to send and receive chat history
-- `AllRecipes` -- Iterated to find recipe data by RPC ID
-- `PREFAB_SKINS` -- Used to resolve skin indices for recipes
-- `GetPopupFromPopupCode` -- Utility function to resolve popup handlers
-- `GetString` -- Localization function to get announcement strings
-- `Shard_SyncWorldSettings` -- Global function to sync world settings
-- `Shard_SyncBossDefeated` -- Global function to sync boss state
-- `Shard_SyncMermKingExists` -- Global function to sync Merm King state
-- `Shard_SyncMermKingTrident` -- Global function to sync Merm King Trident state
-- `Shard_SyncMermKingCrown` -- Global function to sync Merm King Crown state
-- `Shard_SyncMermKingPauldron` -- Global function to sync Merm King Pauldron state
-- `GetWorldStateTagObjectFromNamespace` -- Global function to get world state tag object
-- `TheShard` -- Used to retrieve shard ID for shard RPC validation
-- `Shard_IsWorldAvailable` -- Used to validate shard availability in HandleShardRPC
-
-**Internal tables:**
-- `RPC_HANDLERS` -- Table referenced to generate RPC codes and handle incoming RPCs
-- `CLIENT_RPC_HANDLERS` -- Table defined and used for client-side RPC handling
-- `SHARD_RPC_HANDLERS` -- Table defined and used for shard-side RPC handling
-- `USERID_RPCS` -- Table used to check RPC sender permissions
-- `MOD_RPC` / `MOD_RPC_HANDLERS` -- Tables for mod RPC registration
-- `CLIENT_MOD_RPC` / `CLIENT_MOD_RPC_HANDLERS` -- Tables for client mod RPC registration
-- `SHARD_MOD_RPC` / `SHARD_MOD_RPC_HANDLERS` -- Tables for shard mod RPC registration
+- `util` -- Required at top for utility functions
+- `worldsettings_overrides` -- Required for SyncWorldSettings to apply world setting overrides
+- `TheWorld` -- Accessed for components.shardtransactionsteps and PushEvent
+- `TheNet` -- Called for all RPC sending (SendRPCToServer, SendRPCToClient, SendRPCToShard, CallRPC variants)
+- `ThePlayer` -- Used in client RPC handlers as target entity
+- `TheSim` -- Called in ReskinWorldMigrator for entity reskinning
+- `TheShard` -- Called for GetShardId in shard RPC handling
+- `TheGenericKV` -- Used in UpdateAccomplishment and UpdateCountAccomplishment for KV storage
+- `TheSkillTree` -- Called to get skill name from RPC ID
+- `TheScrapbookPartitions` -- Called in TryToTeachScrapbookData client RPC
+- `ChatHistory` -- Called for chat history sending and receiving
+- `AllRecipes` -- Iterated in MakeRecipeFromMenu, MakeRecipeAtPoint, BufferBuild to find recipe by rpc_id
+- `PREFAB_SKINS` -- Accessed for skin index lookup in recipe crafting
+- `ShardPortals` -- Iterated in ReskinWorldMigrator to find matching portal
+- `GLOBAL` -- Implicit via string.format, print, tostring, type, pairs, ipairs, table.insert, unpack, assert, math, Vector3, VecUtil_Length, RunInSandboxSafe, IsTableEmpty, GetString, GetPopupFromPopupCode, GetWorldStateTagObjectFromNamespace, Shard_SyncWorldSettings, Shard_SyncBossDefeated, Shard_SyncMermKingExists, Shard_SyncMermKingTrident, Shard_SyncMermKingCrown, Shard_SyncMermKingPauldron, orderedPairs, BRANCH
 
 **Components used:**
-- `playercontroller` -- Accessed on player entity to handle remote input actions
-- `inventory` -- Accessed on player entity to manage item slots and equipment
-- `locomotor` -- Accessed on player entity to handle strafe facing
-- `steeringwheeluser` -- Accessed on player entity to handle boat steering
-- `container` -- Accessed on target entity to manage inventory slots
-- `builder` -- Accessed via player.components.builder for recipe crafting
-- `talker` -- Accessed via player.components.talker for announcements
-- `giftreceiver` -- Accessed via player.components.giftreceiver for gift opening
-- `skilltreeupdater` -- Accessed via player.components.skilltreeupdater for skill management
-- `writeable` -- Accessed via target.components.writeable for text setting
-- `cookbookupdater` -- Accessed via ThePlayer.components.cookbookupdater for recipe learning
-- `plantregistryupdater` -- Accessed via ThePlayer.components.plantregistryupdater for plant data
-- `shardtransactionsteps` -- Accessed via TheWorld.components.shardtransactionsteps for shard sync
-- `worldmigrator` -- Accessed via v.components.worldmigrator for ID checking in ReskinWorldMigrator
+- `playercontroller` -- Called for most player input RPCs (OnRemoteLeftClick, OnRemoteRightClick, OnRemoteActionButton, etc.)
+- `inventory` -- Called for inventory management RPCs (ReturnActiveItem, PutOneOfActiveItemInSlot, DropItemFromInvTile, etc.)
+- `builder` -- Called for crafting RPCs (MakeRecipeFromMenu, MakeRecipeAtPoint, BufferBuild)
+- `talker` -- Called in CannotBuild to announce build failure
+- `giftreceiver` -- Called in OpenGift to open next gift
+- `skilltreeupdater` -- Called for skill tree RPCs (ActivateSkill, AddSkillXP, IsActivated)
+- `upgrademoduleowner` -- Called in UnplugModule for module unplugging
+- `socketholder` -- Called in UnplugModule for socket unplugging
+- `writeable` -- Called in SetWriteableText to write text
+- `locomotor` -- Called in StrafeFacing for strafe direction changes
+- `steeringwheeluser` -- Called in SteerBoat for boat steering
+- `cookbookupdater` -- Called in client RPCs LearnRecipe, LearnFoodStats
+- `plantregistryupdater` -- Called in client RPCs LearnPlantStage, LearnFertilizer, TakeOversizedPicture
+- `shardtransactionsteps` -- Called in shard RPCs ShardTransactionSteps, PruneShardTransactionSteps
+- `worldmigrator` -- Accessed via id in ReskinWorldMigrator to match portals
 
 **Tags:**
-- None
+None identified.
 
 ## Properties
 
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
+| `RPC_QUEUE_RATE_LIMIT` | number | 20 | Maximum RPCs per logic tick before rate limiting kicks in |
+| `RPC_QUEUE_RATE_LIMIT_PER_MOD` | number | 5 | Additional RPC limit per mod RPC handler registered |
+| `RPC` | table | - | RPC code mapping for server-bound player actions |
+| `CLIENT_RPC` | table | - | RPC code mapping for server-to-client notifications |
+| `SHARD_RPC` | table | - | RPC code mapping for shard-to-shard communication |
+| `MOD_RPC` | table | - | Mod RPC code mapping for server-bound mod actions |
+| `CLIENT_MOD_RPC` | table | - | Mod RPC code mapping for server-to-client mod notifications |
+| `SHARD_MOD_RPC` | table | - | Mod RPC code mapping for shard-to-shard mod communication |
 
 ## Main functions
 
 ### `checkbool(val)`
-* **Description:** Validates if a value is nil or a boolean.
+* **Description:** Returns true if val is nil or a boolean type. Used for optional boolean parameter validation.
 * **Parameters:**
-  - `val` -- any type, value to check if nil or boolean
+  - `val` -- any value to check
 * **Returns:** boolean
-* **Error states:** None
 
 ### `checknumber(val)`
-* **Description:** Validates if a value is a number.
+* **Description:** Returns true if val is a number type. Used for required number parameter validation.
 * **Parameters:**
-  - `val` -- any type, value to check if number
+  - `val` -- any value to check
 * **Returns:** boolean
-* **Error states:** None
 
 ### `checkuint(val)`
-* **Description:** Validates if a value is a number and represents an unsigned integer.
+* **Description:** Returns true if val is a number and contains no non-digit characters (unsigned integer check). Used for inventory slot validation.
 * **Parameters:**
-  - `val` -- any type, value to check if unsigned integer
+  - `val` -- any value to check
 * **Returns:** boolean
-* **Error states:** None
 
 ### `checkstring(val)`
-* **Description:** Validates if a value is a string.
+* **Description:** Returns true if val is a string type. Used for required string parameter validation.
 * **Parameters:**
-  - `val` -- any type, value to check if string
+  - `val` -- any value to check
 * **Returns:** boolean
-* **Error states:** None
 
 ### `checkentity(val)`
-* **Description:** Validates if a value is a table, typically representing an entity.
+* **Description:** Returns true if val is a table type (entity instances are tables). Used for required entity parameter validation.
 * **Parameters:**
-  - `val` -- any type, value to check if table (entity)
+  - `val` -- any value to check
 * **Returns:** boolean
-* **Error states:** None
 
 ### `optbool(val)`
-* **Description:** Alias for checkbool, validates optional boolean.
+* **Description:** Alias for checkbool. Returns true if val is nil or a boolean.
 * **Parameters:**
-  - `val` -- any type, value to check if nil or boolean
+  - `val` -- any value to check
 * **Returns:** boolean
-* **Error states:** None
 
 ### `optnumber(val)`
-* **Description:** Validates if a value is nil or a number.
+* **Description:** Returns true if val is nil or a number. Used for optional number parameter validation.
 * **Parameters:**
-  - `val` -- any type, value to check if nil or number
+  - `val` -- any value to check
 * **Returns:** boolean
-* **Error states:** None
 
 ### `optuint(val)`
-* **Description:** Validates if a value is nil or an unsigned integer.
+* **Description:** Returns true if val is nil or an unsigned integer. Used for optional slot/count validation.
 * **Parameters:**
-  - `val` -- any type, value to check if nil or unsigned integer
+  - `val` -- any value to check
 * **Returns:** boolean
-* **Error states:** None
 
 ### `optstring(val)`
-* **Description:** Validates if a value is nil or a string.
+* **Description:** Returns true if val is nil or a string. Used for optional string parameter validation.
 * **Parameters:**
-  - `val` -- any type, value to check if nil or string
+  - `val` -- any value to check
 * **Returns:** boolean
-* **Error states:** None
 
 ### `optentity(val)`
-* **Description:** Validates if a value is nil or a table (entity).
+* **Description:** Returns true if val is nil or a table. Used for optional entity parameter validation.
 * **Parameters:**
-  - `val` -- any type, value to check if nil or table
+  - `val` -- any value to check
 * **Returns:** boolean
-* **Error states:** None
 
 ### `printinvalid(rpcname, player)`
-* **Description:** Logs invalid RPC attempts and pushes an event for mods.
+* **Description:** Logs invalid RPC attempts and pushes `invalidrpc` event for mod handling. Asserts in dev branch.
 * **Parameters:**
-  - `rpcname` -- string, name of the RPC
-  - `player` -- Entity, the player entity
-* **Returns:** nil
-* **Error states:** Asserts false in dev branch
+  - `rpcname` -- string name of the RPC that failed validation
+  - `player` -- player entity that sent the invalid RPC
+* **Returns:** None
 
 ### `printinvalidplatform(rpcname, player, action, relative_x, relative_z, platform, platform_relative)`
-* **Description:** Logs debugging info when platform lookup fails in an RPC.
+* **Description:** Logs debug info when platform-relative position conversion fails. Only prints if platform_relative is true and platform is nil.
 * **Parameters:**
-  - `rpcname` -- string, name of the RPC
-  - `player` -- Entity, the player entity
-  - `action` -- any, action context
-  - `relative_x` -- number, x offset
-  - `relative_z` -- number, z offset
-  - `platform` -- Entity, platform entity
-  - `platform_relative` -- boolean, if position is relative
-* **Returns:** nil
-* **Error states:** None
+  - `rpcname` -- RPC name
+  - `player` -- player entity
+  - `action` -- action number
+  - `relative_x` -- X offset
+  - `relative_z` -- Z offset
+  - `platform` -- platform entity or nil
+  - `platform_relative` -- boolean indicating platform-relative coordinates
+* **Returns:** None
 
 ### `IsRotationValid(rot)`
-* **Description:** Checks if a rotation value is within valid finite bounds.
+* **Description:** Checks if rotation value is within valid numeric range (not infinity).
 * **Parameters:**
-  - `rot` -- number, rotation value
+  - `rot` -- number rotation value
 * **Returns:** boolean
-* **Error states:** None
 
 ### `IsPointInRange(player, x, z)`
-* **Description:** Checks if a point is within 4096 distance squared from the player.
+* **Description:** Checks if target position is within 64 units (4096 squared distance) of player position.
 * **Parameters:**
-  - `player` -- Entity, the player entity
-  - `x` -- number, target x coordinate
-  - `z` -- number, target z coordinate
+  - `player` -- player entity
+  - `x` -- target X position
+  - `z` -- target Z position
 * **Returns:** boolean
-* **Error states:** None
+* **Error states:** Errors if player.Transform is nil
 
 ### `ConvertPlatformRelativePositionToAbsolutePosition(relative_x, relative_z, platform, platform_relative)`
-* **Description:** Converts relative platform coordinates to absolute world coordinates.
+* **Description:** Converts platform-relative coordinates to world-space absolute coordinates. Returns nil if platform_relative is true but platform is nil.
 * **Parameters:**
-  - `relative_x` -- number, relative x
-  - `relative_z` -- number, relative z
-  - `platform` -- Entity, platform entity
-  - `platform_relative` -- boolean, if conversion is needed
-* **Returns:** number, number
-* **Error states:** Returns nil if platform is missing when required
+  - `relative_x` -- X offset relative to platform
+  - `relative_z` -- Z offset relative to platform
+  - `platform` -- platform entity or nil
+  - `platform_relative` -- boolean indicating if coordinates are platform-relative
+* **Returns:** x, z (numbers) or nil
 
 ### `LeftClick(player, action, x, z, target, isreleased, controlmods, noforce, mod_name, platform, platform_relative, spellbook, spell_id)`
-* **Description:** Handles remote left click actions from the client.
+* **Description:** Handles remote left-click actions from client. Validates all parameters, converts platform-relative positions, checks range, and forwards to playercontroller:OnRemoteLeftClick. Returns early without action if validation fails or playercontroller is nil.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `action` -- number, action type
-  - `x` -- number, x coordinate
-  - `z` -- number, z coordinate
-  - `target` -- Entity (Optional), target entity
-  - `isreleased` -- boolean (Optional), mouse release state
-  - `controlmods` -- number (Optional), control modifiers
-  - `noforce` -- boolean (Optional), force flag
-  - `mod_name` -- string (Optional), mod name
-  - `platform` -- Entity (Optional), platform
-  - `platform_relative` -- boolean, relative position flag
-  - `spellbook` -- Entity (Optional), spellbook
-  - `spell_id` -- number (Optional), spell ID
-* **Returns:** nil
-* **Error states:** Returns early if validation fails or out of range
+  - `player` -- player entity
+  - `action` -- action number or nil
+  - `x` -- world X position
+  - `z` -- world Z position
+  - `target` -- target entity or nil
+  - `isreleased` -- boolean mouse release state
+  - `controlmods` -- control modifier flags
+  - `noforce` -- boolean to skip force actions
+  - `mod_name` -- mod namespace string
+  - `platform` -- platform entity
+  - `platform_relative` -- boolean for platform-relative coords
+  - `spellbook` -- spellbook entity
+  - `spell_id` -- spell ID number
+* **Returns:** None
+* **Error states:** None
 
 ### `RightClick(player, action, x, z, target, rotation, isreleased, controlmods, noforce, mod_name, platform, platform_relative)`
-* **Description:** Handles remote right click actions from the client.
+* **Description:** Handles remote right-click actions from client. Validates parameters, converts positions, checks range and rotation validity, forwards to playercontroller:OnRemoteRightClick. Returns early without action if validation fails or playercontroller is nil.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `action` -- number, action type
-  - `x` -- number, x coordinate
-  - `z` -- number, z coordinate
-  - `target` -- Entity (Optional), target entity
-  - `rotation` -- number (Optional), rotation angle
-  - `isreleased` -- boolean (Optional), mouse release state
-  - `controlmods` -- number (Optional), control modifiers
-  - `noforce` -- boolean (Optional), force flag
-  - `mod_name` -- string (Optional), mod name
-  - `platform` -- Entity (Optional), platform
-  - `platform_relative` -- boolean, relative position flag
-* **Returns:** nil
-* **Error states:** Returns early if validation fails or out of range
+  - `player` -- player entity
+  - `action` -- action number or nil
+  - `x` -- world X position
+  - `z` -- world Z position
+  - `target` -- target entity or nil
+  - `rotation` -- placement rotation
+  - `isreleased` -- boolean mouse release state
+  - `controlmods` -- control modifier flags
+  - `noforce` -- boolean to skip force actions
+  - `mod_name` -- mod namespace string
+  - `platform` -- platform entity
+  - `platform_relative` -- boolean for platform-relative coords
+* **Returns:** None
+* **Error states:** None
 
 ### `ActionButton(player, action, target, isreleased, noforce, mod_name)`
-* **Description:** Handles remote action button presses.
+* **Description:** Handles remote action button presses. Forwards to playercontroller:OnRemoteActionButton. Returns early without action if validation fails or playercontroller is nil.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `action` -- number (Optional), action type
-  - `target` -- Entity (Optional), target entity
-  - `isreleased` -- boolean (Optional), release state
-  - `noforce` -- boolean (Optional), force flag
-  - `mod_name` -- string (Optional), mod name
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `action` -- action number
+  - `target` -- target entity
+  - `isreleased` -- boolean release state
+  - `noforce` -- boolean to skip force
+  - `mod_name` -- mod namespace
+* **Returns:** None
+* **Error states:** None
 
 ### `AttackButton(player, target, forceattack, noforce, isleftmouse, isreleased)`
-* **Description:** Handles remote attack button presses.
+* **Description:** Handles remote attack button presses. Forwards to playercontroller:OnRemoteAttackButton. Returns early without action if validation fails or playercontroller is nil.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `target` -- Entity (Optional), target entity
-  - `forceattack` -- boolean (Optional), force attack flag
-  - `noforce` -- boolean (Optional), no force flag
-  - `isleftmouse` -- boolean (Optional), left mouse flag
-  - `isreleased` -- boolean (Optional), release state
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `target` -- attack target entity
+  - `forceattack` -- boolean force attack flag
+  - `noforce` -- boolean skip force flag
+  - `isleftmouse` -- boolean left mouse button
+  - `isreleased` -- boolean release state
+* **Returns:** None
+* **Error states:** None
 
 ### `InspectButton(player, target)`
-* **Description:** Handles remote inspect button presses.
+* **Description:** Handles remote inspect button. Validates target is entity, forwards to playercontroller:OnRemoteInspectButton. Returns early without action if target is not entity or playercontroller is nil.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `target` -- Entity, target entity
-* **Returns:** nil
-* **Error states:** Returns early if target is invalid
+  - `player` -- player entity
+  - `target` -- entity to inspect
+* **Returns:** None
+* **Error states:** None
 
 ### `ResurrectButton(player)`
-* **Description:** Handles remote resurrect button presses.
+* **Description:** Handles remote resurrect button press. Forwards to playercontroller:OnRemoteResurrectButton.
 * **Parameters:**
-  - `player` -- Entity, the player
-* **Returns:** nil
-* **Error states:** None
+  - `player` -- player entity
+* **Returns:** None
 
 ### `CharacterCommandWheelButton(player, target)`
-* **Description:** Handles remote character command wheel button presses.
+* **Description:** Handles character command wheel button. Validates target, forwards to playercontroller:OnRemoteCharacterCommandWheelButton. Returns early without action if target is not entity.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `target` -- Entity, target entity
-* **Returns:** nil
-* **Error states:** Returns early if target is invalid
+  - `player` -- player entity
+  - `target` -- command wheel target entity
+* **Returns:** None
+* **Error states:** None
 
 ### `ControllerActionButton(player, action, target, isreleased, noforce, mod_name)`
-* **Description:** Handles remote controller action button presses.
+* **Description:** Handles controller action button. Validates parameters (all nil or all valid), forwards to playercontroller:OnRemoteControllerActionButton. Returns early without action if validation fails.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `action` -- number, action type
-  - `target` -- Entity, target entity
-  - `isreleased` -- boolean (Optional), release state
-  - `noforce` -- boolean (Optional), force flag
-  - `mod_name` -- string (Optional), mod name
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `action` -- action number
+  - `target` -- target entity
+  - `isreleased` -- boolean release state
+  - `noforce` -- boolean skip force
+  - `mod_name` -- mod namespace
+* **Returns:** None
+* **Error states:** None
 
 ### `ControllerActionButtonPoint(player, action, x, z, isreleased, noforce, mod_name, platform, platform_relative, isspecial, spellbook, spell_id)`
-* **Description:** Handles remote controller action button presses at a point.
+* **Description:** Handles controller action button at point. Converts platform-relative positions, checks range, forwards to playercontroller:OnRemoteControllerActionButtonPoint. Returns early without action if validation fails or position out of range.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `action` -- number, action type
-  - `x` -- number, x coordinate
-  - `z` -- number, z coordinate
-  - `isreleased` -- boolean (Optional), release state
-  - `noforce` -- boolean (Optional), force flag
-  - `mod_name` -- string (Optional), mod name
-  - `platform` -- Entity (Optional), platform
-  - `platform_relative` -- boolean, relative flag
-  - `isspecial` -- boolean (Optional), special action flag
-  - `spellbook` -- Entity (Optional), spellbook
-  - `spell_id` -- number (Optional), spell ID
-* **Returns:** nil
-* **Error states:** Returns early if validation fails or out of range
+  - `player` -- player entity
+  - `action` -- action number
+  - `x` -- world X
+  - `z` -- world Z
+  - `isreleased` -- boolean release
+  - `noforce` -- boolean skip force
+  - `mod_name` -- mod namespace
+  - `platform` -- platform entity
+  - `platform_relative` -- boolean platform-relative
+  - `isspecial` -- boolean special action
+  - `spellbook` -- spellbook entity
+  - `spell_id` -- spell ID
+* **Returns:** None
+* **Error states:** None
 
 ### `ControllerActionButtonDeploy(player, invobject, x, z, rotation, isreleased, platform, platform_relative)`
-* **Description:** Handles remote controller deploy actions.
+* **Description:** Handles controller deploy action. Converts positions, validates range and rotation, forwards to playercontroller:OnRemoteControllerActionButtonDeploy. Returns early if validation fails or position out of range.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `invobject` -- Entity, inventory object
-  - `x` -- number, x coordinate
-  - `z` -- number, z coordinate
-  - `rotation` -- number (Optional), rotation
-  - `isreleased` -- boolean (Optional), release state
-  - `platform` -- Entity (Optional), platform
-  - `platform_relative` -- boolean, relative flag
-* **Returns:** nil
-* **Error states:** Returns early if validation fails or out of range
+  - `player` -- player entity
+  - `invobject` -- inventory object entity
+  - `x` -- world X
+  - `z` -- world Z
+  - `rotation` -- placement rotation
+  - `isreleased` -- boolean release
+  - `platform` -- platform entity
+  - `platform_relative` -- boolean platform-relative
+* **Returns:** None
+* **Error states:** None
 
 ### `ControllerAltActionButton(player, action, target, isreleased, noforce, mod_name)`
-* **Description:** Handles remote controller alt action button presses.
+* **Description:** Handles controller alt action button. Validates parameters, forwards to playercontroller:OnRemoteControllerAltActionButton. Returns early if validation fails.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `action` -- number, action type
-  - `target` -- Entity, target entity
-  - `isreleased` -- boolean (Optional), release state
-  - `noforce` -- boolean (Optional), force flag
-  - `mod_name` -- string (Optional), mod name
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `action` -- action number
+  - `target` -- target entity
+  - `isreleased` -- boolean release
+  - `noforce` -- boolean skip force
+  - `mod_name` -- mod namespace
+* **Returns:** None
+* **Error states:** None
 
 ### `ControllerAltActionButtonPoint(player, action, x, z, isreleased, noforce, isspecial, mod_name, platform, platform_relative)`
-* **Description:** Handles remote controller alt action button presses at a point.
+* **Description:** Handles controller alt action at point. Converts positions, checks range, forwards to playercontroller:OnRemoteControllerAltActionButtonPoint. Returns early if validation fails or out of range.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `action` -- number, action type
-  - `x` -- number, x coordinate
-  - `z` -- number, z coordinate
-  - `isreleased` -- boolean (Optional), release state
-  - `noforce` -- boolean (Optional), force flag
-  - `isspecial` -- boolean (Optional), special flag
-  - `mod_name` -- string (Optional), mod name
-  - `platform` -- Entity (Optional), platform
-  - `platform_relative` -- boolean, relative flag
-* **Returns:** nil
-* **Error states:** Returns early if validation fails or out of range
+  - `player` -- player entity
+  - `action` -- action number
+  - `x` -- world X
+  - `z` -- world Z
+  - `isreleased` -- boolean release
+  - `noforce` -- boolean skip force
+  - `isspecial` -- boolean special
+  - `mod_name` -- mod namespace
+  - `platform` -- platform entity
+  - `platform_relative` -- boolean platform-relative
+* **Returns:** None
+* **Error states:** None
 
 ### `ControllerAttackButton(player, target, isreleased, noforce)`
-* **Description:** Handles remote controller attack button presses.
+* **Description:** Handles controller attack button. Target can be entity or true. Forwards to playercontroller:OnRemoteControllerAttackButton. Returns early if validation fails.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `target` -- Entity or boolean, target entity or true
-  - `isreleased` -- boolean (Optional), release state
-  - `noforce` -- boolean (Optional), force flag
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `target` -- attack target (entity or true for self)
+  - `isreleased` -- boolean release
+  - `noforce` -- boolean skip force
+* **Returns:** None
+* **Error states:** None
 
 ### `StopControl(player, control)`
-* **Description:** Handles remote stop control signals.
+* **Description:** Handles stopping a specific control input. Forwards to playercontroller:OnRemoteStopControl. Returns early if control is not a number.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `control` -- number, control ID
-* **Returns:** nil
-* **Error states:** Returns early if control is invalid
+  - `player` -- player entity
+  - `control` -- control number to stop
+* **Returns:** None
+* **Error states:** None
 
 ### `StopAllControls(player)`
-* **Description:** Handles remote stop all controls signal.
+* **Description:** Handles stopping all control inputs. Forwards to playercontroller:OnRemoteStopAllControls.
 * **Parameters:**
-  - `player` -- Entity, the player
-* **Returns:** nil
-* **Error states:** None
+  - `player` -- player entity
+* **Returns:** None
 
 ### `DirectWalking(player, x, z)`
-* **Description:** Handles remote direct walking input.
+* **Description:** Handles direct walking input. x/z are direction vectors, not positions. Checks magnitude `< 1.01`. Forwards to playercontroller:OnRemoteDirectWalking. Returns early if x/z not numbers or out of range.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `x` -- number, direction x
-  - `z` -- number, direction z
-* **Returns:** nil
-* **Error states:** Returns early if out of range
+  - `player` -- player entity
+  - `x` -- direction X (not position)
+  - `z` -- direction Z (not position)
+* **Returns:** None
+* **Error states:** None
 
 ### `DragWalking(player, x, z, platform, platform_relative)`
-* **Description:** Handles remote drag walking input.
+* **Description:** Handles drag walking input. Converts platform-relative positions, checks range, forwards to playercontroller:OnRemoteDragWalking. Returns early if validation fails or out of range.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `x` -- number, x coordinate
-  - `z` -- number, z coordinate
-  - `platform` -- Entity (Optional), platform
-  - `platform_relative` -- boolean, relative flag
-* **Returns:** nil
-* **Error states:** Returns early if validation fails or out of range
+  - `player` -- player entity
+  - `x` -- world X
+  - `z` -- world Z
+  - `platform` -- platform entity
+  - `platform_relative` -- boolean platform-relative
+* **Returns:** None
+* **Error states:** None
 
-### `PredictWalking(player, x, z, isdirectwalking, isstart, platform, platform_relative, overridemovetime)`
-* **Description:** Handles remote walking prediction input.
+### `PredictWalking(player, x, z, isdirectwalking, isstart, platform, platform_relative, overridemovetime, isstop)`
+* **Description:** Handles walking prediction. Complex validation: either all nil with isstart/isstop true, or all validated. Converts positions, checks range. Forwards to playercontroller:OnRemotePredictWalking. Returns early if validation fails or out of range.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `x` -- number, x coordinate
-  - `z` -- number, z coordinate
-  - `isdirectwalking` -- boolean, direct walk flag
-  - `isstart` -- boolean, start flag
-  - `platform` -- Entity (Optional), platform
-  - `platform_relative` -- boolean, relative flag
-  - `overridemovetime` -- number (Optional), move time override
-* **Returns:** nil
-* **Error states:** Returns early if validation fails or out of range
+  - `player` -- player entity
+  - `x` -- world X or nil
+  - `z` -- world Z or nil
+  - `isdirectwalking` -- boolean direct walk mode
+  - `isstart` -- boolean start flag
+  - `platform` -- platform entity
+  - `platform_relative` -- boolean platform-relative
+  - `overridemovetime` -- override move time
+  - `isstop` -- boolean stop flag
+* **Returns:** None
+* **Error states:** None
 
 ### `PredictOverrideLocomote(player, dir)`
-* **Description:** Handles remote locomotion override prediction.
+* **Description:** Handles locomotion prediction override. Forwards to playercontroller:OnRemotePredictOverrideLocomote. Returns early if dir is not a number.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `dir` -- number, direction
-* **Returns:** nil
-* **Error states:** Returns early if dir is invalid
+  - `player` -- player entity
+  - `dir` -- direction number
+* **Returns:** None
+* **Error states:** None
 
 ### `StrafeFacing(player, dir)`
-* **Description:** Handles remote strafe facing changes.
+* **Description:** Handles strafe facing changes. Checks player not in busy state. Calls locomotor:OnStrafeFacingChanged.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `dir` -- number, direction
-* **Returns:** nil
-* **Error states:** Returns early if dir is invalid or player is busy
+  - `player` -- player entity
+  - `dir` -- facing direction number
+* **Returns:** None
 
 ### `StartHop(player, x, z, platform, has_platform)`
-* **Description:** Handles remote hop start actions.
+* **Description:** Handles hop initiation. Validates platform consistency (has_platform matches platform presence and walkableplatform component). Forwards to playercontroller:OnRemoteStartHop. Returns early if validation fails or platform mismatch.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `x` -- number, x coordinate
-  - `z` -- number, z coordinate
-  - `platform` -- Entity (Optional), platform
-  - `has_platform` -- boolean, platform existence flag
-* **Returns:** nil
-* **Error states:** Returns early if validation fails or platform mismatch
+  - `player` -- player entity
+  - `x` -- world X
+  - `z` -- world Z
+  - `platform` -- platform entity
+  - `has_platform` -- boolean has platform flag
+* **Returns:** None
+* **Error states:** None
 
 ### `SteerBoat(player, dir_x, dir_z)`
-* **Description:** Handles remote boat steering input.
+* **Description:** Handles boat steering. Calls steeringwheeluser:SteerInDir if player has component. Returns early if dir_x/dir_z not numbers.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `dir_x` -- number, steer x
-  - `dir_z` -- number, steer z
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `dir_x` -- steer direction X
+  - `dir_z` -- steer direction Z
+* **Returns:** None
+* **Error states:** None
 
 ### `StopWalking(player)`
-* **Description:** Handles remote stop walking signal.
+* **Description:** Handles stop walking command. Forwards to playercontroller:OnRemoteStopWalking.
 * **Parameters:**
-  - `player` -- Entity, the player
-* **Returns:** nil
-* **Error states:** None
+  - `player` -- player entity
+* **Returns:** None
 
 ### `DoWidgetButtonAction(player, action, target, mod_name)`
-* **Description:** Handles remote widget button actions.
+* **Description:** Handles widget button actions. Checks playercontroller enabled, not busy, container opened by player. Executes buttoninfo.fn if valid. Action and mod_name are deprecated but kept for mod compatibility. Returns early if target not entity or conditions not met.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `action` -- any, deprecated action
-  - `target` -- Entity (Optional), target entity
-  - `mod_name` -- string, deprecated mod name
-* **Returns:** nil
-* **Error states:** Returns early if target invalid or container not opened by player
+  - `player` -- player entity
+  - `action` -- deprecated action number
+  - `target` -- widget target entity
+  - `mod_name` -- deprecated mod name
+* **Returns:** None
+* **Error states:** Errors if player.sg is nil (no nil guard before HasStateTag access)
 
 ### `ReturnActiveItem(player)`
-* **Description:** Handles returning active item to inventory.
+* **Description:** Returns active item to inventory. Calls inventory:ReturnActiveItem.
 * **Parameters:**
-  - `player` -- Entity, the player
-* **Returns:** nil
-* **Error states:** None
+  - `player` -- player entity
+* **Returns:** None
 
 ### `PutOneOfActiveItemInSlot(player, slot, container)`
-* **Description:** Handles putting one of active item into a slot.
+* **Description:** Moves one of active item to slot. If container nil, uses player inventory. Otherwise uses container if opened by player. Returns early if slot not uint or container not entity.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `slot` -- number, slot index
-  - `container` -- Entity (Optional), container entity
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `slot` -- slot number (uint)
+  - `container` -- container entity or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `PutAllOfActiveItemInSlot(player, slot, container)`
-* **Description:** Handles putting all of active item into a slot.
+* **Description:** Moves all of active item to slot. If container nil, uses player inventory. Otherwise uses container if opened by player. Returns early if slot not uint or container not entity.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `slot` -- number, slot index
-  - `container` -- Entity (Optional), container entity
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `slot` -- slot number (uint)
+  - `container` -- container entity or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `TakeActiveItemFromHalfOfSlot(player, slot, container)`
-* **Description:** Handles taking half of item from slot to active.
+* **Description:** Takes half of item from slot to active item. If container nil, uses player inventory. Otherwise uses container if opened by player. Returns early if slot not uint or container not entity.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `slot` -- number, slot index
-  - `container` -- Entity (Optional), container entity
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `slot` -- slot number (uint)
+  - `container` -- container entity or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `TakeActiveItemFromCountOfSlot(player, slot, container, count)`
-* **Description:** Handles taking specific count of item from slot to active.
+* **Description:** Takes specific count from slot to active item. If container nil, uses player inventory. Otherwise uses container if opened by player. Returns early if slot/count not uint or container not entity.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `slot` -- number, slot index
-  - `container` -- Entity (Optional), container entity
-  - `count` -- number, item count
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `slot` -- slot number (uint)
+  - `container` -- container entity or nil
+  - `count` -- count to take (uint)
+* **Returns:** None
+* **Error states:** None
 
 ### `TakeActiveItemFromAllOfSlot(player, slot, container)`
-* **Description:** Handles taking all items from slot to active.
+* **Description:** Takes all from slot to active item. If container nil, uses player inventory. Otherwise uses container if opened by player. Returns early if slot not uint or container not entity.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `slot` -- number, slot index
-  - `container` -- Entity (Optional), container entity
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `slot` -- slot number (uint)
+  - `container` -- container entity or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `AddOneOfActiveItemToSlot(player, slot, container)`
-* **Description:** Handles adding one of active item to slot.
+* **Description:** Adds one of active item to slot. If container nil, uses player inventory. Otherwise uses container if opened by player. Returns early if slot not uint or container not entity.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `slot` -- number, slot index
-  - `container` -- Entity (Optional), container entity
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `slot` -- slot number (uint)
+  - `container` -- container entity or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `AddAllOfActiveItemToSlot(player, slot, container)`
-* **Description:** Handles adding all of active item to slot.
+* **Description:** Adds all of active item to slot. If container nil, uses player inventory. Otherwise uses container if opened by player. Returns early if slot not uint or container not entity.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `slot` -- number, slot index
-  - `container` -- Entity (Optional), container entity
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `slot` -- slot number (uint)
+  - `container` -- container entity or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `SwapActiveItemWithSlot(player, slot, container)`
-* **Description:** Handles swapping active item with slot contents.
+* **Description:** Swaps active item with slot contents. If container nil, uses player inventory. Otherwise uses container if opened by player. Returns early if slot not uint or container not entity.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `slot` -- number, slot index
-  - `container` -- Entity (Optional), container entity
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `slot` -- slot number (uint)
+  - `container` -- container entity or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `SwapOneOfActiveItemWithSlot(player, slot, container)`
-* **Description:** Handles swapping one of active item with slot contents. Note: Only works when container is provided; direct inventory swap (container=nil) is not implemented.
+* **Description:** Swaps one of active item with slot. Currently only implemented for container (player inventory version is TODO). Uses container if opened by player. Returns early if slot not uint or container not entity.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `slot` -- number, slot index
-  - `container` -- Entity (Optional), container entity
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `slot` -- slot number (uint)
+  - `container` -- container entity or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `UseItemFromInvTile(player, action, item, controlmods, mod_name)`
-* **Description:** Handles using an item from inventory tile.
+* **Description:** Uses item from inventory tile. Decodes control mods, calls inventory:UseItemFromInvTile, clears control mods. Returns early if validation fails.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `action` -- number, action type
-  - `item` -- Entity, item entity
-  - `controlmods` -- number (Optional), control modifiers
-  - `mod_name` -- string (Optional), mod name
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `action` -- action number
+  - `item` -- item entity
+  - `controlmods` -- control modifiers
+  - `mod_name` -- mod namespace
+* **Returns:** None
+* **Error states:** None
 
 ### `ControllerUseItemOnItemFromInvTile(player, action, item, active_item, mod_name)`
-* **Description:** Handles controller use item on item from inventory tile.
+* **Description:** Controller use item on item from inventory. Clears control mods, calls inventory:ControllerUseItemOnItemFromInvTile. Returns early if validation fails.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `action` -- number, action type
-  - `item` -- Entity, target item
-  - `active_item` -- Entity, active item
-  - `mod_name` -- string (Optional), mod name
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `action` -- action number
+  - `item` -- target item entity
+  - `active_item` -- active item entity
+  - `mod_name` -- mod namespace
+* **Returns:** None
+* **Error states:** None
 
 ### `ControllerUseItemOnSelfFromInvTile(player, action, item, mod_name)`
-* **Description:** Handles controller use item on self from inventory tile.
+* **Description:** Controller use item on self from inventory. Clears control mods, calls inventory:ControllerUseItemOnSelfFromInvTile. Returns early if validation fails.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `action` -- number, action type
-  - `item` -- Entity, item entity
-  - `mod_name` -- string (Optional), mod name
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `action` -- action number
+  - `item` -- item entity
+  - `mod_name` -- mod namespace
+* **Returns:** None
+* **Error states:** None
 
 ### `ControllerUseItemOnSceneFromInvTile(player, action, item, target, mod_name)`
-* **Description:** Handles controller use item on scene from inventory tile.
+* **Description:** Controller use item on scene from inventory. Clears control mods, calls inventory:ControllerUseItemOnSceneFromInvTile. Returns early if validation fails.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `action` -- number, action type
-  - `item` -- Entity, item entity
-  - `target` -- Entity (Optional), target entity
-  - `mod_name` -- string (Optional), mod name
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `action` -- action number
+  - `item` -- item entity
+  - `target` -- scene target entity
+  - `mod_name` -- mod namespace
+* **Returns:** None
+* **Error states:** None
 
 ### `InspectItemFromInvTile(player, item)`
-* **Description:** Handles inspecting an item from inventory tile.
+* **Description:** Inspects item from inventory tile. Calls inventory:InspectItemFromInvTile. Returns early if item not entity.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `item` -- Entity, item entity
-* **Returns:** nil
-* **Error states:** Returns early if item is invalid
+  - `player` -- player entity
+  - `item` -- item entity to inspect
+* **Returns:** None
+* **Error states:** None
 
 ### `DropItemFromInvTile(player, item, single)`
-* **Description:** Handles dropping an item from inventory tile.
+* **Description:** Drops item from inventory tile. Calls inventory:DropItemFromInvTile. Returns early if item not entity.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `item` -- Entity, item entity
-  - `single` -- boolean (Optional), drop single flag
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `item` -- item entity to drop
+  - `single` -- boolean drop single vs stack
+* **Returns:** None
+* **Error states:** None
 
 ### `CastSpellBookFromInv(player, item, spell_id)`
-* **Description:** Handles casting a spell from inventory.
+* **Description:** Casts spell from spellbook in inventory. Calls inventory:CastSpellBookFromInv. Returns early if item not entity or spell_id not uint.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `item` -- Entity, spellbook item
-  - `spell_id` -- number, spell ID
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `item` -- spellbook item entity
+  - `spell_id` -- spell ID (uint)
+* **Returns:** None
+* **Error states:** None
 
 ### `EquipActiveItem(player)`
-* **Description:** Handles equipping the active item.
+* **Description:** Equips the active item. Calls inventory:EquipActiveItem.
 * **Parameters:**
-  - `player` -- Entity, the player
-* **Returns:** nil
-* **Error states:** None
+  - `player` -- player entity
+* **Returns:** None
 
 ### `EquipActionItem(player, item)`
-* **Description:** Handles equipping an action item.
+* **Description:** Equips specific item via action. Calls inventory:EquipActionItem. Returns early if item not entity.
 * **Parameters:**
-  - `player` -- Entity, the player
-  - `item` -- Entity (Optional), item entity
-* **Returns:** nil
-* **Error states:** Returns early if item is provided but invalid
+  - `player` -- player entity
+  - `item` -- item entity to equip
+* **Returns:** None
+* **Error states:** None
 
 ### `SwapEquipWithActiveItem(player)`
-* **Description:** Swaps the player's equipped item with their active held item via the inventory component.
+* **Description:** Swaps equipped item with active item. Calls inventory:SwapEquipWithActiveItem.
 * **Parameters:**
-  - `player` -- Entity: The player entity performing the swap
-* **Returns:** nil
-* **Error states:** Returns early if inventory component is missing
+  - `player` -- player entity
+* **Returns:** None
 
 ### `TakeActiveItemFromEquipSlot(player, eslot)`
-* **Description:** Takes an active item from a specific equipment slot.
+* **Description:** Takes item from equip slot to active item. Calls inventory:TakeActiveItemFromEquipSlotID. Returns early if eslot not number.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `eslot` -- Number: The equipment slot ID
-* **Returns:** nil
-* **Error states:** Returns early if eslot is not a number or inventory is missing
+  - `player` -- player entity
+  - `eslot` -- equip slot number
+* **Returns:** None
+* **Error states:** None
 
 ### `MoveInvItemFromAllOfSlot(player, slot, destcontainer)`
-* **Description:** Moves all items from a specific inventory slot to a destination container.
+* **Description:** Moves all items from player inventory slot to destination container. Calls inventory:MoveItemFromAllOfSlot. Returns early if slot not uint or destcontainer not entity.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `slot` -- Number: The inventory slot index
-  - `destcontainer` -- Entity: The destination container entity
-* **Returns:** nil
-* **Error states:** Returns early if slot or destcontainer validation fails
+  - `player` -- player entity
+  - `slot` -- source slot (uint)
+  - `destcontainer` -- destination container entity
+* **Returns:** None
+* **Error states:** None
 
 ### `MoveInvItemFromHalfOfSlot(player, slot, destcontainer)`
-* **Description:** Moves half of the items from a specific inventory slot to a destination container.
+* **Description:** Moves half items from player inventory slot to destination container. Calls inventory:MoveItemFromHalfOfSlot. Returns early if slot not uint or destcontainer not entity.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `slot` -- Number: The inventory slot index
-  - `destcontainer` -- Entity: The destination container entity
-* **Returns:** nil
-* **Error states:** Returns early if slot or destcontainer validation fails
+  - `player` -- player entity
+  - `slot` -- source slot (uint)
+  - `destcontainer` -- destination container entity
+* **Returns:** None
+* **Error states:** None
 
 ### `MoveInvItemFromCountOfSlot(player, slot, destcontainer, count)`
-* **Description:** Moves a specific count of items from a slot to a destination container.
+* **Description:** Moves specific count from player inventory slot to destination container. Calls inventory:MoveItemFromCountOfSlot. Returns early if slot/count not uint or destcontainer not entity.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `slot` -- Number: The inventory slot index
-  - `destcontainer` -- Entity: The destination container entity
-  - `count` -- Number: The number of items to move
-* **Returns:** nil
-* **Error states:** Returns early if validation fails
+  - `player` -- player entity
+  - `slot` -- source slot (uint)
+  - `destcontainer` -- destination container entity
+  - `count` -- count to move (uint)
+* **Returns:** None
+* **Error states:** None
 
 ### `MoveItemFromAllOfSlot(player, slot, srccontainer, destcontainer)`
-* **Description:** Moves all items from a source container slot to a destination.
+* **Description:** Moves all items from container slot. Checks container opened by player. Calls container:MoveItemFromAllOfSlot. Returns early if validation fails or container not opened by player.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `slot` -- Number: The source container slot index
-  - `srccontainer` -- Entity: The source container entity
-  - `destcontainer` -- Entity: The destination container entity (optional)
-* **Returns:** nil
-* **Error states:** Returns early if validation fails or container is not opened by player
+  - `player` -- player entity
+  - `slot` -- source slot (uint)
+  - `srccontainer` -- source container entity
+  - `destcontainer` -- destination container entity or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `MoveItemFromHalfOfSlot(player, slot, srccontainer, destcontainer)`
-* **Description:** Moves half of the items from a source container slot to a destination.
+* **Description:** Moves half items from container slot. Checks container opened by player. Calls container:MoveItemFromHalfOfSlot. Returns early if validation fails or container not opened by player.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `slot` -- Number: The source container slot index
-  - `srccontainer` -- Entity: The source container entity
-  - `destcontainer` -- Entity: The destination container entity (optional)
-* **Returns:** nil
-* **Error states:** Returns early if validation fails or container is not opened by player
+  - `player` -- player entity
+  - `slot` -- source slot (uint)
+  - `srccontainer` -- source container entity
+  - `destcontainer` -- destination container entity or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `MoveItemFromCountOfSlot(player, slot, srccontainer, destcontainer, count)`
-* **Description:** Moves a specific count of items from a source container slot to a destination.
+* **Description:** Moves specific count from container slot. Checks container opened by player. Calls container:MoveItemFromCountOfSlot. Returns early if validation fails or container not opened by player.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `slot` -- Number: The source container slot index
-  - `srccontainer` -- Entity: The source container entity
-  - `destcontainer` -- Entity: The destination container entity (optional)
-  - `count` -- Number: The number of items to move
-* **Returns:** nil
-* **Error states:** Returns early if validation fails or container is not opened by player
+  - `player` -- player entity
+  - `slot` -- source slot (uint)
+  - `srccontainer` -- source container entity
+  - `destcontainer` -- destination container entity or nil
+  - `count` -- count to move (uint)
+* **Returns:** None
+* **Error states:** None
 
 ### `MakeRecipeFromMenu(player, recipe, skin_index)`
-* **Description:** Crafts a recipe from the menu using the builder component.
+* **Description:** Crafts recipe from menu. Looks up recipe by rpc_id in AllRecipes, calls builder:MakeRecipeFromMenu with optional skin. Returns early if recipe/skin_index not numbers or recipe not found.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `recipe` -- Number: The RPC ID of the recipe
-  - `skin_index` -- Number (Optional): Skin index for the product
-* **Returns:** nil
-* **Error states:** Returns early if recipe ID is invalid or builder is missing
+  - `player` -- player entity
+  - `recipe` -- recipe RPC ID number
+  - `skin_index` -- skin index number or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `SetMovementPredictionEnabled(player, enabled)`
-* **Description:** Toggles movement prediction on the player controller.
+* **Description:** Toggles movement prediction. Calls playercontroller:OnRemoteToggleMovementPrediction. Returns early if enabled not boolean.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `enabled` -- Boolean: Whether to enable movement prediction
-* **Returns:** nil
-* **Error states:** Returns early if enabled is not a boolean
+  - `player` -- player entity
+  - `enabled` -- boolean enable prediction
+* **Returns:** None
+* **Error states:** None
 
 ### `MakeRecipeAtPoint(player, recipe, x, z, rot, skin_index, platform, platform_relative)`
-* **Description:** Crafts a recipe at a specific world position.
+* **Description:** Crafts recipe at world position. Converts platform-relative positions, checks range and rotation. Looks up recipe by rpc_id, calls builder:MakeRecipeAtPoint. Returns early if validation fails or out of range.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `recipe` -- Number: The RPC ID of the recipe
-  - `x` -- Number: X coordinate
-  - `z` -- Number: Z coordinate
-  - `rot` -- Number: Rotation angle
-  - `skin_index` -- Number (Optional): Skin index
-  - `platform` -- Entity (Optional): Platform entity
-  - `platform_relative` -- Boolean: Whether coordinates are relative to platform
-* **Returns:** nil
-* **Error states:** Returns early if parameters are invalid or position is out of range
+  - `player` -- player entity
+  - `recipe` -- recipe RPC ID
+  - `x` -- world X
+  - `z` -- world Z
+  - `rot` -- rotation
+  - `skin_index` -- skin index or nil
+  - `platform` -- platform entity
+  - `platform_relative` -- boolean platform-relative
+* **Returns:** None
+* **Error states:** None
 
 ### `BufferBuild(player, recipe)`
-* **Description:** Buffers a build action for a recipe.
+* **Description:** Buffers a build action. Looks up recipe by rpc_id in AllRecipes, calls builder:BufferBuild with recipe key. Returns early if recipe not number.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `recipe` -- Number: The RPC ID of the recipe
-* **Returns:** nil
-* **Error states:** Returns early if recipe ID is invalid
+  - `player` -- player entity
+  - `recipe` -- recipe RPC ID number
+* **Returns:** None
+* **Error states:** None
 
 ### `CannotBuild(player, reason)`
-* **Description:** Notifies the player they cannot build via talker component.
+* **Description:** Shows cannot build announcement. Gets localized string, says via talker component. Returns early if reason not string.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `reason` -- String: The reason string key
-* **Returns:** nil
-* **Error states:** Returns early if reason is not a string
+  - `player` -- player entity
+  - `reason` -- string reason code
+* **Returns:** None
+* **Error states:** None
 
 ### `WakeUp(player)`
-* **Description:** Wakes the player up from sleeping if conditions are met.
+* **Description:** Wakes player from sleeping. Checks playercontroller enabled, sleepingbag exists, sleeping state tag, bedroll/tent tags. Pushes `locomote` event.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-* **Returns:** nil
-* **Error states:** None
+  - `player` -- player entity
+* **Returns:** None
+* **Error states:** Errors if player.sg is nil (no nil guard before HasStateTag access)
 
 ### `exitgym(player)`
-* **Description:** Exits the gym state by pushing a locomote event.
+* **Description:** Exits gym mode. Checks playercontroller enabled, pushes `locomote` event.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-* **Returns:** nil
-* **Error states:** None
+  - `player` -- player entity
+* **Returns:** None
 
 ### `SetWriteableText(player, target, text)`
-* **Description:** Sets text on a writeable component.
+* **Description:** Sets text on writeable entity. Calls writeable:Write with player and text. Returns early if target not entity.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `target` -- Entity: The writeable target entity
-  - `text` -- String (Optional): Text to write
-* **Returns:** nil
-* **Error states:** Returns early if target is not an entity
+  - `player` -- player entity
+  - `target` -- writeable entity
+  - `text` -- text string or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `ToggleController(player, isattached)`
-* **Description:** Toggles the player controller attachment state.
+* **Description:** Toggles controller attachment state. Calls playercontroller:ToggleController. Returns early if isattached not boolean.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `isattached` -- Boolean: Whether the controller is attached
-* **Returns:** nil
-* **Error states:** Returns early if isattached is not a boolean
+  - `player` -- player entity
+  - `isattached` -- boolean controller attached state
+* **Returns:** None
+* **Error states:** None
 
 ### `OpenGift(player)`
-* **Description:** Opens the next gift via the giftreceiver component.
+* **Description:** Opens next gift. Calls giftreceiver:OpenNextGift.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-* **Returns:** nil
-* **Error states:** None
+  - `player` -- player entity
+* **Returns:** None
 
 ### `ClosePopup(player, popupcode, mod_name, ...)`
-* **Description:** Closes a popup dialog. The popup is closed regardless of validation result, but with different arguments depending on validation success.
+* **Description:** Closes popup dialog. Gets popup from code, validates via validaterpcfn, calls popup:Close. Returns early if popupcode not uint or popup not found.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `popupcode` -- Number: The popup code ID
-  - `mod_name` -- String (Optional): Mod name
-  - `...` -- Any: Additional arguments for validation
-* **Returns:** nil
-* **Error states:** Returns early if popup code is invalid; popup is closed even if validation fails
+  - `player` -- player entity that sent the RPC
+  - `popupcode` -- popup code (uint)
+  - `mod_name` -- mod namespace or nil
+  - `...` -- variable arguments for validation
+* **Returns:** None
+* **Error states:** None
 
 ### `RecievePopupMessage(player, popupcode, mod_name, ...)`
-* **Description:** Receives a popup message and sends it to the server.
+* **Description:** Server-bound RPC: Receives popup message from client. Gets popup from code, calls popup:SendMessageToServer.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `popupcode` -- Number: The popup code ID
-  - `mod_name` -- String (Optional): Mod name
-  - `...` -- Any: Message arguments
-* **Returns:** nil
-* **Error states:** Returns early if popup code is invalid
+  - `player` -- player entity
+  - `popupcode` -- popup code (uint)
+  - `mod_name` -- mod namespace or nil
+  - `...` -- message arguments
+* **Returns:** None
+* **Error states:** None
 
 ### `RepeatHeldAction(player)`
-* **Description:** Repeats the currently held action via player controller.
+* **Description:** Repeats currently held action. Calls playercontroller:RepeatHeldAction.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-* **Returns:** nil
-* **Error states:** None
+  - `player` -- player entity
+* **Returns:** None
 
 ### `ClearActionHold(player)`
-* **Description:** Clears the action hold state via player controller.
+* **Description:** Clears action hold state. Calls playercontroller:ClearActionHold.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-* **Returns:** nil
-* **Error states:** None
+  - `player` -- player entity
+* **Returns:** None
 
 ### `GetChatHistory(player, last_message_hash, first_message_hash)`
-* **Description:** Requests chat history from the server.
+* **Description:** Requests chat history. Sets sent_chat_history flag to prevent duplicate requests, calls ChatHistory:SendChatHistory. Returns early if hashes not uint.
 * **Parameters:**
-  - `player` -- Entity/UserID: The player or user ID
-  - `last_message_hash` -- Number: Hash of the last message
-  - `first_message_hash` -- Number (Optional): Hash of the first message
-* **Returns:** nil
-* **Error states:** Returns early if hashes are invalid or history already sent
+  - `player` -- player entity or userid
+  - `last_message_hash` -- last message hash (uint)
+  - `first_message_hash` -- first message hash (uint) or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `DoActionOnMap(player, actioncode, x, z, maptarget, mod_name)`
-* **Description:** Performs an action on the map at specific coordinates.
+* **Description:** Performs action on map. If actioncode provided, calls playercontroller:OnMapAction. If nil, pushes `cancelmaptarget` event on maptarget. Returns early if validation fails.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `actioncode` -- Number: The action code
-  - `x` -- Number: X coordinate
-  - `z` -- Number: Z coordinate
-  - `maptarget` -- Entity (Optional): Map target entity
-  - `mod_name` -- String (Optional): Mod name
-* **Returns:** nil
-* **Error states:** Returns early if parameters are invalid
+  - `player` -- player entity
+  - `actioncode` -- action code number or nil
+  - `x` -- world X
+  - `z` -- world Z
+  - `maptarget` -- map target entity
+  - `mod_name` -- mod namespace
+* **Returns:** None
+* **Error states:** None
 
 ### `SetSkillActivatedState(player, skill_rpc_id, isunlocked)`
-* **Description:** Sets the activation state of a skill via skilltreeupdater. Note: Deactivation (isunlocked=false) is currently not implemented on server side due to potential desync issues.
+* **Description:** Sets skill activation state. Gets skill name from TheSkillTree, calls skilltreeupdater:ActivateSkill if unlocked. DeactivateSkill is commented out for respec protection. Returns early if validation fails or skill not found.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `skill_rpc_id` -- Number: The skill RPC ID
-  - `isunlocked` -- Boolean: Whether the skill is unlocked
-* **Returns:** nil
-* **Error states:** Returns early if ID is invalid or skill does not exist
+  - `player` -- player entity
+  - `skill_rpc_id` -- skill RPC ID number
+  - `isunlocked` -- boolean unlock state
+* **Returns:** None
+* **Error states:** None
 
 ### `AddSkillXP(player, amount)`
-* **Description:** Adds XP to the player's skill tree.
+* **Description:** Adds skill XP. Calls skilltreeupdater:AddSkillXP. Returns early if amount not number.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `amount` -- Number: The amount of XP to add
-* **Returns:** nil
-* **Error states:** Returns early if amount is not a number
+  - `player` -- player entity
+  - `amount` -- XP amount number
+* **Returns:** None
+* **Error states:** None
 
 ### `PostActivateHandshake(player, state)`
-* **Description:** Handles the post-activation handshake state.
+* **Description:** Handles post-activate handshake. Calls player:OnPostActivateHandshake_Server. Returns early if state not uint.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `state` -- Number: The handshake state
-* **Returns:** nil
-* **Error states:** Returns early if state is not a uint
+  - `player` -- player entity
+  - `state` -- handshake state (uint)
+* **Returns:** None
+* **Error states:** None
 
 ### `OnScrapbookDataTaught(player, inst, response)`
-* **Description:** Handles scrapbook data being taught.
+* **Description:** Handles scrapbook data taught notification. Calls inst:OnScrapbookDataTaught if method exists. Returns early if inst not entity.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `inst` -- Entity: The scrapbook instance
-  - `response` -- Any: The response data
-* **Returns:** nil
-* **Error states:** Returns early if inst is not an entity
+  - `player` -- player entity
+  - `inst` -- scrapbook instance entity
+  - `response` -- response data
+* **Returns:** None
+* **Error states:** None
 
 ### `SetClientAuthoritativeSetting(player, variable, value)`
-* **Description:** Sets a client-authoritative setting on the player.
+* **Description:** Sets client-authoritative setting. Calls player:SetClientAuthoritativeSetting. Validation happens in callback, not here.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `variable` -- Any: The setting variable
-  - `value` -- Any: The setting value
-* **Returns:** nil
-* **Error states:** None
+  - `player` -- player entity
+  - `variable` -- setting variable name
+  - `value` -- setting value
+* **Returns:** None
 
 ### `AOECharging(player, rotation, startflag)`
-* **Description:** Handles AOE charging state remotely.
+* **Description:** Handles AOE charging input. Calls playercontroller:OnRemoteAOECharging. Returns early if validation fails.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `rotation` -- Number: The rotation angle
-  - `startflag` -- Number (Optional): Start flag
-* **Returns:** nil
-* **Error states:** Returns early if rotation is invalid
+  - `player` -- player entity
+  - `rotation` -- charging rotation number
+  - `startflag` -- start flag (uint) or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `DoubleTapAction(player, action, x, z, noforce, mod_name, platform, platform_relative)`
-* **Description:** Handles a double-tap action at a specific location.
+* **Description:** Handles double-tap action. Converts platform-relative positions, checks range, calls playercontroller:OnRemoteDoubleTapAction. Returns early if validation fails or out of range.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `action` -- Number: The action code
-  - `x` -- Number: X coordinate
-  - `z` -- Number: Z coordinate
-  - `noforce` -- Boolean (Optional): Force flag
-  - `mod_name` -- String (Optional): Mod name
-  - `platform` -- Entity (Optional): Platform entity
-  - `platform_relative` -- Boolean: Whether coordinates are relative
-* **Returns:** nil
-* **Error states:** Returns early if parameters are invalid or out of range
+  - `player` -- player entity
+  - `action` -- action number
+  - `x` -- world X
+  - `z` -- world Z
+  - `noforce` -- boolean skip force
+  - `mod_name` -- mod namespace
+  - `platform` -- platform entity
+  - `platform_relative` -- boolean platform-relative
+* **Returns:** None
+* **Error states:** None
 
 ### `WobyCommand(player, cmd)`
-* **Description:** Executes a Woby command if classified data exists.
+* **Description:** Executes Woby command. Checks woby_commands_classified exists, calls ExecuteCommand. Returns early if cmd not uint or woby_commands_classified missing.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `cmd` -- Number: The command ID
-* **Returns:** nil
-* **Error states:** Returns early if cmd is invalid or commands unavailable
+  - `player` -- player entity
+  - `cmd` -- command ID (uint)
+* **Returns:** None
+* **Error states:** None
 
 ### `InteractionTarget(player, action, target)`
-* **Description:** Sets the interaction target remotely.
+* **Description:** Handles interaction target selection. Calls playercontroller:OnRemoteInteractionTarget. Returns early if validation fails.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `action` -- Number (Optional): Action code
-  - `target` -- Entity (Optional): Target entity
-* **Returns:** nil
-* **Error states:** Returns early if parameters are invalid
+  - `player` -- player entity
+  - `action` -- action number or nil
+  - `target` -- target entity or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `PredictGallopTrip(player, x, z, dir, speed, platform, platform_relative)`
-* **Description:** Predicts a gallop trip and pushes an event.
+* **Description:** Predicts gallop trip for beefalo riding. Converts positions, validates rotation and speed, pushes `predict_gallop_trip` event immediately. Returns early if validation fails or out of range.
 * **Parameters:**
-  - `player` -- Entity: The player entity
-  - `x` -- Number: X coordinate
-  - `z` -- Number: Z coordinate
-  - `dir` -- Number: Direction
-  - `speed` -- Number (Optional): Speed
-  - `platform` -- Entity (Optional): Platform entity
-  - `platform_relative` -- Boolean: Whether coordinates are relative
-* **Returns:** nil
-* **Error states:** Returns early if parameters are invalid or rotation invalid
+  - `player` -- player entity
+  - `x` -- world X
+  - `z` -- world Z
+  - `dir` -- direction number
+  - `speed` -- speed number or nil
+  - `platform` -- platform entity
+  - `platform_relative` -- boolean platform-relative
+* **Returns:** None
+* **Error states:** None
+
+### `UnplugModule(player, modulebartype_or_socketposition, moduleindex)`
+* **Description:** Unplugs upgrade module or socket. If moduleindex provided, uses upgrademoduleowner with skill check. Otherwise uses socketholder with shadow socket skill check. Pushes `unplugmodule` event or calls TryToUnsocket. Returns early if validation fails or skill not activated.
+* **Parameters:**
+  - `player` -- player entity
+  - `modulebartype_or_socketposition` -- module bar type or socket position number
+  - `moduleindex` -- module index number or nil
+* **Returns:** None
+* **Error states:** None
+
+### `StopUsingDrone(player)`
+* **Description:** Stops using drone. Calls player:StopUsingDrone if method exists, otherwise logs invalid RPC.
+* **Parameters:**
+  - `player` -- player entity
+* **Returns:** None
+* **Error states:** None
+
+### `StopInspectingModules(player)`
+* **Description:** Stops inspecting modules. Calls player:StopInspectingModules if method exists, otherwise logs invalid RPC.
+* **Parameters:**
+  - `player` -- player entity
+* **Returns:** None
+* **Error states:** None
 
 ### `ShowPopup(popupcode, mod_name, show, ...)`
-* **Description:** Client-side handler to show a popup dialog.
+* **Description:** Client RPC: Shows or hides popup. Gets popup from code, calls popup.fn with ThePlayer.
 * **Parameters:**
-  - `popupcode` -- Number: The popup code ID
-  - `mod_name` -- String (Optional): Mod name
-  - `show` -- Boolean: Whether to show the popup
-  - `...` -- Any: Additional arguments
-* **Returns:** nil
-* **Error states:** None
-
-### `RecievePopupMessage(popupcode, mod_name, ...)`
-* **Description:** Client-side handler to receive a popup message.
-* **Parameters:**
-  - `popupcode` -- Number: The popup code ID
-  - `mod_name` -- String (Optional): Mod name
-  - `...` -- Any: Message arguments
-* **Returns:** nil
-* **Error states:** None
+  - `popupcode` -- popup code
+  - `mod_name` -- mod namespace
+  - `show` -- boolean show/hide
+  - `...` -- popup arguments
+* **Returns:** None
 
 ### `LearnRecipe(product, ...)`
-* **Description:** Client-side handler to learn a cookbook recipe.
+* **Description:** Client RPC: Learns cookbook recipe. Gets ingredients from varargs, calls cookbookupdater:LearnRecipe.
 * **Parameters:**
-  - `product` -- String: The product prefab name
-  - `...` -- Any: Ingredient list
-* **Returns:** nil
-* **Error states:** None
+  - `product` -- recipe product name
+  - `...` -- ingredient list
+* **Returns:** None
 
 ### `LearnFoodStats(product)`
-* **Description:** Client-side handler to learn food stats.
+* **Description:** Client RPC: Learns food stats. Calls cookbookupdater:LearnFoodStats.
 * **Parameters:**
-  - `product` -- String: The product prefab name
-* **Returns:** nil
-* **Error states:** None
+  - `product` -- food product name
+* **Returns:** None
 
 ### `LearnPlantStage(plant, stage)`
-* **Description:** Client-side handler to learn a plant stage.
+* **Description:** Client RPC: Learns plant growth stage. Calls plantregistryupdater:LearnPlantStage.
 * **Parameters:**
-  - `plant` -- String: The plant prefab name
-  - `stage` -- Any: The growth stage
-* **Returns:** nil
-* **Error states:** None
+  - `plant` -- plant prefab name
+  - `stage` -- growth stage
+* **Returns:** None
 
 ### `LearnFertilizerStage(fertilizer)`
-* **Description:** Client-side handler to learn fertilizer data.
+* **Description:** Client RPC: Learns fertilizer. Calls plantregistryupdater:LearnFertilizer.
 * **Parameters:**
-  - `fertilizer` -- String: The fertilizer prefab name
-* **Returns:** nil
-* **Error states:** None
+  - `fertilizer` -- fertilizer prefab name
+* **Returns:** None
 
 ### `TakeOversizedPicture(plant, weight, beardskin, beardlength)`
-* **Description:** Client-side handler to record an oversized crop picture.
+* **Description:** Client RPC: Takes oversized crop picture. Calls plantregistryupdater:TakeOversizedPicture.
 * **Parameters:**
-  - `plant` -- String: The plant prefab name
-  - `weight` -- Number: The weight of the crop
-  - `beardskin` -- Any: Beard skin data
-  - `beardlength` -- Any: Beard length data
-* **Returns:** nil
-* **Error states:** None
+  - `plant` -- plant entity
+  - `weight` -- crop weight
+  - `beardskin` -- beard skin name
+  - `beardlength` -- beard length
+* **Returns:** None
 
 ### `RecieveChatHistory(chat_history)`
-* **Description:** Client-side handler to receive chat history.
+* **Description:** Client RPC: Receives chat history from server. Calls ChatHistory:RecieveChatHistory.
 * **Parameters:**
-  - `chat_history` -- Table: The chat history data
-* **Returns:** nil
-* **Error states:** None
+  - `chat_history` -- chat history data table
+* **Returns:** None
 
 ### `LearnBuilderRecipe(product)`
-* **Description:** Client-side handler to learn a builder recipe via event.
+* **Description:** Client RPC: Learns builder recipe. Pushes `LearnBuilderRecipe` event on ThePlayer.
 * **Parameters:**
-  - `product` -- String: The recipe product name
-* **Returns:** nil
-* **Error states:** None
+  - `product` -- recipe product name
+* **Returns:** None
 
 ### `UpdateAccomplishment(name)`
-* **Description:** Client-side handler to update a generic KV accomplishment.
+* **Description:** Client RPC: Sets accomplishment KV to `1`. Uses TheGenericKV:SetKV.
 * **Parameters:**
-  - `name` -- String: The accomplishment name
-* **Returns:** nil
-* **Error states:** None
+  - `name` -- accomplishment key name
+* **Returns:** None
 
 ### `UpdateCountAccomplishment(name, maxvalue)`
-* **Description:** Client-side handler to increment a count accomplishment.
+* **Description:** Client RPC: Increments count accomplishment. Gets current value, increments if below maxvalue. Uses TheGenericKV.
 * **Parameters:**
-  - `name` -- String: The accomplishment name
-  - `maxvalue` -- Number (Optional): Max value cap
-* **Returns:** nil
-* **Error states:** Returns early if maxvalue reached
+  - `name` -- accomplishment key name
+  - `maxvalue` -- maximum count value or nil
+* **Returns:** None
 
 ### `SetSkillActivatedState(skill_rpc_id, isunlocked)`
-* **Description:** Client-side handler to set skill activation state.
+* **Description:** Client RPC: Sets skill activation state. Gets skill name from TheSkillTree, calls skilltreeupdater:ActivateSkill if unlocked. DeactivateSkill is called if locked (unlike server version).
 * **Parameters:**
-  - `skill_rpc_id` -- Number: The skill RPC ID
-  - `isunlocked` -- Boolean: Whether the skill is unlocked
-* **Returns:** nil
-* **Error states:** Returns early if character prefab is nil or skill invalid
+  - `skill_rpc_id` -- skill RPC ID number
+  - `isunlocked` -- boolean unlock state
+* **Returns:** None
 
 ### `AddSkillXP(amount)`
-* **Description:** Client-side handler to add skill XP.
+* **Description:** Client RPC: Adds skill XP. Calls skilltreeupdater:AddSkillXP.
 * **Parameters:**
-  - `amount` -- Number: The amount of XP to add
-* **Returns:** nil
-* **Error states:** None
+  - `amount` -- XP amount number
+* **Returns:** None
 
 ### `PostActivateHandshake(state)`
-* **Description:** Client-side handler for post-activate handshake.
+* **Description:** Client RPC: Handles post-activate handshake. Calls ThePlayer:OnPostActivateHandshake_Client.
 * **Parameters:**
-  - `state` -- Number: The handshake state
-* **Returns:** nil
-* **Error states:** None
+  - `state` -- handshake state
+* **Returns:** None
+
+### `RecievePopupMessage(popupcode, mod_name, ...)`
+* **Description:** Client RPC: Receives popup message from server. Gets popup from code, calls popup:SendMessageToClient.
+* **Parameters:**
+  - `popupcode` -- popup code (uint)
+  - `mod_name` -- mod namespace or nil
+  - `...` -- message arguments
+* **Returns:** None
 
 ### `TryToTeachScrapbookData(inst)`
-* **Description:** Client-side handler to teach scrapbook data.
+* **Description:** Client RPC: Attempts to teach scrapbook data. Calls TheScrapbookPartitions:TryToTeachScrapbookData.
 * **Parameters:**
-  - `inst` -- Entity: The scrapbook instance
-* **Returns:** nil
-* **Error states:** None
+  - `inst` -- scrapbook data instance
+* **Returns:** None
 
 ### `ShardTransactionSteps(shardid, shardpayload_string)`
-* **Description:** Shard-side handler to process transaction steps.
+* **Description:** Shard RPC: Handles shard transaction steps. Deserializes payload via RunInSandboxSafe, validates shard ID match, calls shardtransactionsteps:OnShardTransactionSteps.
 * **Parameters:**
-  - `shardid` -- Number/String: The shard ID
-  - `shardpayload_string` -- String: The serialized payload
-* **Returns:** nil
-* **Error states:** None
+  - `shardid` -- shard ID
+  - `shardpayload_string` -- serialized payload string
+* **Returns:** None
 
 ### `PruneShardTransactionSteps(shardid, newfinalizedid)`
-* **Description:** Shard-side handler to prune transaction steps.
+* **Description:** Shard RPC: Prunes old shard transactions. Calls shardtransactionsteps:OnPruneShardTransactionSteps.
 * **Parameters:**
-  - `shardid` -- Number/String: The shard ID
-  - `newfinalizedid` -- Any: The new finalized ID
-* **Returns:** nil
-* **Error states:** None
+  - `shardid` -- shard ID
+  - `newfinalizedid` -- new finalized transaction ID
+* **Returns:** None
 
 ### `ReskinWorldMigrator(shardid, migrator, skin_theme, skin_id, sessionid)`
-* **Description:** Shard-side handler to reskin a world migrator entity.
+* **Description:** Shard RPC: Reskins world migrator portal. Iterates ShardPortals, matches by worldmigrator.id, calls TheSim:ReskinEntity.
 * **Parameters:**
-  - `shardid` -- Number/String: The shard ID
-  - `migrator` -- Number: The migrator ID
-  - `skin_theme` -- String: The skin theme
-  - `skin_id` -- Any: The skin ID
-  - `sessionid` -- Any: The session ID
-* **Returns:** nil
-* **Error states:** None
+  - `shardid` -- shard ID
+  - `migrator` -- worldmigrator ID
+  - `skin_theme` -- skin theme string
+  - `skin_id` -- skin ID
+  - `sessionid` -- session ID
+* **Returns:** None
 
 ### `SyncWorldSettings(shardid, options_string)`
-* **Description:** Shard-side handler to sync world settings.
+* **Description:** Shard RPC: Syncs world settings from master shard. Deserializes options, applies via WorldSettings_Overrides.Sync/Pre/Post functions.
 * **Parameters:**
-  - `shardid` -- Number/String: The shard ID
-  - `options_string` -- String: The serialized options
-* **Returns:** nil
-* **Error states:** None
+  - `shardid` -- shard ID
+  - `options_string` -- serialized settings string
+* **Returns:** None
 
 ### `ResyncWorldSettings(shardid)`
-* **Description:** Shard-side handler to resync world settings.
+* **Description:** Shard RPC: Requests world settings resync. Calls Shard_SyncWorldSettings.
 * **Parameters:**
-  - `shardid` -- Number/String: The shard ID
-* **Returns:** nil
-* **Error states:** None
+  - `shardid` -- shard ID
+* **Returns:** None
 
 ### `SyncWorldStateTag(shardid, namespace, tag, enabled)`
-* **Description:** Shard-side handler to sync a world state tag.
+* **Description:** Shard RPC: Syncs world state tag. Gets tag object from namespace, calls SetTagEnabled.
 * **Parameters:**
-  - `shardid` -- Number/String: The shard ID
-  - `namespace` -- String: The tag namespace
-  - `tag` -- String: The tag name
-  - `enabled` -- Boolean: Whether the tag is enabled
-* **Returns:** nil
-* **Error states:** None
+  - `shardid` -- shard ID
+  - `namespace` -- world state tag namespace
+  - `tag` -- tag name
+  - `enabled` -- boolean enable state
+* **Returns:** None
 
 ### `SyncBossDefeated(shardid, bossprefab)`
-* **Description:** Shard-side handler to sync boss defeated state.
+* **Description:** Shard RPC: Syncs boss defeated state. Calls Shard_SyncBossDefeated.
 * **Parameters:**
-  - `shardid` -- Number/String: The shard ID
-  - `bossprefab` -- String: The boss prefab name
-* **Returns:** nil
-* **Error states:** None
+  - `shardid` -- shard ID
+  - `bossprefab` -- boss prefab name
+* **Returns:** None
 
 ### `SyncMermKingExists(shardid, exists)`
-* **Description:** Shard-side handler to sync Merm King existence.
+* **Description:** Shard RPC: Syncs Merm King existence. Calls Shard_SyncMermKingExists.
 * **Parameters:**
-  - `shardid` -- Number/String: The shard ID
-  - `exists` -- Boolean: Whether the king exists
-* **Returns:** nil
-* **Error states:** None
+  - `shardid` -- shard ID
+  - `exists` -- boolean exists state
+* **Returns:** None
 
 ### `SyncMermKingTrident(shardid, exists)`
-* **Description:** Shard-side handler to sync Merm King Trident state.
+* **Description:** Shard RPC: Syncs Merm King trident state. Calls Shard_SyncMermKingTrident.
 * **Parameters:**
-  - `shardid` -- Number/String: The shard ID
-  - `exists` -- Boolean: Whether the trident exists
-* **Returns:** nil
-* **Error states:** None
+  - `shardid` -- shard ID
+  - `exists` -- boolean trident exists
+* **Returns:** None
 
 ### `SyncMermKingCrown(shardid, exists)`
-* **Description:** Shard-side handler to sync Merm King Crown state.
+* **Description:** Shard RPC: Syncs Merm King crown state. Calls Shard_SyncMermKingCrown.
 * **Parameters:**
-  - `shardid` -- Number/String: The shard ID
-  - `exists` -- Boolean: Whether the crown exists
-* **Returns:** nil
-* **Error states:** None
+  - `shardid` -- shard ID
+  - `exists` -- boolean crown exists
+* **Returns:** None
 
 ### `SyncMermKingPauldron(shardid, exists)`
-* **Description:** Shard-side handler to sync Merm King Pauldron state.
+* **Description:** Shard RPC: Syncs Merm King pauldron state. Calls Shard_SyncMermKingPauldron.
 * **Parameters:**
-  - `shardid` -- Number/String: The shard ID
-  - `exists` -- Boolean: Whether the pauldron exists
-* **Returns:** nil
-* **Error states:** None
+  - `shardid` -- shard ID
+  - `exists` -- boolean pauldron exists
+* **Returns:** None
 
 ### `SendRPCToServer(code, ...)`
-* **Description:** Sends an RPC to the server via TheNet.
+* **Description:** Sends RPC to server. Asserts RPC code exists in RPC_HANDLERS, calls TheNet:SendRPCToServer.
 * **Parameters:**
-  - `code` -- Number: The RPC code
-  - `...` -- Any: RPC arguments
-* **Returns:** nil
-* **Error states:** Asserts if RPC code is invalid
+  - `code` -- RPC code number
+  - `...` -- RPC arguments
+* **Returns:** None
+* **Error states:** Asserts if code not in RPC_HANDLERS
 
 ### `SendRPCToClient(code, ...)`
-* **Description:** Sends an RPC to clients via TheNet.
+* **Description:** Sends RPC to client(s). users parameter can be nil (all), userid (single), or table (list). Asserts code exists, calls TheNet:SendRPCToClient.
 * **Parameters:**
-  - `code` -- Number: The RPC code
-  - `...` -- Any: RPC arguments including user list
-* **Returns:** nil
-* **Error states:** Asserts if RPC code is invalid
+  - `code` -- RPC code number
+  - `...` -- RPC arguments
+* **Returns:** None
+* **Error states:** Asserts if code not in CLIENT_RPC_HANDLERS
 
 ### `SendRPCToShard(code, ...)`
-* **Description:** Sends an RPC to shards via TheNet.
+* **Description:** Sends RPC to shard(s). shards parameter can be nil (all), shardid (single), or table (list). Asserts code exists, calls TheNet:SendRPCToShard.
 * **Parameters:**
-  - `code` -- Number: The RPC code
-  - `...` -- Any: RPC arguments including shard list
-* **Returns:** nil
-* **Error states:** Asserts if RPC code is invalid
+  - `code` -- RPC code number
+  - `...` -- RPC arguments
+* **Returns:** None
+* **Error states:** Asserts if code not in SHARD_RPC_HANDLERS
 
 ### `HandleRPC(sender, tick, code, data)`
-* **Description:** Processes an incoming server-bound RPC with rate limiting.
+* **Description:** Handles incoming server-bound RPC. Validates sender type, applies rate limiting, queues RPC for execution.
 * **Parameters:**
-  - `sender` -- Entity/Table: The sender entity or userid table
-  - `tick` -- Number: The simulation tick
-  - `code` -- Number: The RPC code
-  - `data` -- Table: The RPC data
-* **Returns:** nil
-* **Error states:** Logs error if sender is invalid or code unknown
+  - `sender` -- player entity or userid
+  - `tick` -- simulation tick
+  - `code` -- RPC code
+  - `data` -- RPC data
+* **Returns:** None
 
 ### `HandleClientRPC(tick, code, data)`
-* **Description:** Processes an incoming client-bound RPC.
+* **Description:** Handles incoming client-bound RPC. Returns early if ThePlayer nil, queues valid RPCs.
 * **Parameters:**
-  - `tick` -- Number: The simulation tick
-  - `code` -- Number: The RPC code
-  - `data` -- Table: The RPC data
-* **Returns:** nil
-* **Error states:** Returns early if ThePlayer is nil
+  - `tick` -- simulation tick
+  - `code` -- RPC code
+  - `data` -- RPC data
+* **Returns:** None
 
 ### `HandleShardRPC(sender, tick, code, data)`
-* **Description:** Processes an incoming shard-bound RPC.
+* **Description:** Handles incoming shard-bound RPC. Queues valid RPCs for execution.
 * **Parameters:**
-  - `sender` -- Any: The sender shard ID
-  - `tick` -- Number: The simulation tick
-  - `code` -- Number: The RPC code
-  - `data` -- Table: The RPC data
-* **Returns:** nil
-* **Error states:** Logs error if code is unknown
+  - `sender` -- sender shard ID
+  - `tick` -- simulation tick
+  - `code` -- RPC code
+  - `data` -- RPC data
+* **Returns:** None
 
 ### `HandleRPCQueue()`
-* **Description:** Processes pending RPC queues for server, client, and shard connections, handling rate limiting and timeline validation before invoking RPCs via TheNet.
+* **Description:** Processes queued RPCs for server, client, and shard. Applies rate limiting, timeline checks, invokes via TheNet:CallRPC/CallClientRPC/CallShardRPC. Re-queues pending RPCs.
 * **Parameters:** None
-* **Returns:** nil
-* **Error states:** None
+* **Returns:** None
 
 ### `TickRPCQueue()`
-* **Description:** Resets RPC timeline tables to prepare for the next simulation tick.
+* **Description:** Resets RPC timeline trackers at start of new tick. Clears RPC_Timeline, RPC_Client_Timeline, RPC_Shard_Timeline.
 * **Parameters:** None
-* **Returns:** nil
-* **Error states:** None
-
-### `__index_lower(t, k)`
-* **Description:** Metatable __index function that performs case-insensitive key lookup by lowercasing the key.
-* **Parameters:**
-  - `t` -- table: The table being accessed
-  - `k` -- string: The key being looked up
-* **Returns:** value: The value associated with the lowercased key
-* **Error states:** None
-
-### `__newindex_lower(t, k, v)`
-* **Description:** Metatable __newindex function that stores values using a lowercased key.
-* **Parameters:**
-  - `t` -- table: The table being modified
-  - `k` -- string: The key being set
-  - `v` -- any: The value to assign
-* **Returns:** nil
-* **Error states:** None
-
-### `setmetadata(tab)`
-* **Description:** Assigns a metatable to a table enabling case-insensitive key access.
-* **Parameters:**
-  - `tab` -- table: The table to assign the case-insensitive metatable
-* **Returns:** nil
-* **Error states:** None
+* **Returns:** None
 
 ### `AddModRPCHandler(namespace, name, fn)`
-* **Description:** Registers a new mod RPC handler for server-side processing, updating rate limits.
+* **Description:** Registers mod RPC handler. Creates namespace tables if needed, increments RPC_QUEUE_RATE_LIMIT, stores handler with metadata.
 * **Parameters:**
-  - `namespace` -- string: The namespace for the mod RPC
-  - `name` -- string: The unique name of the RPC within the namespace
-  - `fn` -- function: The handler function to execute when the RPC is received
-* **Returns:** nil
-* **Error states:** None
+  - `namespace` -- mod namespace string
+  - `name` -- RPC name
+  - `fn` -- handler function
+* **Returns:** None
 
 ### `AddClientModRPCHandler(namespace, name, fn)`
-* **Description:** Registers a new mod RPC handler for client-side processing.
+* **Description:** Registers client mod RPC handler. Creates namespace tables if needed, stores handler with metadata.
 * **Parameters:**
-  - `namespace` -- string: The namespace for the client mod RPC
-  - `name` -- string: The unique name of the RPC
-  - `fn` -- function: The handler function to execute on the client
-* **Returns:** nil
-* **Error states:** None
+  - `namespace` -- mod namespace string
+  - `name` -- RPC name
+  - `fn` -- handler function
+* **Returns:** None
 
 ### `AddShardModRPCHandler(namespace, name, fn)`
-* **Description:** Registers a new mod RPC handler for shard-side processing.
+* **Description:** Registers shard mod RPC handler. Creates namespace tables if needed, stores handler with metadata.
 * **Parameters:**
-  - `namespace` -- string: The namespace for the shard mod RPC
-  - `name` -- string: The unique name of the RPC
-  - `fn` -- function: The handler function to execute on the shard
-* **Returns:** nil
-* **Error states:** None
+  - `namespace` -- mod namespace string
+  - `name` -- RPC name
+  - `fn` -- handler function
+* **Returns:** None
 
 ### `SendModRPCToServer(id_table, ...)`
-* **Description:** Sends a mod RPC to the server after validating the handler exists.
+* **Description:** Sends mod RPC to server. Asserts id_table valid, calls TheNet:SendModRPCToServer.
 * **Parameters:**
-  - `id_table` -- table: The RPC ID table containing namespace and id
-  - `...` -- varargs: Data arguments to pass to the RPC
-* **Returns:** nil
-* **Error states:** Asserts if the ID table or handler is invalid
+  - `id_table` -- mod RPC ID table with namespace and id
+  - `...` -- RPC arguments
+* **Returns:** None
+* **Error states:** Asserts if id_table invalid
 
 ### `SendModRPCToClient(id_table, ...)`
-* **Description:** Sends a mod RPC to a client after validating the handler exists.
+* **Description:** Sends mod RPC to client. Asserts id_table valid, calls TheNet:SendModRPCToClient.
 * **Parameters:**
-  - `id_table` -- table: The RPC ID table containing namespace and id
-  - `...` -- varargs: Data arguments to pass to the RPC
-* **Returns:** nil
-* **Error states:** Asserts if the ID table or handler is invalid
+  - `id_table` -- mod RPC ID table
+  - `...` -- RPC arguments
+* **Returns:** None
+* **Error states:** Asserts if id_table invalid
 
 ### `SendModRPCToShard(id_table, ...)`
-* **Description:** Sends a mod RPC to a shard after validating the handler exists.
+* **Description:** Sends mod RPC to shard. Asserts id_table valid, calls TheNet:SendModRPCToShard.
 * **Parameters:**
-  - `id_table` -- table: The RPC ID table containing namespace and id
-  - `...` -- varargs: Data arguments to pass to the RPC
-* **Returns:** nil
-* **Error states:** Asserts if the ID table or handler is invalid
+  - `id_table` -- mod RPC ID table
+  - `...` -- RPC arguments
+* **Returns:** None
+* **Error states:** Asserts if id_table invalid
 
 ### `HandleModRPC(sender, tick, namespace, code, data)`
-* **Description:** Processes incoming mod RPCs from clients, enforcing rate limits and user ID validation.
+* **Description:** Handles incoming mod RPC. Validates namespace, sender, applies rate limiting, queues for execution.
 * **Parameters:**
-  - `sender` -- Entity or UserID: The sender of the RPC
-  - `tick` -- number: The simulation tick the RPC was sent
-  - `namespace` -- string: The RPC namespace
-  - `code` -- number: The RPC handler code ID
-  - `data` -- table: The data payload
-* **Returns:** nil
-* **Error states:** Prints error if namespace, code, or sender is invalid
+  - `sender` -- player entity or userid
+  - `tick` -- simulation tick
+  - `namespace` -- mod namespace
+  - `code` -- RPC code
+  - `data` -- RPC data
+* **Returns:** None
 
 ### `HandleClientModRPC(tick, namespace, code, data)`
-* **Description:** Processes incoming client mod RPCs queued for local execution.
+* **Description:** Handles incoming client mod RPC. Validates namespace, queues for execution.
 * **Parameters:**
-  - `tick` -- number: The simulation tick the RPC was sent
-  - `namespace` -- string: The RPC namespace
-  - `code` -- number: The RPC handler code ID
-  - `data` -- table: The data payload
-* **Returns:** nil
-* **Error states:** Prints error if namespace or code is invalid
+  - `tick` -- simulation tick
+  - `namespace` -- mod namespace
+  - `code` -- RPC code
+  - `data` -- RPC data
+* **Returns:** None
 
 ### `HandleShardModRPC(sender, tick, namespace, code, data)`
-* **Description:** Processes incoming shard mod RPCs queued for execution.
+* **Description:** Handles incoming shard mod RPC. Validates namespace, queues for execution.
 * **Parameters:**
-  - `sender` -- Entity or ShardID: The sender of the RPC
-  - `tick` -- number: The simulation tick the RPC was sent
-  - `namespace` -- string: The RPC namespace
-  - `code` -- number: The RPC handler code ID
-  - `data` -- table: The data payload
-* **Returns:** nil
-* **Error states:** Prints error if namespace or code is invalid
+  - `sender` -- sender shard ID
+  - `tick` -- simulation tick
+  - `namespace` -- mod namespace
+  - `code` -- RPC code
+  - `data` -- RPC data
+* **Returns:** None
 
 ### `GetModRPCHandler(namespace, name)`
-* **Description:** Retrieves the registered handler function for a mod RPC.
+* **Description:** Gets mod RPC handler function by namespace and name.
 * **Parameters:**
-  - `namespace` -- string: The RPC namespace
-  - `name` -- string: The RPC name
-* **Returns:** function: The handler function
-* **Error states:** None
+  - `namespace` -- mod namespace
+  - `name` -- RPC name
+* **Returns:** function or nil
 
 ### `GetClientModRPCHandler(namespace, name)`
-* **Description:** Retrieves the registered handler function for a client mod RPC.
+* **Description:** Gets client mod RPC handler function by namespace and name.
 * **Parameters:**
-  - `namespace` -- string: The RPC namespace
-  - `name` -- string: The RPC name
-* **Returns:** function: The handler function
-* **Error states:** None
+  - `namespace` -- mod namespace
+  - `name` -- RPC name
+* **Returns:** function or nil
 
 ### `GetShardModRPCHandler(namespace, name)`
-* **Description:** Retrieves the registered handler function for a shard mod RPC.
+* **Description:** Gets shard mod RPC handler function by namespace and name.
 * **Parameters:**
-  - `namespace` -- string: The RPC namespace
-  - `name` -- string: The RPC name
-* **Returns:** function: The handler function
-* **Error states:** None
+  - `namespace` -- mod namespace
+  - `name` -- RPC name
+* **Returns:** function or nil
 
 ### `GetModRPC(namespace, name)`
-* **Description:** Retrieves the RPC table entry for a mod RPC.
+* **Description:** Gets mod RPC ID table by namespace and name.
 * **Parameters:**
-  - `namespace` -- string: The RPC namespace
-  - `name` -- string: The RPC name
-* **Returns:** table: The RPC entry
-* **Error states:** None
+  - `namespace` -- mod namespace
+  - `name` -- RPC name
+* **Returns:** table or nil
 
 ### `GetClientModRPC(namespace, name)`
-* **Description:** Retrieves the RPC table entry for a client mod RPC.
+* **Description:** Gets client mod RPC ID table by namespace and name.
 * **Parameters:**
-  - `namespace` -- string: The RPC namespace
-  - `name` -- string: The RPC name
-* **Returns:** table: The RPC entry
-* **Error states:** None
+  - `namespace` -- mod namespace
+  - `name` -- RPC name
+* **Returns:** table or nil
 
 ### `GetShardModRPC(namespace, name)`
-* **Description:** Retrieves the RPC table entry for a shard mod RPC.
+* **Description:** Gets shard mod RPC ID table by namespace and name.
 * **Parameters:**
-  - `namespace` -- string: The RPC namespace
-  - `name` -- string: The RPC name
-* **Returns:** table: The RPC entry
-* **Error states:** None
+  - `namespace` -- mod namespace
+  - `name` -- RPC name
+* **Returns:** table or nil
 
 ### `MarkUserIDRPC(namespace, name)`
-* **Description:** Marks an RPC as requiring user ID validation instead of entity validation.
+* **Description:** Marks RPC as requiring userid sender (not player entity). If namespace nil, treats name as standard RPC name.
 * **Parameters:**
-  - `namespace` -- string or nil: The RPC namespace
-  - `name` -- string: The RPC name or namespace if namespace is nil
-* **Returns:** nil
-* **Error states:** None
+  - `namespace` -- mod namespace or nil
+  - `name` -- RPC name
+* **Returns:** None
 
 ### `DisableRPCSending()`
-* **Description:** Disables RPC sending functions by replacing them with no-op functions, used during world reset or regeneration.
+* **Description:** Disables all RPC sending functions for world reset/regeneration. Replaces SendRPCToServer/Client/Shard with no-op functions.
 * **Parameters:** None
-* **Returns:** nil
-* **Error states:** None
+* **Returns:** None
+
+### `__index_lower(t, k)`
+* **Description:** Metamethod for case-insensitive table indexing. Returns rawget(t, string.lower(k)).
+* **Parameters:**
+  - `t` -- table
+  - `k` -- key
+* **Returns:** value
+
+### `__newindex_lower(t, k, v)`
+* **Description:** Metamethod for case-insensitive table assignment. Sets rawset(t, string.lower(k), v).
+* **Parameters:**
+  - `t` -- table
+  - `k` -- key
+  - `v` -- value
+* **Returns:** None
+
+### `setmetadata(tab)`
+* **Description:** Sets case-insensitive metatable on table using __index_lower and __newindex_lower.
+* **Parameters:**
+  - `tab` -- table to set metatable on
+* **Returns:** None
 
 ## Events & listeners
 
-**Events pushed:**
-- `invalidrpc` -- Pushed when a player sends an invalid RPC
-- `locomote` -- Pushed in WakeUp and exitgym to resume player movement
-- `predict_gallop_trip` -- Pushed in PredictGallopTrip with trip data
-- `LearnBuilderRecipe` -- Pushed in CLIENT_RPC_HANDLERS.LearnBuilderRecipe
-
-**Events listened to:**
-- None
+**Pushes:**
+- `invalidrpc` — Pushed when player sends invalid RPC; data: `{player, rpcname}`
+- `locomote` — Pushed on player when waking from sleep or exiting gym
+- `LearnBuilderRecipe` — Pushed on ThePlayer when client learns recipe; data: `{recipe}`
+- `predict_gallop_trip` — Pushed immediately for beefalo gallop prediction; data: `{x, z, dir, speed}`
+- `unplugmodule` — Pushed when module unplugged; data: module entity
+- `cancelmaptarget` — Pushed on maptarget when DoActionOnMap called with nil actioncode

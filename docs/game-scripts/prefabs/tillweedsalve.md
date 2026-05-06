@@ -1,84 +1,115 @@
 ---
 id: tillweedsalve
 title: Tillweedsalve
-description: A consumable healing item that applies a debuff-based regenerative effect to living targets over time.
-tags: [healing, debuff, consumable]
+description: "Defines two prefabs: the tillweed salve inventory item that heals users, and the tillweed salve buff debuff that applies healing over time."
+tags: [prefab, item, healing, consumable]
 sidebar_position: 10
 
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: c3b78ef7
-system_scope: entity
+source_hash: 60d5f6c7
+system_scope: inventory
 ---
 
 # Tillweedsalve
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-`Tillweedsalve` is a consumable inventory item prefab that heals a target entity by applying a temporary regenerative debuff. It uses the `healer` component to trigger healing on use, and relies on a companion `tillweedsalve_buff` entity to manage the debuff's periodic healing logic and lifecycle. The debuff entity is created on the master simulation only and communicates with the target via `debuff`, `timer`, and `health` component interactions.
+`tillweedsalve.lua` registers two spawnable prefabs. The `tillweedsalve` prefab is a consumable inventory item that heals 10 HP instantly and applies a healing-over-time debuff. The `tillweedsalve_buff` prefab is a classified, non-networked entity that attaches to the target and periodically applies health delta until the buff duration expires. The salve uses the `healer` component for instant healing and spawns the buff prefab to handle overtime healing via the `debuff` component.
 
 ## Usage example
 ```lua
-local inst = CreateEntity()
-inst:AddComponent("inventoryitem")
-inst:AddComponent("healer")
-inst.components.healer:SetHealthAmount(TUNING.HEALING_MEDSMALL)
-inst.components.healer:SetOnHealFn(function(inst, target)
-    target:AddDebuff("tillweedsalve_buff", "tillweedsalve_buff")
-end)
+-- Spawn the salve item:
+local salve = SpawnPrefab("tillweedsalve")
+salve.Transform:SetPosition(0, 0, 0)
+
+-- The buff prefab is spawned internally by the healer component:
+-- Do not spawn directly; it is created when salve is used on a target
 ```
 
 ## Dependencies & tags
-**Components used:** `healer`, `debuff`, `timer`, `health`, `stackable`, `inspectable`, `inventoryitem`
-**Tags:** `show_spoilage`, `CLASSIFIED` (on debuff entity only)
+**External dependencies:**
+- `MakeInventoryPhysics` -- applies physics and floatable behavior for inventory items
+- `MakeInventoryFloatable` -- configures floating animation for inventory items
+- `MakeHauntableLaunch` -- enables ghost hauntable behavior
+
+**Components used (tillweedsalve):**
+- `stackable` -- enables item stacking; maxsize set to TUNING.STACK_SIZE_SMALLITEM
+- `inspectable` -- provides inspection text
+- `inventoryitem` -- enables inventory carrying
+- `healer` -- applies instant heal and triggers OnUse callback
+
+**Components used (tillweedsalve_buff):**
+- `debuff` -- manages attachment, detachment, and extension callbacks
+- `timer` -- tracks buff duration; fires timerdone event on completion
+
+**Tags:**
+- `show_spoilage` -- added to salve; indicates perishable visual state
+- `CLASSIFIED` -- added to buff; hides entity from most queries
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `task` | Task (internal) | `nil` | Periodic timer task managing the debuff's tick rate on the debuff entity. |
+| `assets` | table | `{Asset("ANIM", "anim/tillweedsalve.zip")}` | Animation assets loaded for both prefabs. |
+| `BUFF_DURATION` | constant (local) | `TUNING.TILLWEEDSALVE_DURATION + FRAMES` | Total buff duration in seconds; adds 1 frame to compensate for timer tick alignment. |
 
 ## Main functions
+
+### `fn()`
+* **Description:** Prefab constructor (runs on both client and master). Creates the entity, sets up transform, anim state, and network components. Applies inventory physics and floatable behavior. On master, attaches stackable, inspectable, inventoryitem, and healer components. The healer applies 10 HP instant heal and triggers OnUse when consumed.
+* **Parameters:** None
+* **Returns:** entity instance
+* **Error states:** None — runs on every host (client and server).
+
+### `buff_fn()`
+* **Description:** Constructor for the tillweed salve buff prefab. Server-only; on client, the entity is removed immediately via DoTaskInTime. Creates a hidden, non-persisting classified entity that attaches to a target via the debuff component. Sets up timer for buff duration and listens for timerdone event.
+* **Parameters:** None
+* **Returns:** entity instance
+* **Error states:** None — client-side removal is intentional design.
+
 ### `OnUse(inst, target)`
-*   **Description:** Called when the item is used via the `healer` component; applies the `tillweedsalve_buff` debuff to the target.
-*   **Parameters:**  
-    `inst` (Entity) — the tillweedsalve item instance.  
-    `target` (Entity) — the entity receiving the heal.
-*   **Returns:** Nothing.
-*   **Error states:** None; assumes `target` has valid components.
+* **Description:** Called when the salve is used on a target via the healer component's OnHealFn callback. Adds the `tillweedsalve_buff` debuff to the target, which begins the overtime healing process.
+* **Parameters:**
+  - `inst` -- the salve item entity
+  - `target` -- the entity being healed
+* **Returns:** None
+* **Error states:** Errors if `target` is nil (no nil guard before target:AddDebuff call).
 
-### `OnAttached(inst, target)`
-*   **Description:** Called when the debuff entity is attached to a target. Sets up parent relationship, position, and starts periodic healing ticks; listens for the target's `death` event.
-*   **Parameters:**  
-    `inst` (Entity) — the `tillweedsalve_buff` debuff instance.  
-    `target` (Entity) — the entity being debuffed.
-*   **Returns:** Nothing.
+### `OnTick(inst, target)` (local)
+* **Description:** Periodic task callback that applies overtime healing. Called every TUNING.TILLWEEDSALVE_TICK_RATE seconds. Checks if target has health component, is not dead, and is not a player ghost. Applies health delta using TUNING.TILLWEEDSALVE_HEALTH_DELTA. If target is invalid, stops the debuff.
+* **Parameters:**
+  - `inst` -- the buff entity
+  - `target` -- the entity receiving healing
+* **Returns:** None
+* **Error states:** None — the nil guard `if target.components.health ~= nil` prevents crash; function safely returns without action if health component is missing.
 
-### `OnTick(inst, target)`
-*   **Description:** Periodic tick handler that applies health delta to the target if alive and non-ghost; stops the debuff otherwise.
-*   **Parameters:**  
-    `inst` (Entity) — the `tillweedsalve_buff` debuff instance.  
-    `target` (Entity) — the entity being debuffed.
-*   **Returns:** Nothing.
+### `OnAttached(inst, target)` (local)
+* **Description:** Called when the debuff attaches to a target. Sets the buff entity's parent to the target, resets position to origin (for load cases), and starts the periodic healing task. Listens for target death event to stop the debuff.
+* **Parameters:**
+  - `inst` -- the buff entity
+  - `target` -- the entity the debuff attached to
+* **Returns:** None
+* **Error states:** None — the debuff component is guaranteed to exist on the buff entity when this callback executes.
 
-### `OnExtended(inst, target)`
-*   **Description:** Called when the debuff is extended (e.g., by reapplying). Resets the regen-over timer and restarts the periodic tick task.
-*   **Parameters:**  
-    `inst` (Entity) — the `tillweedsalve_buff` debuff instance.  
-    `target` (Entity) — the entity being debuffed.
-*   **Returns:** Nothing.
+### `OnTimerDone(inst, data)` (local)
+* **Description:** Called when the timer component fires the timerdone event. Checks if the timer name is `regenover` and stops the debuff if so, ending the healing effect.
+* **Parameters:**
+  - `inst` -- the buff entity
+  - `data` -- timer event data table containing `name` field
+* **Returns:** None
+* **Error states:** None — the debuff component is guaranteed to exist on the buff entity when timerdone event fires.
 
-### `OnTimerDone(inst, data)`
-*   **Description:** Timer callback for the `"regenover"` timer; stops the debuff when duration expires.
-*   **Parameters:**  
-    `inst` (Entity) — the `tillweedsalve_buff` debuff instance.  
-    `data` (table) — timer data containing `name` key.
-*   **Returns:** Nothing.
+### `OnExtended(inst, target)` (local)
+* **Description:** Called when the debuff duration is extended (e.g., by consuming another salve). Stops the existing timer, restarts it with BUFF_DURATION, cancels the current periodic task, and creates a new periodic task for healing ticks.
+* **Parameters:**
+  - `inst` -- the buff entity
+  - `target` -- the entity receiving extended healing
+* **Returns:** None
+* **Error states:** None — the timer component is guaranteed to exist on the buff entity when OnExtended is called.
 
 ## Events & listeners
-- **Listens to:**  
-    - `"death"` — on the target entity (in `OnAttached`) to stop the debuff when target dies.  
-    - `"timerdone"` — on the debuff entity to stop the debuff when `"regenover"` timer completes.
-- **Pushes:** None directly (delegates to `debuff:Stop()`).
+- **Listens to (tillweedsalve_buff):** `death` -- triggered on target; stops the debuff when target dies. Data: none
+- **Listens to (tillweedsalve_buff):** `timerdone` -- triggered by timer component; ends buff when duration expires. Data: `{name = string}`

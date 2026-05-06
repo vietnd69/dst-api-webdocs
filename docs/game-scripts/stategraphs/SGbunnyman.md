@@ -1,59 +1,125 @@
 ---
 id: SGbunnyman
-title: Sgbunnyman
-description: Manages the state machine for the Bunnyman entity, handling idle, movement, combat, death, and special interactions like cheering and eating.
-tags: [ai, stategraph, entity, combat, animation]
+title: SGbunnyman
+description: Stategraph defining animation and behavior states for bunnyman entities.
+tags: [ai, animation, creature]
 sidebar_position: 10
-
-last_updated: 2026-03-08
-build_version: 714014
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
 category_type: stategraphs
-source_hash: 31a6f049
-system_scope: ai
+source_hash: 6d013f8a
+system_scope: entity
 ---
 
-# Sgbunnyman
+# SGbunnyman
 
-> Based on game build **714014** | Last updated: 2026-03-08
+> Based on game build **722832** | Last updated: 2026-04-17
 
 ## Overview
-`SGbunnyman` defines the state graph for the Bunnyman entity, implementing its behavior through a sequence of states and event handlers. It orchestrates animations, sounds, locomotion, and interactions with key components like `health`, `combat`, `follower`, and `locomotor`. The state machine integrates with common state helpers (`CommonStates`) to provide standard behaviors such as walking, running, sleeping, and death-related transitions. Special handling exists for shadow parasite revival and loyalty-based emotional states.
+`SGbunnyman` defines the animation state machine for bunnyman entities, controlling their visual states, movement, combat behaviors, and special interactions. It integrates with common state handlers from `commonstates.lua` and coordinates with multiple components including `combat`, `follower`, `health`, `leader`, and `locomotor`. The stategraph manages transitions between idle, attack, death, and various action states based on entity conditions and external events.
 
 ## Usage example
-The state graph is automatically loaded and assigned to the Bunnyman prefab during entity initialization. Modders typically do not manually instantiate this state graph; instead, they may extend or override its behavior by registering new states or events.
-
 ```lua
--- Example: Adding a custom state to Bunnyman's state graph
-local SGbunnyman = require("stategraphs/SGbunnyman")
-local custom_state = State{
-    name = "custom_state",
-    tags = { "busy" },
-    onenter = function(inst)
-        inst.AnimState:PlayAnimation("custom_anim")
-        inst.SoundEmitter:PlaySound("custom_sound")
-    end,
-    events = {
-        EventHandler("animover", function(inst) inst.sg:GoToState("idle") end),
-    },
-}
--- Insert custom state into the states array before return (requires mod override)
+-- Attach stategraph to a bunnyman entity during prefab creation
+local inst = CreateEntity()
+inst:AddComponent("locomotor")
+inst:AddComponent("combat")
+inst:AddComponent("follower")
+inst:AddComponent("health")
+
+-- Assign the bunnyman stategraph
+inst:SetStateGraph("bunnyman")
+
+-- Trigger states via events
+inst:PushEvent("cheer")  -- Plays cheer animation
+inst.sg:GoToState("attack")  -- Force attack state
 ```
 
 ## Dependencies & tags
-**Components used:** `health`, `follower`, `combat`, `locomotor`, `shadowparasitemanager` (via `TheWorld.components.shadowparasitemanager`)
-**Tags:** Adds and checks tags including `"busy"`, `"attack"`, `"sleeper"`, `"frozen"`, `"electrocuted"`, `"corpse"`, `"reviving"` (via common state helpers and explicit use in states like `death`, `attack`, `eat`, `cheer`, etc.)
+**External dependencies:**
+- `stategraphs/commonstates` -- provides CommonHandlers and CommonStates helper functions
+
+**Components used:**
+- `combat` -- DoAttack(), HasTarget(), StartAttack() for combat actions
+- `follower` -- GetLeader(), GetLoyaltyPercent() for loyalty-based animations
+- `health` -- GetPercent(), IsDead() for health threshold checks
+- `leader` -- IsRollCalling() for roll call detection
+- `locomotor` -- RunForward(), WalkForward() for movement states
+- `shadowparasitemanager` -- ReviveHosted() for parasite revival on death
+
+**Tags:**
+- `busy` -- added to most action states to prevent interruption
+- `attack` -- added during attack state
 
 ## Properties
-No public properties are defined in the state graph itself. Configuration values (e.g., thresholds, durations) are drawn from `TUNING.BUNNYMAN_*` constants.
+| None | | | No properties are defined. |
 
 ## Main functions
-This state graph definition is a pure data structure and does not expose standalone public functions. The primary entry point is the returned `StateGraph`, constructed via `StateGraph("bunnyman", states, events, "init", actionhandlers)`.
+### `StateGraph("bunnyman", states, events, "init", actionhandlers)`
+* **Description:** Constructs and returns the bunnyman stategraph with all defined states, event handlers, and action mappings. This is the file's return value.
+* **Parameters:**
+  - `name` -- string stategraph name ("bunnyman")
+  - `states` -- table of State definitions
+  - `events` -- table of EventHandler definitions
+  - `"init"` -- default starting state name
+  - `actionhandlers` -- table of ActionHandler mappings
+* **Returns:** StateGraph instance for assignment via `inst:SetStateGraph()`
+
+### `State{name = "funnyidle"}`
+* **Description:** Idle state with conditional animations based on health, loyalty, and combat status. Plays angry animation if health below panic threshold or has combat target, hungry animation if loyalty low, happy animation if loyalty high or roll called, otherwise creepy idle.
+* **Parameters:** None (state definition)
+* **Returns:** None
+* **Error states:** Errors if `inst.components.follower` or `inst.components.health` is nil when state enters.
+
+### `State{name = "death"}`
+* **Description:** Handles death animation and loot drop. Checks for shadow parasite hosting to potentially revive instead of dropping loot.
+* **Parameters:** None (state definition)
+* **Returns:** None
+* **Error states:** None
+
+### `State{name = "abandon"}`
+* **Description:** Plays abandonment animation when follower relationship ends. Faces the leader entity if valid.
+* **Parameters:** None (state definition)
+* **Returns:** None
+* **Error states:** None (leader validity checked before FacePoint call)
+
+### `State{name = "attack"}`
+* **Description:** Executes attack animation with sound effects. Triggers combat damage at frame 13 via TimeEvent.
+* **Parameters:** None (state definition)
+* **Returns:** None
+* **Error states:** Errors if `inst.components.combat` is nil when StartAttack() or DoAttack() is called.
+
+### `State{name = "eat"}`
+* **Description:** Plays eating animation and performs buffered action at frame 20.
+* **Parameters:** None (state definition)
+* **Returns:** None
+* **Error states:** None
+
+### `State{name = "hit"}`
+* **Description:** Plays hurt animation and updates hit recovery delay.
+* **Parameters:** None (state definition)
+* **Returns:** None
+* **Error states:** None
+
+### `State{name = "cheer"}`
+* **Description:** Plays happy animation with sound. Triggered by "cheer" event if not busy or dead.
+* **Parameters:** None (state definition)
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:**
-  - `"animover"` — Triggers state transitions after animations complete (e.g., go to `"idle"`).
-  - `"cheer"` — Initiates `"cheer"` state if not busy or dead.
-  - `"onstep"`, `"onlocomote"`, `"onsleep"`, `"onfreeze"`, `"onelectrocute"`, `"onattack"`, `"onattacked"`, `"ondeath"`, `"onhop"`, `"onsink"`, `"onfallinvoid"` — Standard locomotion and status event handlers via `CommonHandlers`.
-  - `"onchomp"` —Corpse handling via `CommonHandlers.OnCorpseChomped()`.
-- **Pushes:** This file does not directly push custom events. The state graph internals use `inst.sg:GoToState()` and `inst:RemoveStateTag()` for internal orchestration.
+- **Listens to:** `cheer` -- transitions to cheer state if not busy or dead
+- **Listens to:** `onstep` -- handled by CommonHandlers.OnStep()
+- **Listens to:** `onlocomote` -- handled by CommonHandlers.OnLocomote()
+- **Listens to:** `onsleep` -- handled by CommonHandlers.OnSleep()
+- **Listens to:** `onfreeze` -- handled by CommonHandlers.OnFreeze()
+- **Listens to:** `onelectrocute` -- handled by CommonHandlers.OnElectrocute()
+- **Listens to:** `onattack` -- handled by CommonHandlers.OnAttack()
+- **Listens to:** `onattacked` -- handled by CommonHandlers.OnAttacked() with max stun locks from TUNING.BUNNYMAN_MAX_STUN_LOCKS
+- **Listens to:** `ondeath` -- handled by CommonHandlers.OnDeath()
+- **Listens to:** `onhop` -- handled by CommonHandlers.OnHop()
+- **Listens to:** `onsink` -- handled by CommonHandlers.OnSink()
+- **Listens to:** `onfallinvoid` -- handled by CommonHandlers.OnFallInVoid()
+- **Listens to:** `oncorpsechomped` -- handled by CommonHandlers.OnCorpseChomped()
+- **Pushes:** None identified

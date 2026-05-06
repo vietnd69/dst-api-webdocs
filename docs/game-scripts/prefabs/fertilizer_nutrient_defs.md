@@ -1,54 +1,66 @@
 ---
 id: fertilizer_nutrient_defs
 title: Fertilizer Nutrient Defs
-description: Defines structured data for fertilizer types used in the game, including nutrient values, usage counts, and display metadata.
-tags: [crafting, inventory, environment]
+description: Defines nutrient values, usage counts, and metadata for all fertilizer types used in the farming system.
+tags: [farming, data, nutrients]
 sidebar_position: 10
-
-last_updated: 2026-03-05
-build_version: 714014
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
-category_type: prefabs
-source_hash: ac405585
-system_scope: crafting
+category_type: data
+source_hash: 46a8c4ba
+system_scope: inventory
 ---
 
 # Fertilizer Nutrient Defs
 
-> Based on game build **714014** | Last updated: 2026-03-05
+> Based on game build **722832** | Last updated: 2026-04-17
 
 ## Overview
-`fertilizer_nutrient_defs.lua` defines a central data table `FERTILIZER_DEFS` that specifies the properties of each fertilizer item in DST. Each entry maps a fertilizer identifier (e.g., `"poop"`, `"fertilizer"`) to a table containing nutrient content, optional usage count, inventory image, and localization key. The file also enforces sensible defaults, defines a sort order for UI presentation, and supports modded additions via metatable hooks. This is a configuration file—not a component—and is used to populate fertilizer-related prefabs during initialization.
+`fertilizer_nutrient_defs` is a data configuration file that defines nutrient values, usage counts, and display metadata for all fertilizer types in the game. Other systems access this data via `require()` to look up fertilizer properties when applying nutrients to soil or crops. The file exports both a definition table and a sorted list for consistent UI ordering.
 
 ## Usage example
 ```lua
-local fertilizer_defs = require "prefabs/fertilizer_nutrient_defs"
+local FertilizerDefs = require("scripts/fertilizer_nutrient_defs")
 
--- Access data for a specific fertilizer
-local def = fertilizer_defs.FERTILIZER_DEFS.poop
-print(def.nutrients)   -- Value from TUNING.POOP_NUTRIENTS
-print(def.uses)        -- 1 (default fallback)
-print(def.inventoryimage) -- "poop.tex" (default fallback)
+-- Access fertilizer definitions
+local fertilizerData = FertilizerDefs.FERTILIZER_DEFS["poop"]
+local nutrients = fertilizerData.nutrients
+local uses = fertilizerData.uses
 
--- Iterate through sorted fertilizers for UI display
-for _, name in ipairs(fertilizer_defs.SORTED_FERTILIZERS) do
-    local data = fertilizer_defs.FERTILIZER_DEFS[name]
-    print(name, data.name, data.nutrients)
+-- Access sorted fertilizer list for UI ordering
+local sortedList = FertilizerDefs.SORTED_FERTILIZERS
+for i, fertilizerName in ipairs(sortedList) do
+    print(fertilizerName)
 end
+
+-- Check if a fertilizer was added by a mod
+local isModded = FertilizerDefs.FERTILIZER_DEFS["custom_fertilizer"].modded
 ```
 
 ## Dependencies & tags
-**Components used:** None identified.  
-**Tags:** None identified.
+**External dependencies:**
+- `TUNING` -- provides nutrient values, use counts, and other balance constants for each fertilizer type
+
+**Components used:**
+- None identified
+
+**Tags:**
+- None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `FERTILIZER_DEFS` | table | `{}` | Dictionary of fertilizer definitions. Each key is a string (e.g., `"poop"`); each value is a table with keys `nutrients` (number), `uses` (number, default `1`), `inventoryimage` (string, default `"<key>.tex"`), and `name` (string, default `"<KEY>"`). May include `modded` boolean flag added by modded code. |
-| `SORTED_FERTILIZERS` | array of strings | `{"spoiled_fish_small", ...}` | Ordered list of fertilizer keys for consistent UI sorting. |
+| `FERTILIZER_DEFS` | table | --- | Top-level table containing all fertilizer definition records keyed by fertilizer name. |
+| `SORTED_FERTILIZERS` | array | --- | Ordered list of fertilizer names for consistent UI display ordering. |
+| `nutrients` | table | --- | Nutrient values table from TUNING for this fertilizer type. |
+| `uses` | number | --- | Number of times this fertilizer can be applied before depletion. |
+| `inventoryimage` | string | --- | Texture filename for the fertilizer inventory icon. |
+| `name` | string | --- | String key for localization of the fertilizer display name. |
+| `modded` | boolean | --- | True if this fertilizer entry was added after initial file load (via metatable). |
 
 ## Main functions
-None identified.
+None identified. This is a pure data configuration file with no constructor or factory functions.
 
 ## Events & listeners
-None identified.
+None identified. This file does not register or fire any events.

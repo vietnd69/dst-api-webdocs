@@ -1,122 +1,160 @@
 ---
 id: mapwidget
-title: Mapwidget
-description: Renders and manages the player's minimap and world-position mapping on the HUD, handling zoom, panning, and texture updates.
-tags: [ui, minimap, hud, world]
+title: MapWidget
+description: A UI widget that renders the world minimap with zoom, pan, and coordinate conversion functionality for the map screen.
+tags: [widget, ui, minimap]
 sidebar_position: 10
 
-last_updated: 2026-03-08
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
 category_type: widgets
-source_hash: 8ec7b831
+source_hash: 0f77f266
 system_scope: ui
 ---
 
-# Mapwidget
+# MapWidget
 
-> Based on game build **714014** | Last updated: 2026-03-08
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-`MapWidget` is a UI widget responsible for displaying the minimap in the `MapScreen`. It wraps the `MiniMap` instance from `TheWorld`, manages its visual representation (background, center reticle, texture), and handles user input for panning (via mouse drag) and zooming. It integrates with the `MiniMap` system to translate between world coordinates and map-screen coordinates, and notifies the mapscreen of decoration updates when the map changes.
+`MapWidget` is a UI widget extending `Widget` that displays the world minimap texture with interactive zoom and pan controls. It manages coordinate conversion between world space and map space, handles drag-based panning via input polling in `OnUpdate`, and syncs texture updates from `TheWorld.minimap.MiniMap`. Embedded inside map screens via `screen:AddChild(MapWidget(owner, mapscreen))`.
 
 ## Usage example
 ```lua
-local mapscreen = ... -- The current MapScreen instance
-local mapwidget = MapWidget(mapscreen)
-mapwidget:Show()
-mapwidget:OnZoomIn(-0.1)  -- Zoom in
-mapwidget:OnZoomOut(0.1)  -- Zoom out
-mapwidget:Offset(10, -5)  -- Pan the map
+local MapWidget = require("widgets/mapwidget")
+
+-- Inside a map screen's _ctor:
+self.mapwidget = self:AddChild(MapWidget(ThePlayer, self))
+self.mapwidget:SetPosition(0, 0, 0)
+self.mapwidget:UpdateTexture()
+
+-- Zoom controls:
+if self.mapwidget:OnZoomIn() then
+    -- zoomed in successfully
+end
+
+-- Coordinate conversion:
+local mapx, mapy, mapz = self.mapwidget:WorldPosToMapPos(wx, wy, wz)
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** None identified
+**External dependencies:**
+- `widgets/widget` -- Widget base class
+- `widgets/image` -- Image child widget for background, reticle, and minimap texture
+
+**Components used:** None — widgets do not interact with ECS components directly.
+
+**Tags:** None.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `owner` | `ThePlayer` | `ThePlayer` | The player instance this mapwidget is bound to. |
-| `mapscreen` | `MapScreen` (or `nil`) | passed-in `mapscreen` | The owning mapscreen instance; used to trigger decoration updates. |
-| `bg` | `Image` | `Image("images/hud.xml", "map.tex")` | The background texture image for the map. |
-| `centerreticle` | `Image` | `Image("images/hud.xml", "cursor02.tex")` | The fixed center reticle overlay on the map. |
-| `minimap` | `MiniMap` | `TheWorld.minimap.MiniMap` | The underlying minimap instance used for coordinate transformations and zoom/offset state. |
-| `img` | `Image` | `Image()` | The primary image widget used to render the minimap texture (additive blend). |
-| `lastpos` | `vector2` or `nil` | `nil` | Stores last mouse position during panning; `nil` when not panning. |
+| `owner` | entity | `ThePlayer` | Entity owning the map widget; defaults to `ThePlayer` for backward compatibility. |
+| `mapscreen` | Screen | `nil` | Reference to the parent map screen; used to call `OnMinimapMoved` on offset. |
+| `bg` | Image | --- | Background image widget; fills screen with `map.tex`. |
+| `centerreticle` | Image | --- | Center reticle image widget; child of `bg`, shows `cursor02.tex`. |
+| `img` | Image | --- | Minimaps texture image widget; receives texture handle via `SetTextureHandle`. |
+| `minimap` | MiniMap | --- | Reference to `TheWorld.minimap.MiniMap`; source of texture and zoom state. |
+| `lastpos` | table | `nil` | Last recorded screen position during drag; cleared on input release or hide. |
+| `dragthreshold` | number | `nil` | Drag threshold as percentage of screen size; if set, ignores small movements. |
+| `ZOOM_CLAMP_MIN` | constant (local) | `1` | Minimum zoom level clamp; `OnZoomIn` will not zoom below this. |
+| `ZOOM_CLAMP_MAX` | constant (local) | `20` | Maximum zoom level clamp; `OnZoomOut` will not zoom above this. |
 
 ## Main functions
+### `_ctor(owner, mapscreen)`
+*   **Description:** Initialises the widget, calls `Widget._ctor(self, "MapWidget")`, creates background/reticle/texture image children, and starts the update loop. Handles backward compatibility for old constructor signature.
+*   **Parameters:**
+    - `owner` -- entity owning the widget, or (legacy) the mapscreen if called with old signature
+    - `mapscreen` -- parent map screen instance, or (legacy) ignored if `owner` is not an entity
+*   **Returns:** nil
+*   **Error states:** None — backward compatibility branch asserts on dev branch but otherwise defaults to `ThePlayer`.
+
 ### `WorldPosToMapPos(x, y, z)`
-*   **Description:** Converts a world-space position to minimap screen coordinates.
-*   **Parameters:**  
-  - `x`, `y`, `z` (numbers) — the world position coordinates.  
-*   **Returns:** `x_map`, `y_map` (numbers) — the minimap screen-space coordinates.
-*   **Error states:** May return `nil` if `minimap` is not yet initialized (not expected under normal operation).
+*   **Description:** Converts world coordinates to minimap texture coordinates via the MiniMap component.
+*   **Parameters:**
+    - `x` -- number world X coordinate
+    - `y` -- number world Y coordinate
+    - `z` -- number world Z coordinate
+*   **Returns:** Three numbers representing map texture coordinates.
+*   **Error states:** Errors if `self.minimap` is nil (would only occur if `TheWorld.minimap` is not initialized).
 
 ### `MapPosToWorldPos(x, y, z)`
-*   **Description:** Converts minimap screen coordinates back to world-space position (for 2D map interactions).
-*   **Parameters:**  
-  - `x`, `y`, `z` (numbers) — the minimap screen-space coordinates (typically `z=0`).  
-*   **Returns:** `x_world`, `y_world`, `z_world` (numbers) — world-space coordinates.
-*   **Error states:** May return `nil` if `minimap` is not yet initialized.
+*   **Description:** Converts minimap texture coordinates back to world coordinates via the MiniMap component.
+*   **Parameters:**
+    - `x` -- number map texture X coordinate
+    - `y` -- number map texture Y coordinate
+    - `z` -- number map texture Z coordinate
+*   **Returns:** Three numbers representing world coordinates.
+*   **Error states:** Errors if `self.minimap` is nil (would only occur if `TheWorld.minimap` is not initialized).
 
 ### `SetTextureHandle(handle)`
-*   **Description:** Updates the texture used by the `img` widget to render the minimap.
-*   **Parameters:**  
-  - `handle` (string or handle type) — texture handle provided by `MiniMap:GetTextureHandle()`.  
-*   **Returns:** Nothing.
+*   **Description:** Sets the image widget's texture handle to display the current minimap render target.
+*   **Parameters:** `handle` -- texture handle from `MiniMap:GetTextureHandle()`
+*   **Returns:** nil
+*   **Error states:** Errors if `self.img` or `self.img.inst.ImageWidget` is nil (widget construction failure).
 
 ### `OnZoomIn(negativedelta)`
-*   **Description:** Attempts to zoom the minimap in by the specified delta (negative value). Only works if the widget is shown and zoom is above the minimum clamp.
-*   **Parameters:**  
-  - `negativedelta` (number, optional) — zoom delta (default `-0.1`).  
-*   **Returns:** `true` if zoom was applied; `false` otherwise (clamped or hidden).
-*   **Error states:** Returns `false` if `self.shown` is `false` or zoom is already at or below `ZOOM_CLAMP_MIN`.
+*   **Description:** Zooms the minimap in by applying a negative delta. Only works when widget is shown and zoom is above minimum clamp.
+*   **Parameters:** `negativedelta` -- number zoom delta (default `-0.1`); negative values zoom in
+*   **Returns:** `true` if zoom was applied, `false` if blocked by visibility or zoom clamp.
+*   **Error states:** Errors if `self.minimap` is nil (no nil guard present before MiniMap:Zoom call).
 
 ### `OnZoomOut(positivedelta)`
-*   **Description:** Attempts to zoom the minimap out by the specified delta (positive value). Only works if the widget is shown and zoom is below the maximum clamp.
-*   **Parameters:**  
-  - `positivedelta` (number, optional) — zoom delta (default `0.1`).  
-*   **Returns:** `true` if zoom was applied; `false` otherwise (clamped or hidden).
-*   **Error states:** Returns `false` if `self.shown` is `false` or zoom is already at or above `ZOOM_CLAMP_MAX`.
+*   **Description:** Zooms the minimap out by applying a positive delta. Only works when widget is shown and zoom is below maximum clamp.
+*   **Parameters:** `positivedelta` -- number zoom delta (default `0.1`); positive values zoom out
+*   **Returns:** `true` if zoom was applied, `false` if blocked by visibility or zoom clamp.
+*   **Error states:** Errors if `self.minimap` is nil (no nil guard present before MiniMap:Zoom call).
 
 ### `GetZoom()`
-*   **Description:** Returns the current zoom level of the minimap.
-*   **Parameters:** None.  
-*   **Returns:** `zoom` (number) — current zoom level (between `ZOOM_CLAMP_MIN` and `ZOOM_CLAMP_MAX`).
+*   **Description:** Returns the current zoom level from the MiniMap component.
+*   **Parameters:** None
+*   **Returns:** Number representing current zoom level.
+*   **Error states:** Errors if `self.minimap` is nil (would only occur if `TheWorld.minimap` is not initialized).
 
 ### `UpdateTexture()`
-*   **Description:** Fetches the latest minimap texture handle from `MiniMap` and updates the `img` widget.
-*   **Parameters:** None.  
-*   **Returns:** Nothing.
+*   **Description:** Fetches the current texture handle from MiniMap and applies it via `SetTextureHandle`. Called to refresh the displayed map image.
+*   **Parameters:** None
+*   **Returns:** nil
+*   **Error states:** Errors if `self.minimap` is nil (no nil guard before GetTextureHandle call).
 
-### `UpdateMapscreenDecorations()`
-*   **Description:** Marks the mapscreen's decoration data as dirty, triggering a redraw of map overlays and annotations.
-*   **Parameters:** None.  
-*   **Returns:** Nothing.
+### `StartDragThreshold(threshold)`
+*   **Description:** Begins drag tracking by recording the current screen position and setting a movement threshold. Small movements below threshold are ignored until threshold is exceeded or cancelled.
+*   **Parameters:** `threshold` -- number percentage of screen size; movements below this are filtered
+*   **Returns:** nil
+*   **Error states:** None — `TheInput:GetScreenPosition()` is safe to call.
+
+### `CancelDragThreshold()`
+*   **Description:** Cancels the active drag threshold, allowing immediate pan response on next input.
+*   **Parameters:** None
+*   **Returns:** nil
+*   **Error states:** None.
 
 ### `OnUpdate(dt)`
-*   **Description:** Handles map panning while the primary mouse button is held. Computes delta in screen space and applies it to `MiniMap:Offset()`.
-*   **Parameters:**  
-  - `dt` (number) — delta time in seconds.  
-*   **Returns:** Nothing.
-*   **Error states:** Early exit if `self.shown` is `false`.
+*   **Description:** **Periodic update hook.** Polls primary input control for drag-based panning. Applies offset based on screen movement scaled by `2/9` (MiniMapRenderer ZOOM_MODIFIER scaler). Respects drag threshold if set.
+*   **Parameters:** `dt` -- number delta time since last frame
+*   **Returns:** nil
+*   **Error states:** Errors if `TheInput:GetScreenPosition()` or `TheSim:GetScreenSize()` is unavailable (engine not initialized).
 
 ### `Offset(dx, dy)`
-*   **Description:** Manually offsets the minimap view by the given screen-space delta.
-*   **Parameters:**  
-  - `dx`, `dy` (numbers) — screen-space offset amounts.  
-*   **Returns:** Nothing. Also calls `UpdateMapscreenDecorations()` to refresh overlays.
+*   **Description:** Applies a pan offset to the minimap and notifies the parent screen via `OnMinimapMoved` if callback exists.
+*   **Parameters:**
+    - `dx` -- number horizontal offset
+    - `dy` -- number vertical offset
+*   **Returns:** nil
+*   **Error states:** Errors if `self.minimap` is nil (no nil guard present before MiniMap:Offset call).
 
 ### `OnShow()`
-*   **Description:** Resets minimap offset when the widget is shown (e.g., opening the map screen).
-*   **Parameters:** None.  
-*   **Returns:** Nothing.
+*   **Description:** Lifecycle hook called when widget becomes visible. Resets minimap offset to center.
+*   **Parameters:** None
+*   **Returns:** nil
+*   **Error states:** Errors if `self.minimap` is nil (no nil guard present before MiniMap:ResetOffset call).
 
 ### `OnHide()`
-*   **Description:** Clears `lastpos` to stop panning tracking when the widget is hidden.
-*   **Parameters:** None.  
-*   **Returns:** Nothing.
+*   **Description:** Lifecycle hook called when widget is hidden. Clears drag tracking state.
+*   **Parameters:** None
+*   **Returns:** nil
+*   **Error states:** None.
 
 ## Events & listeners
-None identified
+None — this widget does not register event listeners or push events. Input is polled directly in `OnUpdate`.

@@ -1,121 +1,206 @@
 ---
 id: spoiledfood
 title: Spoiledfood
-description: Provides shared initialization logic for spoiled food items used as fertilizer and ocean fishing lures, with weather-sensitive perish behavior and work-based looting for fish variants.
-tags: [farming, fishing, perish, loot, weather]
+description: Prefab file defining three spoiled food entity variants (spoiled_food, spoiled_fish, spoiled_fish_small) with fertilizer, edible, and rain-disappear mechanics.
+tags: [prefab, food, fertilizer, entity]
 sidebar_position: 10
 
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-27
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 24cbff03
+source_hash: 197b3c8a
 system_scope: entity
 ---
 
 # Spoiledfood
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-27
 
 ## Overview
-The `spoiledfood.lua` file defines three prefabs—`spoiled_food`, `spoiled_fish`, and `spoiled_fish_small`—used in Don't Starve Together. It centralizes common behavior via a shared factory function `fn()` to create entities with perishable, fertilizer, and fishing lure properties. Key responsibilities include:
-- Setting up fertilizer stats (nutrients, value, soil cycles) and making the item researchable.
-- Enabling inventory, stackable, fuel, edible, tradable, and loot-dropping functionality.
-- Implementing rain-based decay for food/lure variants using the `disappears` component (perish when exposed to rain).
-- Supporting work-based looting for fish variants (e.g., hammering releases loot from fish).
-
-It is not a standalone component but a prefab factory, returning prefabs with pre-attached components and shared logic.
+`spoiledfood.lua` registers three spawnable spoiled food entity prefabs. The main `fn()` constructor builds the base entity with shared components (fertilizer, edible, inventory, stackable); variant-specific init functions customize animation, loot, and behavior for `spoiled_food` (disappears in rain, works as fishing lure), `spoiled_fish` (hammerable for loot), and `spoiled_fish_small` (smaller variant with random loot). All variants are fertilizer researchable and can be used to fertilize crops.
 
 ## Usage example
 ```lua
--- Create a spoiled food item with default fertilizer properties
-local food = SpawnPrefab("spoiled_food")
-food.components.fertilizer.fertilizervalue -- Defaults to TUNING.SPOILEDFOOD_FERTILIZE
+-- Spawn spoiled food at world origin:
+local inst = SpawnPrefab("spoiled_food")
+inst.Transform:SetPosition(0, 0, 0)
 
--- Create a spoiled fish that yields loot when hammered
+-- Spawn spoiled fish variant:
 local fish = SpawnPrefab("spoiled_fish")
-fish.components.workable:SetWorkLeft(10) -- Adjust work required before looting
-fish.components.lootdropper:DropLoot()   -- Manually trigger loot drop
+
+-- Reference assets at load time:
+local assets = {
+    Asset("ANIM", "anim/spoiled_food.zip"),
+    Asset("ANIM", "anim/oceanfishing_lure_mis.zip"),
+    Asset("SCRIPT", "scripts/prefabs/fertilizer_nutrient_defs.lua"),
+}
 ```
 
 ## Dependencies & tags
-**Components used:**  
-`fertilizer`, `smotherer`, `inspectable`, `inventoryitem`, `stackable`, `fertilizerresearchable`, `selfstacker`, `fuel`, `edible`, `tradable`, `oceanfishingtackle`, `disappears`, `lootdropper`, `workable`, `floater`, `driedsalticon`, `rainimmunity`
+**External dependencies:**
+- `prefabs/fertilizer_nutrient_defs.lua` -- provides `FERTILIZER_DEFS` table with nutrient definitions for each variant
+- `event_server_data("quagmire", ...)` -- applies Quagmire event mode modifications on master
 
-**Tags added:**  
-`icebox_valid`, `saltbox_valid`, `show_spoiled`, `fertilizerresearchable`, `selfstacker`, `oceanfishing_lure`, `spoiled_fish`
+**Components used:**
+- `fertilizer` -- nutrient values for crop fertilization (all variants)
+- `edible` -- sets spoiled food status, health/hunger values (all variants)
+- `inventoryitem` -- allows carrying in inventory (all variants)
+- `stackable` -- enables stacking up to `TUNING.STACK_SIZE_SMALLITEM` (all variants)
+- `fertilizerresearchable` -- enables fertilizer research via `SetResearchFn` (all variants)
+- `selfstacker` -- automatic stacking behavior (all variants)
+- `fuel` -- burnable as fuel with `TUNING.SMALL_FUEL` value (all variants)
+- `burnable` -- small burn time via `MakeSmallBurnable` (all variants)
+- `propagator` -- fire spreading via `MakeSmallPropagator` (all variants)
+- `tradable` -- enables trading (all variants)
+- `smotherer` -- extinguishes fires (all variants)
+- `inspectable` -- provides inspection status (all variants)
+- `disappears` -- rain-based disappearance for `spoiled_food` only
+- `oceanfishingtackle` -- fishing lure setup for `spoiled_food` only
+- `driedsalticon` -- salt icon display for `spoiled_food` only
+- `lootdropper` -- loot drops on hammer for fish variants only
+- `workable` -- hammer action for fish variants only
+- `floater` -- floating animation scale (all variants, added via MakeInventoryFloatable in fn()).
+
+**Tags:**
+- `icebox_valid` -- added in `fn()` for icebox storage
+- `saltbox_valid` -- added in `fn()` for saltbox storage
+- `show_spoiled` -- added in `fn()` for spoiled food display
+- `fertilizerresearchable` -- added in `fn()` for research system
+- `selfstacker` -- added in `fn()` for auto-stacking
+- `spoiledfood` -- added in `fn()` for edible component optimization
+- `oceanfishing_lure` -- added in `food_init()` for fishing system
+- `spoiled_fish` -- added in `fish_init()` and `fish_small_init()` for fish identification
 
 ## Properties
-No public properties are initialized in this prefab factory—only component properties and prefab-specific configuration via `fn()` parameters.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `assets` | table | --- | Array of `Asset(...)` entries for `spoiled_food` prefab (anim, script). |
+| `fish_assets` | table | --- | Array of `Asset(...)` entries for `spoiled_fish` prefab. |
+| `fish_small_assets` | table | --- | Array of `Asset(...)` entries for `spoiled_fish_small` prefab. |
+| `prefabs` | table | `{"gridplacer_farmablesoil"}` | Dependent prefab names loaded with `spoiled_food`. |
+| `fish_prefabs` | table | `{"boneshard", "spoiled_food"}` | Dependent prefab names loaded with fish variants. |
+| `fish_loot` | table | `{"spoiled_food", "boneshard"}` | Loot table for `spoiled_fish` hammer drops. |
+| `FERTILIZER_DEFS` | table | --- | Imported nutrient definitions from `fertilizer_nutrient_defs.lua`. |
+
 
 ## Main functions
 ### `fn(common_init, mastersim_init, nutrients, kind)`
-*   **Description:** The core factory function that creates and initializes a `spoiled_food`-type entity. It configures components, tags, physics, and behavior based on `kind` ("food" or otherwise for fish variants). Returns the fully initialized entity instance. Must be called only during prefab definition.
-*   **Parameters:**  
-    `common_init` (function) – Optional post-init hook for both client and server.  
-    `mastersim_init` (function) – Optional post-init hook for server/master simulation only.  
-    `nutrients` (table) – Nutrient composition for the fertilizer component.  
-    `kind` (string) – Either `"food"` for standard spoiled food or `nil` for fish variants.
-*   **Returns:** `inst` (Entity) – The initialized entity with all components attached.
-*   **Error states:** If `kind ~= "food"`, fish assets and animations are used instead of food.
+* **Description:** Main entity constructor. Creates the base entity with transform, animstate, network, and physics. Attaches shared components (fertilizer, edible, inventory, stackable, fuel, etc.). Calls `common_init` on all sims and `mastersim_init` only on server. Returns `inst` for prefab registration.
+* **Parameters:**
+  - `common_init` -- function called on all sims (client and server) for variant-specific setup
+  - `mastersim_init` -- function called only on master sim for server-only component setup
+  - `nutrients` -- table of nutrient values from `FERTILIZER_DEFS`
+  - `kind` -- string identifier (e.g., `"food"` for spoiled_food variant)
+* **Returns:** entity instance
+* **Error states:** Errors if `common_init` or `mastersim_init` is nil when called (no nil guard before callback invocation).
 
-### `fish_onhit(inst, worker, workleft, workdone)`
-*   **Description:** Callback for the `workable` component when a fish item is hammered. Calculates how many loot items to drop based on `workdone` and stack size, then spawns loot. If full loot is harvested, launches the remaining item toward the worker.
-*   **Parameters:**  
-    `inst` (Entity) – The spoiled fish entity.  
-    `worker` (Entity) – The entity performing the work.  
-    `workleft` (number) – Remaining work ticks.  
-    `workdone` (number) – Cumulative work applied.
-*   **Returns:** Nothing.
-*   **Error states:** Loot is reduced if stack size is smaller than `num_loots`. May drop zero loot if `workdone` is insufficient.
-
-### `fish_stack_size_changed(inst, data)`
-*   **Description:** Listener for `stacksizechange` events that updates the `workable` component's required work left proportionally to stack size.
-*   **Parameters:**  
-    `inst` (Entity) – The spoiled fish entity.  
-    `data` (table) – Event data containing `stacksize`.
-*   **Returns:** Nothing.
-
-### `GetFertilizerKey(inst)`
-*   **Description:** Simple helper used by `fertilizerresearchable` to provide a unique research key based on the prefab name.
-*   **Parameters:** `inst` (Entity) – The entity instance.
-*   **Returns:** `inst.prefab` (string) – The prefab's identifier (e.g., `"spoiled_food"`).
-
-### `fertilizerresearchfn(inst)`
-*   **Description:** Research function passed to `fertilizerresearchable:SetResearchFn`. Delegates to `GetFertilizerKey` for dynamic research key generation.
-*   **Parameters:** `inst` (Entity) – The entity instance.
-*   **Returns:** `inst:GetFertilizerKey()` (string).
+### `food_init(inst)`
+* **Description:** Client-side initialization for `spoiled_food` variant. Adds ocean fishing lure tag and `driedsalticon` component configured to not collect on dried.
+* **Parameters:** `inst` -- entity instance from `fn()`
+* **Returns:** None
+* **Error states:** None
 
 ### `food_mastersim_init(inst)`
-*   **Description:** Server-side initialization for food variants (`spoiled_food`). Adds ocean fishing lure capabilities and rain-based decay logic.
-*   **Parameters:** `inst` (Entity) – The entity instance.
-*   **Returns:** Nothing.
+* **Description:** Server-only initialization for `spoiled_food` variant. Adds `oceanfishingtackle` component with lure data, adds `disappears` component with dissolve animation and sound, sets up rain event listeners (`gainrainimmunity`, `loserainimmunity`, `ondropped`), watches world `israining` state, and configures inventory put callback for rain immunity.
+* **Parameters:** `inst` -- entity instance from `fn()`
+* **Returns:** None
+* **Error states:** None
 
-### `food_OnIsRaining(inst, israining)`
-*   **Description:** Watches world rain state and triggers/disables decay via `disappears` when the item is exposed to rain and not held.
-*   **Parameters:**  
-    `inst` (Entity) – The entity instance.  
-    `israining` (boolean?) – Whether it is currently raining. Defaults to world state.
-*   **Returns:** Nothing.
+### `fish_init(inst)`
+* **Description:** Client-side initialization for `spoiled_fish` variant. Sets animation bank/build to `spoiled_fish`, adds `spoiled_fish` tag, configures floater scale to 0.6, and sets transform scale to 1.3.
+* **Parameters:** `inst` -- entity instance from `fn()`
+* **Returns:** None
+* **Error states:** None
+
+### `fish_mastersim_init(inst)`
+* **Description:** Server-only initialization for `spoiled_fish` variant. Adds `lootdropper` with fixed loot table (`fish_loot`), adds `workable` component with HAMMER action and work callback (`fish_onhit`), listens for `stacksizechange` event to update work left.
+* **Parameters:** `inst` -- entity instance from `fn()`
+* **Returns:** None
+* **Error states:** None
+
+### `fish_small_init(inst)`
+* **Description:** Client-side initialization for `spoiled_fish_small` variant. Sets animation bank/build to `spoiled_fish_small`, adds `spoiled_fish` tag, configures floater scale to 0.35, and sets transform scale to 1.3.
+* **Parameters:** `inst` -- entity instance from `fn()`
+* **Returns:** None
+* **Error states:** None
+
+### `fish_small_mastersim_init(inst)`
+* **Description:** Server-only initialization for `spoiled_fish_small` variant. Sets inspectable name override to `"spoiled_fish"`, adds `lootdropper` with random loot (50% `spoiled_food`, 50% `boneshard`), adds `workable` with HAMMER action and work callback, listens for `stacksizechange` event.
+* **Parameters:** `inst` -- entity instance from `fn()`
+* **Returns:** None
+* **Error states:** None
+
+### `fish_onhit(inst, worker, workleft, workdone)`
+* **Description:** Work callback for fish variants when hammered. Calculates loot count based on work done clamped to `TUNING.SPOILED_FISH_LOOT.WORK_MAX_SPAWNS`, launches entity if max spawns reached, drops loot via `lootdropper`, and removes consumed stack items.
+* **Parameters:**
+  - `inst` -- fish entity being hammered
+  - `worker` -- player/entity performing the work
+  - `workleft` -- remaining work units
+  - `workdone` -- work units completed this action
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `stackable` or `lootdropper` components; errors if `LaunchAt` function is undefined.
+
+### `fish_stack_size_changed(inst, data)`
+* **Description:** Event handler for `stacksizechange` event on fish variants. Updates `workable` component's work left based on new stack size multiplied by `TUNING.SPOILED_FISH_WORK_REQUIRED`.
+* **Parameters:**
+  - `inst` -- fish entity
+  - `data` -- event data table with `stacksize` field
+* **Returns:** None
+* **Error states:** None
+
+### `GetFertilizerKey(inst)`
+* **Description:** Returns the prefab name as the fertilizer research key. Used by `fertilizerresearchable` component to identify this fertilizer type.
+* **Parameters:** `inst` -- entity instance
+* **Returns:** string prefab name
+* **Error states:** None.
+
+### `fertilizerresearchfn(inst)`
+* **Description:** Research function wrapper that calls `GetFertilizerKey`. Assigned to `fertilizerresearchable` component via `SetResearchFn`.
+* **Parameters:** `inst` -- entity instance
+* **Returns:** string fertilizer key from `GetFertilizerKey`
+* **Error states:** None.
+
+### `GetStatus(inst, viewer)`
+* **Description:** Inspectable status function. Returns `"CAN_PROCESS"` if viewer has `eater` component and is a spoiled processor; returns `nil` otherwise.
+* **Parameters:**
+  - `inst` -- entity being inspected
+  - `viewer` -- player/entity doing the inspecting
+* **Returns:** `"CAN_PROCESS"` string or `nil`
+* **Error states:** None
 
 ### `food_IsExposedToRain(inst, israining)`
-*   **Description:** Determines if an item is exposed to rain (not held, not rain-immune).
-*   **Parameters:**  
-    `inst` (Entity) – The entity instance.  
-    `israining` (boolean) – Rain state.
-*   **Returns:** `boolean` – True if item should be affected by rain.
+* **Description:** Checks if `spoiled_food` entity is exposed to rain. Returns true if raining, entity has no `rainimmunity` component, and is not held in inventory.
+* **Parameters:**
+  - `inst` -- entity instance
+  - `israining` -- boolean rain state (defaults to `TheWorld.state.israining` if nil)
+* **Returns:** boolean
+* **Error states:** Errors if `inst` has no `rainimmunity` or `inventoryitem` components (accessed without nil guards).
 
-### `fish_mastersim_init(inst)` and `fish_small_mastersim_init(inst)`
-*   **Description:** Server-side initialization for fish variants. Adds `lootdropper`, `workable`, and event listeners for stack size changes.
-*   **Parameters:** `inst` (Entity) – The entity instance.
-*   **Returns:** Nothing.
+### `food_OnIsRaining(inst, israining)`
+* **Description:** World state watcher callback for `israining`. Calls `disappears:PrepareDisappear()` if exposed to rain, otherwise calls `disappears:StopDisappear()`.
+* **Parameters:**
+  - `inst` -- entity instance
+  - `israining` -- boolean rain state
+* **Returns:** None
+* **Error states:** None
+
+### `food_OnRainImmunity(inst)`
+* **Description:** Event handler for `gainrainimmunity` event and inventory put callback. Stops the disappear timer when entity gains rain immunity or is placed in inventory.
+* **Parameters:** `inst` -- entity instance
+* **Returns:** None
+* **Error states:** None
+
+### `food_OnRainVulnerable(inst)`
+* **Description:** Event handler for `loserainimmunity` and `ondropped` events. Re-evaluates rain exposure by calling `food_OnIsRaining` with current world rain state.
+* **Parameters:** `inst` -- entity instance
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:**  
-  `gainrainimmunity` (food variants only) – Stops decay when immunity is gained.  
-  `loserainimmunity` (food variants only) – Re-checks rain state to restart decay.  
-  `ondropped` (food variants only) – Re-checks rain state on drop.  
-  `stacksizechange` (fish variants only) – Updates work left when stack size changes.  
-  `"israining"` world state – Monitored via `WatchWorldState` to detect weather changes.
-
-- **Pushes:** None (this prefab does not define any events).
+- **Listens to (spoiled_food):** `gainrainimmunity` -- stops disappear timer via `food_OnRainImmunity`
+- **Listens to (spoiled_food):** `loserainimmunity` -- re-evaluates rain exposure via `food_OnRainVulnerable`
+- **Listens to (spoiled_food):** `ondropped` -- re-evaluates rain exposure via `food_OnRainVulnerable`
+- **Listens to (spoiled_fish, spoiled_fish_small):** `stacksizechange` -- updates work left via `fish_stack_size_changed`
+- **Watches world state (spoiled_food):** `israining` -- triggers `food_OnIsRaining` when rain state changes
+- **Pushes:** None identified in this file

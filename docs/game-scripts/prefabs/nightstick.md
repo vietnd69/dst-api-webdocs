@@ -1,122 +1,149 @@
 ---
 id: nightstick
 title: Nightstick
-description: A renewable light source weapon that ignites on equip and deactivates when unequipped or pocketed; supports battery and moonspark charging.
-tags: [combat, light, rechargeable, item, weapon]
+description: Prefab definition for the Nightstick weapon that provides light, electric damage, and can be recharged with batteries.
+tags: [weapon, light, electric, inventory, equipment]
 sidebar_position: 10
-
-last_updated: 2026-03-06
-build_version: 714014
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 59262289
+source_hash: 98c95e62
 system_scope: inventory
 ---
 
 # Nightstick
 
-> Based on game build **714014** | Last updated: 2026-03-06
+> Based on game build **722832** | Last updated: 2026-04-17
 
 ## Overview
-The `nightstick` prefab is a renewable combat item that functions as a weapon and a controllable light source. It automatically ignites when equipped and extinguishes when unequipped or pocketed. It supports two renewable fuel mechanisms: standard fuel consumption via the `fueled` component and direct battery/moonspark charging. It integrates tightly with `burnable`, `fueled`, `equippable`, `weapon`, and `moonsparkchargeable` components to manage state transitions and interactions.
+`nightstick` is a weapon prefab that functions as a light source and deals electric damage. It consumes fuel over time and can be recharged using batteries via the `batteryuser` component. When equipped, it ignites to provide illumination and spawns a fire child entity. The prefab integrates with the equipment system through the `equippable` component and handles skin overrides for customized appearances.
 
 ## Usage example
 ```lua
--- Example of how the nightstick prefab is typically constructed in the game:
--- (Not intended for direct external instantiation by modders)
-local inst = Prefab("nightstick", fn, assets, prefabs)
-inst:AddComponent("weapon")  -- Already added internally
-inst.components.weapon:SetDamage(TUNING.NIGHTSTICK_DAMAGE)
-inst.components.weapon:SetElectric()  -- Enables electric wet-damage interactions
+-- Spawn a nightstick in the world
+local nightstick = SpawnPrefab("nightstick")
+
+-- Access components for modification
+nightstick.components.weapon:SetDamage(50)
+nightstick.components.fueled:SetPercent(1.0)
+
+-- Check partial charge setting
+local allowpartial = nightstick.components.batteryuser.allowpartialcharge
 ```
 
 ## Dependencies & tags
-**Components used:**  
-`transform`, `animstate`, `soundemitter`, `network`, `weapon`, `inventoryitem`, `equippable`, `inspectable`, `burnable`, `fueled`, `moonsparkchargeable`
+**External dependencies:**
+- `TUNING` -- references NIGHTSTICK_DAMAGE, NIGHTSTICK_FUEL, TURNON_FUELED_CONSUMPTION, TURNON_FULL_FUELED_CONSUMPTION
 
-**Tags added:**  
-`wildfireprotected`, `moonsparkchargeable`, `weapon`
+**Components used:**
+- `weapon` -- sets damage, electric stimulus, and onattack callback
+- `inventoryitem` -- enables item to be picked up and carried
+- `equippable` -- handles equip/unequip/pocket behavior and model overrides
+- `inspectable` -- enables player inspection of the item
+- `burnable` -- manages ignition/extinguish state for light emission
+- `fueled` -- tracks fuel consumption and depletion callbacks
+- `batteryuser` -- enables battery recharging functionality
+
+**Tags:**
+- `wildfireprotected` -- added on creation, prevents wildfire spreading
+- `batteryuser` -- added on creation, marks entity as rechargeable
+- `weapon` -- added on creation, marks entity as a weapon
 
 ## Properties
-No public properties are exposed directly by this prefab; it is defined by its components and event callbacks.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| None | | | No entity-level properties are defined. |
+
 
 ## Main functions
-This prefab does not define standalone functions beyond callback hooks; its logic is embedded in event-handling functions passed to component setters.
+
+### `fn()`
+* **Description:** Constructor function that creates and configures the nightstick entity. Adds all components, sets up callbacks, and applies tags. Server-side logic is guarded by TheWorld.ismastersim check.
+* **Parameters:** None
+* **Returns:** Entity instance (inst)
+* **Error states:** None
 
 ### `onpocket(inst)`
-* **Description:** Extinguishes the nightstick when it is pocketed (e.g., stored in an inventory slot that turns it off).
-* **Parameters:** `inst` (Entity) – The nightstick entity.
-* **Returns:** Nothing.
-* **Error states:** No error states.
-
-### `onequip(inst, owner)`
-* **Description:** Ignites the nightstick upon equip, spawns and attaches a `nightstickfire` entity, updates animation and sound for the equipped state.
-* **Parameters:**  
-  - `inst` (Entity) – The nightstick.  
-  - `owner` (Entity) – The entity equipping the nightstick.  
-* **Returns:** Nothing.
-* **Error states:** If `inst.fire` already exists, no duplicate fire is spawned.
-
-### `onunequip(inst, owner)`
-* **Description:** Extinguishes the nightstick, removes the fire entity, resets animation and sound when unequipped.
-* **Parameters:**  
-  - `inst` (Entity) – The nightstick.  
-  - `owner` (Entity) – The unequipping entity.  
-* **Returns:** Nothing.
-* **Error states:** Fire removal is safe even if `inst.fire` is `nil`.
-
-### `onequiptomodel(inst, owner, from_ground)`
-* **Description:** Extinguishes the nightstick and removes the fire when displayed as a model (e.g., in a chest, build menu, or crafting tab).
-* **Parameters:**  
-  - `inst` (Entity) – The nightstick.  
-  - `owner` (Entity) – The inventory owner (may be `nil`).  
-  - `from_ground` (boolean) – Whether the item was picked up from the ground.  
-* **Returns:** Nothing.
+* **Description:** Called when the nightstick is placed in a player's pocket. Extinguishes the burnable component to stop light emission.
+* **Parameters:** `inst` -- the nightstick entity instance
+* **Returns:** None
+* **Error states:** Errors if `inst.components.burnable` is nil (no nil guard present).
 
 ### `onremovefire(fire)`
-* **Description:** Callback to clean up reference when the attached fire entity is removed externally.
-* **Parameters:** `fire` (Entity) – The `nightstickfire` entity being removed.
-* **Returns:** Nothing.
+* **Description:** Callback for when the fire child entity is removed. Clears the fire reference on the nightstick.
+* **Parameters:** `fire` -- the fire child entity being removed
+* **Returns:** None
+* **Error states:** Errors if `fire` is nil or `fire.nightstick` is nil (no nil guard present before member access).
+
+### `onequip(inst, owner)`
+* **Description:** Called when the nightstick is equipped by a player. Ignites the burnable component, spawns the fire child entity, overrides animation symbols for skin support, and plays equip sound.
+* **Parameters:**
+  - `inst` -- the nightstick entity instance
+  - `owner` -- the player entity equipping the item
+* **Returns:** None
+* **Error states:** Errors if `owner.AnimState` is nil or if `SpawnPrefab` fails. May error if `inst.fire` exists but lacks `nightstick` table field.
+
+### `onunequip(inst, owner)`
+* **Description:** Called when the nightstick is unequipped. Removes the fire child entity, extinguishes the burnable component, restores normal arm animations, and stops the torch sound.
+* **Parameters:**
+  - `inst` -- the nightstick entity instance
+  - `owner` -- the player entity unequipping the item
+* **Returns:** None
+* **Error states:** Errors if `owner.AnimState` is nil or if `inst.SoundEmitter` is nil.
+
+### `onequiptomodel(inst, owner, from_ground)`
+* **Description:** Called when equipping to a model (e.g., mannequin display). Removes fire entity and extinguishes burnable without player animation changes.
+* **Parameters:**
+  - `inst` -- the nightstick entity instance
+  - `owner` -- the entity receiving the equipment
+  - `from_ground` -- boolean indicating if equipped from ground
+* **Returns:** None
+* **Error states:** Errors if `inst.components.burnable` or `inst.SoundEmitter` is nil (no nil guard present before member access).
 
 ### `OnRemoveEntity(inst)`
-* **Description:** Cleans up attached fire entity before the nightstick is fully removed.
-* **Parameters:** `inst` (Entity) – The nightstick.
-* **Returns:** Nothing.
+* **Description:** Called when the nightstick entity is being removed from the world. Cleans up the fire child entity if it exists.
+* **Parameters:** `inst` -- the nightstick entity instance
+* **Returns:** None
+* **Error states:** None
 
 ### `onfuelchange(newsection, oldsection, inst)`
-* **Description:** Handles fuel exhaustion — extinguishes the stick, announces via `itemranout` if equipped, and removes the item when fuel runs out.
-* **Parameters:**  
-  - `newsection` (number) – Current fuel section index.  
-  - `oldsection` (number) – Previous fuel section index.  
-  - `inst` (Entity) – The nightstick.  
-* **Returns:** Nothing.
+* **Description:** Callback when fuel section changes. If fuel reaches zero, extinguishes the burnable, removes the nightstick, and pushes `itemranout` event to owner if equipped.
+* **Parameters:**
+  - `newsection` -- number, new fuel section value
+  - `oldsection` -- number, previous fuel section value
+  - `inst` -- the nightstick entity instance
+* **Returns:** None
+* **Error states:** Errors if `inst.components.burnable` or `inst.components.equippable` is nil when fuel depletes.
 
 ### `onattack(inst, attacker, target)`
-* **Description:** Spawns electric hit sparks on attack, satisfying the `weapon:SetOnAttack` callback.
-* **Parameters:**  
-  - `inst` (Entity) – The nightstick.  
-  - `attacker` (Entity) – Attacking entity.  
-  - `target` (Entity) – Hit target.  
-* **Returns:** Nothing.
+* **Description:** Called when the nightstick successfully hits a target. Spawns electric hit spark effects.
+* **Parameters:**
+  - `inst` -- the nightstick entity instance
+  - `attacker` -- the entity performing the attack
+  - `target` -- the entity being attacked
+* **Returns:** None
+* **Error states:** Errors if `attacker` or `target` is nil when passed to `SpawnElectricHitSparks` (no parameter validation before global function call).
 
-### `OnBatteryUsed(inst, battery)`
-* **Description:** Called by `batteryuser` when a battery attempts to charge the nightstick (currently commented out in default code but implemented). Charges to fullness, returning failure if already full.
-* **Parameters:**  
-  - `inst` (Entity) – The nightstick.  
-  - `battery` (Entity) – Charging battery item.  
-* **Returns:**  
-  - `false, "CHARGE_FULL"` if `fueled:GetPercent() >= 1`.  
-  - `true` on successful partial/complete charge.
-* **Error states:** Only returns `false` if already full.
+### `CalcBatteryChargeMult(inst, battery)`
+* **Description:** Calculates the charge multiplier based on current fuel percentage. Returns higher multiplier when fuel is lower.
+* **Parameters:**
+  - `inst` -- the nightstick entity instance
+  - `battery` -- the battery entity being used to charge
+* **Returns:** Number between 0 and 1 representing charge multiplier
+* **Error states:** Errors if `inst.components.fueled` is nil.
+
+### `OnBatteryUsed(inst, battery, mult)`
+* **Description:** Called when a battery is used to charge the nightstick. Adds charge based on multiplier if not already full. Spawns electric hit sparks on success.
+* **Parameters:**
+  - `inst` -- the nightstick entity instance
+  - `battery` -- the battery entity used for charging
+  - `mult` -- number, charge multiplier from CalcBatteryChargeMult
+* **Returns:** Boolean `true` on success, or `false, "CHARGE_FULL"` if already full or `mult <= 0`
+* **Error states:** Errors if `inst.components.fueled` is nil.
 
 ## Events & listeners
-- **Listens to:**  
-  - `"onremove"` (on `inst.fire`) – Triggers `onremovefire` callback.  
-  - `"death"` (via `burnable.Ignite`) – Managed internally by `Burnable` component; nightstick itself does not listen.  
-  - `"onextinguish"` – No custom listener attached in this file.  
-  - `"equipskinneditem"`, `"unequipskinneditem"` – Pushed to `owner` during skin equip/unequip.
-
-- **Pushes:**  
-  - `"equipskinneditem"` and `"unequipskinneditem"` to owner when skin is present.  
-  - `"itemranout"` to owner when fuel depletes while equipped (triggers removal).  
-  - `"onignite"` and `"onextinguish"` via `burnable.Ignite/Extinguish` — handled in `Burnable`, no custom listeners here.
+- **Listens to:** `onremove` -- registered on the fire child entity to clean up reference when fire is removed
+- **Pushes:** `equipskinneditem` -- fired on owner when equipping with skin override
+- **Pushes:** `unequipskinneditem` -- fired on owner when unequipping with skin override
+- **Pushes:** `itemranout` -- fired on owner when fuel depletes while equipped

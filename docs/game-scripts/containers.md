@@ -1,81 +1,67 @@
 ---
 id: containers
 title: Containers
-description: This module defines widget configurations, validation logic, and item test functions for various inventory containers including backpacks, chests, cookers, and furnaces while handling construction site interactions and button action callbacks via UI callbacks.
-tags: [inventory, ui, containers, validation, widgets]
+description: Defines container widget configurations for various inventory containers including setup functions, item test functions, button actions, and validation functions for backpacks, chests, cookers, and specialty containers.
+tags: [inventory, containers, ui, widgets, configuration]
 sidebar_position: 10
 
-last_updated: 2026-03-21
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
-category_type: root
-source_hash: 9a3c93b6
+category_type: data_config
+source_hash: 190f6538
 system_scope: inventory
 ---
 
 # Containers
 
-> Based on game build **714014** | Last updated: 2026-03-21
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
+`containers.lua` is a data configuration file that defines widget configurations for all inventory container types in Don't Starve Together. It exports a `containers` table containing prefab-specific configuration entries, each with `itemtestfn` functions to validate item placement, widget button actions for container interactions, and validation functions to control UI element availability. This file is required by the `container` component and UI systems to determine what items can be placed in specific containers and what actions are available to players. Configuration entries cover standard containers (chests, backpacks), cooking stations (cookpot, portable spicer), specialty containers (icebox, saltbox), event-specific containers (YOTB sewing machine, Quagmire pots), and character-specific containers (WX-78 backup body, Wortox soul jar). The file returns the `containers` table which is accessed via `require("containers")` by the container component and UI systems.
 
-The `containers` module serves as a central configuration system for inventory container widgets throughout Don't Starve Together. It defines parameter tables that specify slot layouts, item validation functions (`itemtestfn`), and widget button behaviors for diverse container types ranging from standard storage (chests, backpacks) to specialized containers (cooking pots, sewing machines, construction sites, soul jars). Each container type registers its own validation logic through the `params` table, checking entity tags, component states, and skill tree requirements to determine item placement eligibility. The module also handles UI button callbacks that execute player actions via buffered actions or RPC calls depending on network state, enabling interactive container operations like cooking, bundling, construction completion, and incineration. Modders can extend this system by adding new prefab entries to the `params` table with custom `itemtestfn` validators and widget configurations.
+**Prefab aliases and shared configurations:** Many prefabs share container configurations through direct assignment or `deepcopy`. Notable aliases include: `params.icepack = params.backpack`, `params.hutch = params.chester`, `params.wobybig = params.wobysmall`, `params.archive_cookpot = params.cookpot`, `params.portablecookpot = params.cookpot`, `params.shadow_container = deepcopy(params.shadowchester)`, `params.rabbitkinghorn_container = deepcopy(params.shadow_container)`, `params.merm_toolshed_upgraded = deepcopy(params.merm_toolshed)`, `params.merm_armory = deepcopy(params.merm_toolshed)`, `params.merm_armory_upgraded = deepcopy(params.merm_armory)`, `params.saltbox = deepcopy(params.icebox)`, `params.pandoraschest = params.treasurechest`, `params.chest_mimic = params.pandoraschest`, `params.skullchest = params.treasurechest`, `params.terrariumchest = params.treasurechest`, `params.minotaurchest = params.shadowchester`, `params.dragonflychest = deepcopy(params.shadowchester)`, `params.quagmire_casseroledish = params.quagmire_pot`, `params.quagmire_casseroledish_small = params.quagmire_pot_small`, `params.quagmire_grill = params.quagmire_pot`, `params.quagmire_grill_small = params.quagmire_pot_small`, `params.winter_twiggytree = params.winter_tree`, `params.winter_deciduoustree = params.winter_tree`, `params.winter_palmconetree = params.winter_tree`, `params.enable_lunar_rift_construction_container = params.enable_shadow_rift_construction_container`, `params.mushroom_light2 = deepcopy(params.mushroom_light)`, `params.hermitcrab_lightpost = deepcopy(params.yots_lantern_post)`, `params.houndstooth_blowpipe = deepcopy(params.slingshot)`, `params.slingshotex = deepcopy(params.slingshot)`, `params.slingshot999ex = deepcopy(params.slingshotex)`, `params.slingshot2ex = deepcopy(params.slingshot2)`, `params.supertacklecontainer.itemtestfn = params.tacklecontainer.itemtestfn`, `params.offering_pot_upgraded.itemtestfn = params.offering_pot.itemtestfn`, `params.construction_repair_container = deepcopy(params.construction_container)`, `params.construction_rebuild_container = deepcopy(params.construction_container)`, `params.construction_container_1x1 = deepcopy(params.construction_container)`, `params.meatrack_hermit.itemtestfn = params.meatrack.itemtestfn`, `params.meatrack_hermit_multi.itemtestfn = params.meatrack.itemtestfn`, `params.sunkenchest` (independent definition, 3x5 layout).
 
 ## Usage example
-
 ```lua
--- Access container widget setup for a custom chest prefab
-local container = inst.components.container
-containers.widgetsetup(container, "my_custom_chest", {
-    widget = "chest_ui",
-    pos = Vector3(0, 0, 0),
-    size = 9,
-    type = "generic",
-})
+local containers = require "containers"
 
--- Add custom item validation for the container
-params.my_custom_chest = {
-    widget = "chest_ui",
-    pos = Vector3(0, 0, 0),
-    size = 9,
-    type = "generic",
-    itemtestfn = function(container, item, slot)
-        return not item:HasTag("irreplaceable")
-    end,
-}
+-- Access a specific container configuration by prefab name
+local cookpot_config = containers.params.cookpot
 
--- Check if construction site is complete
-local is_complete = IsConstructionSiteComplete(inst, doer)
-if is_complete then
-    EnableRiftsDoAct(inst, doer)
-end
+-- Test if an item can be placed in the cookpot
+local can_place = cookpot_config.itemtestfn(container_component, item_entity, slot_index)
+
+-- Check if the cookpot action button should be enabled
+local button_enabled = cookpot_config.widget.buttoninfo.validfn(container_inst)
+
+-- Execute the cookpot button action
+cookpot_config.widget.buttoninfo.fn(container_inst, player_doer)
 ```
 
 ## Dependencies & tags
-
 **External dependencies:**
-- `cooking` -- Required module used to check cooking ingredients
-- `screens/redux/riftconfirmscreen` -- Required module used to display confirmation dialogs for rift construction
-- `TheWorld` -- Global singleton used to check ismastersim for server-side logic
-- `TheFrontEnd` -- Global singleton used to push and pop UI screens
-- `STRINGS` -- Global table used to access action strings and popup text
-- `ACTIONS` -- Global table used to access action definitions for buffered actions
-- `BufferedAction` -- Global function used to queue player actions
-- `RPC` -- Global table used to reference RPC functions for network calls
-- `SendRPCToServer` -- Global function used to send RPC calls to the server
-- `deepcopy` -- Global utility function used to duplicate parameter tables
-- `Vector3` -- Global utility used to define spatial coordinates for widget slots
-- `ThePlayer` -- Used to identify local player as container opener
-- `FOODTYPE` -- Iterated to check edible tags
-- `FOODGROUP` -- Accessed for OMNI types in beard sacks
-- `containers` -- Referenced to update MAXITEMSLOTS and returned as module
+- `cooking` -- Required for IsCookingIngredient function to validate cooking ingredients
+- `screens/redux/riftconfirmscreen` -- Required for RiftConfirmScreen dialog in shadow rift construction
+- `TheWorld` -- Accessed for ismastersim check and entity parent retrieval
+- `ThePlayer` -- Accessed for container ownership checks on client
+- `TheFrontEnd` -- Accessed for PushScreen and PopScreen calls in rift confirmation
+- `STRINGS` -- Accessed for action text strings (ACTIONS.YOTB_SEW, ACTIONS.COOK, etc.)
+- `ACTIONS` -- Accessed for action codes passed to BufferedAction and SendRPCToServer
+- `RPC` -- Accessed for DoWidgetButtonAction RPC to server
+- `BufferedAction` -- Used to create and execute actions on master sim
+- `SendRPCToServer` -- Used to send widget button actions from client to server
+- `FOODTYPE` -- Iterated to check edible tags in icebox itemtestfn
+- `FOODGROUP` -- Accessed for OMNI.types in beard_sack itemtestfn functions
+- `Vector3` -- Used to create position vectors for slotpos arrays
+- `deepcopy` -- Used to clone container configurations for variant prefabs
 
 **Components used:**
-- `container` -- Accessed via inst.components.container and inst.replica.container for item management and state checks
-- `constructionbuilderuidata` -- Accessed via doer.components.constructionbuilderuidata to validate construction ingredients
-- `skilltreeupdater` -- Checked on owner entity to verify skill activation
-- `health` -- Accessed via item.replica.health to check existence
-- `inventoryitem` -- Checked via item.components.inventoryitem:IsHeld()
+- `container` -- Accessed via container parameter and inst.components.container for GetOpeners, IsBusy, IsFull, IsEmpty, IsReadOnlyContainer, Has methods
+- `constructionbuilderuidata` -- Accessed via doer.components.constructionbuilderuidata:GetConstructionSite() and GetIngredientForSlot()
+- `skilltreeupdater` -- Accessed via owner/components.skilltreeupdater:IsActivated() for skill checks
+- `inventoryitem` -- Accessed via item.components.inventoryitem:IsHeld() and container.replica.inventoryitem:IsHeldBy()
+- `replica.container` -- Accessed via inst.replica.container for client-side container state checks
 
 **Tags:**
 - `irreplaceable` -- check
@@ -84,39 +70,30 @@ end
 - `preparedfood` -- check
 - `spicedfood` -- check
 - `spice` -- check
-- `_container` -- check
-- `bundle` -- check
-- `nobundling` -- check
 - `burnt` -- check
 - `lightbattery` -- check
 - `lightcontainer` -- check
 - `spore` -- check
-- `winter_ornament` -- check
 - `hermithouse_ornament` -- check
+- `winter_ornament` -- check
 - `halloween_ornament` -- check
 - `icebox_valid` -- check
 - `fresh` -- check
 - `stale` -- check
 - `spoiled` -- check
 - `smallcreature` -- check
-- `edible_` -- check
 - `cookable` -- check
 - `deployable` -- check
-- `saltbox_valid` -- check
-- `nonpotatable` -- check
-- `groundtile` -- check
-- `smalloceancreature` -- check
-- `oceanfishing_bobber` -- check
-- `oceanfishing_lure` -- check
 - `slingshotammo` -- check
 - `slingshot_band` -- check
 - `slingshot_frame` -- check
 - `slingshot_handle` -- check
+- `oceanfishing_bobber` -- check
+- `oceanfishing_lure` -- check
 - `treeseed` -- check
 - `halloweencandy` -- check
-- `lunarseed` -- check
-- `pocketwatchpart` -- check
-- `oceanfish` -- check
+- `groundtile` -- check
+- `smalloceancreature` -- check
 - `bookcabinet_item` -- check
 - `beargerfur_sack_valid` -- check
 - `blowpipeammo` -- check
@@ -125,538 +102,1182 @@ end
 - `nosouljar` -- check
 - `ghostlyelixir` -- check
 - `ghostflower` -- check
+- `pocketwatchpart` -- check
+- `oceanfish` -- check
 - `quagmire_stewable` -- check
 - `overcooked` -- check
+- `quagmire_sap` -- check
 - `takeonly` -- check
+- `nonpotatable` -- check
+- `saltbox_valid` -- check
+- `lunarseed` -- check
+- `_container` -- check
+- `bundle` -- check
+- `nobundling` -- check
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
+| `containers` | table | --- | The returned table containing all container configurations, accessed via `require("containers")`. |
+| `containers.params` | table | --- | Table mapping prefab names to container configuration entries. |
+| `containers.MAXITEMSLOTS` | number | --- | Calculated maximum slot count across all container configurations. |
+| `params.<prefab>.widget` | table | --- | Widget configuration including `slotpos`, `animbank`, `animbuild`, `pos`, `buttoninfo`, and other UI properties. |
+| `params.<prefab>.type` | string | --- | Container type identifier (e.g., "chest", "pack", "cooker", "hand_inv", "inv", "backpack", "side_inv_behind", "chest_addon", "top_rack"). |
+| `params.<prefab>.acceptsstacks` | boolean | --- | Whether the container accepts stacked items. |
+| `params.<prefab>.itemtestfn` | function | --- | Function to test if an item can be placed in the container. |
+| `params.<prefab>.priorityfn` | function reference | --- | References itemtestfn for container priority selection. Only defined for `seedpouch` and `candybag`. |
+| `params.<prefab>.usespecificslotsforitems` | boolean | --- | Whether items must be placed in specific slots. |
+| `params.<prefab>.openlimit` | number | --- | Maximum number of this container type that can be open simultaneously. |
+| `params.<prefab>.excludefromcrafting` | boolean | --- | Whether the container is excluded from crafting recipes. |
+| `params.<prefab>.issidewidget` | boolean | --- | Whether the container widget is displayed as a side widget. |
+| `LIGHT_TAGS` | table | --- | File-scope constant: Tags used by yots_lantern_post.itemtestfn to validate light-related items (`"lightbattery"`, `"spore"`, `"lightcontainer"`). |
+| `WX78_BACKUPBODY_POS` | Vector3 | --- | File-scope constant: Position vector for WX-78 backup body container widget. |
+| `WX78_INVENTORY_CONTAINER_OFFSET` | Vector3 | --- | File-scope constant: Position offset for WX-78 inventory container widget. |
+| `WX78_INVENTORY_CONTAINER_SLOTPOS` | table | --- | File-scope constant: Array of slot positions for WX-78 inventory container in backup body. |
+| `AGHAT_SLOTSTART` | number | --- | File-scope constant: Starting Y position for alterguardianhat slot positions (72 * 5 - 22). |
+| `AGHAT_SLOTDIFF` | number | --- | File-scope constant: Y position difference between alterguardianhat slots (72). |
+| `SLOT_BG` | table | --- | File-scope constant: Slot background image config for alterguardianhat (`{ image = "spore_slot.tex", atlas = "images/hud2.xml" }`). |
+| `ALTERGUARDIANHAT_ITEMS` | table | --- | File-scope constant: Tags used by alterguardianhat.itemtestfn (`"spore"`, `"lunarseed"`). |
+| `hermithouse2_slotbg` | table | --- | File-scope constant: Slot background config for hermithouse2 container (`{ image = "inv_slot_hermithouse.tex", atlas = "images/hud2.xml" }`). |
+| `battlesong_container_bg` | table | --- | File-scope constant: Slot background config for battlesong_container (`{ image = "battlesong_slot.tex", atlas = "images/hud2.xml" }`). |
+| `dryer_slotbg` | table | --- | File-scope constant: Slot background config for meatrack_hermit_multi container (`{ image = "inv_slot_kelp.tex", atlas = "images/hud2.xml" }`). |
+| `elixir_container_bg` | table | --- | File-scope constant: Slot background config for elixir_container (`{ image = "elixir_slot.tex", atlas = "images/hud2.xml" }`). |
+| `slingshotammo_container_bg` | table | --- | File-scope constant: Slot background config for slingshotammo_container (`{ image = "slingshot_ammo_slot.tex" }`). |
 
 ## Main functions
-
 ### `containers.widgetsetup(container, prefab, data)`
-* **Description:** Applies widget configuration parameters to a container instance, setting slots and properties based on prefab or provided data.
+* **Description:** Applies widget configuration from params table to a container, setting properties and calculating numslots from slotpos array length.
 * **Parameters:**
-  - `container` -- The container component instance to configure
-  - `prefab` -- The prefab name string to lookup params, or nil
-  - `data` -- Optional data table to override params, or nil
-* **Returns:** nil
+  - `container` -- Container component instance to configure
+  - `prefab` -- String prefab name or nil to use container.inst.prefab
+  - `data` -- Optional data table override or nil to use params[prefab]
+* **Returns:** None
+* **Error states:** None
 
 ### `params.shadow_container.itemtestfn(container, item, slot)`
-* **Description:** Validates if an item can be placed in the shadow container, rejecting irreplaceable items.
+* **Description:** Tests if item can be placed in shadow container. Returns true if item does not have the irreplaceable tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested for placement
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.woby_rack_container.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the woby rack, checking for dryable tag or server-side timing conditions.
+* **Description:** Tests if item can be placed in woby drying rack. Accepts dryable items or handles edge cases for items with zero time alive during woby transform.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.meatrack.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the meatrack, checking for dryable tag or server-side timing conditions.
+* **Description:** Tests if item can be placed in meatrack. Accepts dryable items or handles edge cases for items failing to move.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
+
+### `params.meatrack_hermit.itemtestfn(container, item, slot)`
+* **Description:** Tests if item can be placed in hermit crab meatrack (1x1 variant). Uses same logic as params.meatrack.itemtestfn -- accepts dryable items or handles edge cases for items failing to move.
+* **Parameters:**
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
+
+### `params.meatrack_hermit_multi.itemtestfn(container, item, slot)`
+* **Description:** Tests if item can be placed in hermit crab meatrack (3x3 variant). Uses same logic as params.meatrack.itemtestfn -- accepts dryable items or handles edge cases for items failing to move.
+* **Parameters:**
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.yotb_sewingmachine.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the sewing machine, requiring the yotb_pattern_fragment tag.
+* **Description:** Tests if item can be placed in sewing machine. Only accepts items with yotb_pattern_fragment tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.yotb_sewingmachine.widget.buttoninfo.fn(inst, doer)`
-* **Description:** Executes the YOTB_SEW action via buffered action or RPC.
+* **Description:** Executes YOTB_SEW action via BufferedAction on master or SendRPCToServer on client.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
-  - `doer` -- The player entity performing the action
-* **Returns:** nil
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity performing the action
+* **Returns:** None
+* **Error states:** None
 
 ### `params.yotb_sewingmachine.widget.buttoninfo.validfn(inst)`
-* **Description:** Checks if the container is full to enable the button.
+* **Description:** Validates if sewing machine button should be enabled. Returns true if replica container exists and is full.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
+  - `inst` -- Container entity instance
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.cookpot.itemtestfn(container, item, slot)`
-* **Description:** Validates cooking ingredients and checks if the pot is not burnt.
+* **Description:** Tests if item is a valid cooking ingredient using cooking.IsCookingIngredient and container is not burnt.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.cookpot.widget.buttoninfo.fn(inst, doer)`
-* **Description:** Executes the COOK action via buffered action or RPC.
+* **Description:** Executes COOK action via BufferedAction on master or SendRPCToServer on client.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
-  - `doer` -- The player entity performing the action
-* **Returns:** nil
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity performing the action
+* **Returns:** None
+* **Error states:** None
 
 ### `params.cookpot.widget.buttoninfo.validfn(inst)`
-* **Description:** Checks if the container is full to enable the button.
+* **Description:** Validates if cookpot button should be enabled. Returns true if replica container exists and is full.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
+  - `inst` -- Container entity instance
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.portablespicer.itemtestfn(container, item, slot)`
-* **Description:** Validates spice and food items for specific slots, excluding wetgoop and burnt cookers.
+* **Description:** Tests if item can be placed in portable spicer. Slot 1 accepts prepared food without spicedfood tag, slot 2 accepts spice items.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index (1=food, 2=spice) or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.portablespicer.widget.buttoninfo.fn(inst, doer)`
-* **Description:** Executes the COOK action via buffered action or RPC.
+* **Description:** Executes COOK action via BufferedAction on master or SendRPCToServer on client.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
-  - `doer` -- The player entity performing the action
-* **Returns:** nil
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity performing the action
+* **Returns:** None
+* **Error states:** None
 
 ### `params.portablespicer.widget.buttoninfo.validfn(inst)`
-* **Description:** Checks if the container is full to enable the button.
+* **Description:** Validates if portable spicer button should be enabled. Returns true if replica container exists and is full.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
+  - `inst` -- Container entity instance
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.bundle_container.itemtestfn(container, item, slot)`
-* **Description:** Validates items for bundling, excluding irreplaceable, container, bundle, or nobundling tags.
+* **Description:** Tests if item can be bundled. Rejects items with irreplaceable, _container, bundle, or nobundling tags.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.bundle_container.widget.buttoninfo.fn(inst, doer)`
-* **Description:** Executes the WRAPBUNDLE action via buffered action or RPC.
+* **Description:** Executes WRAPBUNDLE action via BufferedAction on master or SendRPCToServer on client.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
-  - `doer` -- The player entity performing the action
-* **Returns:** nil
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity performing the action
+* **Returns:** None
+* **Error states:** None
 
 ### `params.bundle_container.widget.buttoninfo.validfn(inst)`
-* **Description:** Checks if the container is not empty and not read-only to enable the button.
+* **Description:** Validates if bundle button should be enabled. Returns true if replica container exists, is not empty, and is not read-only.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
+  - `inst` -- Container entity instance
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.construction_container.itemtestfn(container, item, slot)`
-* **Description:** Validates construction ingredients against the doer's construction builder UI data.
+* **Description:** Tests if item matches the required ingredient for construction slot using constructionbuilderuidata:GetIngredientForSlot.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.construction_container.widget.buttoninfo.fn(inst, doer)`
-* **Description:** Executes the APPLYCONSTRUCTION action via buffered action or RPC.
+* **Description:** Executes APPLYCONSTRUCTION action via BufferedAction on master or SendRPCToServer on client.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
-  - `doer` -- The player entity performing the action
-* **Returns:** nil
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity performing the action
+* **Returns:** None
+* **Error states:** None
 
 ### `params.construction_container.widget.buttoninfo.validfn(inst)`
-* **Description:** Checks if the container is not empty to enable the button.
+* **Description:** Validates if construction button should be enabled. Returns true if replica container exists and is not empty.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
+  - `inst` -- Container entity instance
 * **Returns:** boolean
+* **Error states:** None
 
-### `IsConstructionSiteComplete(inst, doer)`
-* **Description:** Checks if the construction site has all required ingredients in the container.
+### `params.construction_repair_container.widget.buttoninfo.fn(inst, doer)`
+* **Description:** Executes APPLYCONSTRUCTION.REPAIR action via BufferedAction on master or SendRPCToServer on client. Inherited from params.construction_container via deepcopy; button text differs to indicate repair action.
 * **Parameters:**
-  - `inst` -- The construction container entity instance
-  - `doer` -- The player entity attempting construction
-* **Returns:** boolean
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity performing the action
+* **Returns:** None
+* **Error states:** None
 
-### `EnableRiftsPopUpGoBack()`
-* **Description:** Closes the current front end screen.
+### `params.construction_rebuild_container.widget.buttoninfo.fn(inst, doer)`
+* **Description:** Executes APPLYCONSTRUCTION.REBUILD action via BufferedAction on master or SendRPCToServer on client. Inherited from params.construction_container via deepcopy; button text differs to indicate rebuild action.
+* **Parameters:**
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity performing the action
+* **Returns:** None
+* **Error states:** None
+
+### `IsConstructionSiteComplete(inst, doer)` (local)
+* **Description:** Local function that checks if all construction site ingredients are present in the container with sufficient quantities.
+* **Parameters:**
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity
+* **Returns:** boolean
+* **Error states:** None
+
+### `EnableRiftsPopUpGoBack()` (local)
+* **Description:** Local function that pops the current screen from TheFrontEnd.
 * **Parameters:** None
-* **Returns:** nil
+* **Returns:** None
+* **Error states:** None
 
-### `EnableRiftsDoAct(inst, doer)`
-* **Description:** Executes the APPLYCONSTRUCTION action via buffered action or RPC.
+### `EnableRiftsDoAct(inst, doer)` (local)
+* **Description:** Local function that executes APPLYCONSTRUCTION action via BufferedAction or SendRPCToServer.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
-  - `doer` -- The player entity performing the action
-* **Returns:** nil
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity performing the action
+* **Returns:** None
+* **Error states:** None
 
 ### `params.enable_shadow_rift_construction_container.widget.buttoninfo.fn(inst, doer)`
-* **Description:** Handles button action, optionally triggering override logic for rifts.
+* **Description:** Executes rift construction action, showing confirmation dialog if construction site is complete.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
-  - `doer` -- The player entity performing the action
-* **Returns:** nil
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity performing the action
+* **Returns:** None
+* **Error states:** None
 
 ### `params.enable_shadow_rift_construction_container.widget.overrideactionfn(inst, doer)`
-* **Description:** Shows a confirmation dialog if the construction site is complete, otherwise returns false.
+* **Description:** Shows RiftConfirmScreen dialog if construction site is complete and doer has HUD. Returns true if dialog shown.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
-  - `doer` -- The player entity performing the action
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.mushroom_light.itemtestfn(container, item, slot)`
-* **Description:** Validates light battery or container items, excluding burnt lights.
+* **Description:** Tests if item has lightbattery or lightcontainer tag and container is not burnt.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.mushroom_light2.itemtestfn(container, item, slot)`
-* **Description:** Validates light battery, spore, or container items, excluding burnt lights.
+* **Description:** Tests if item has lightbattery, spore, or lightcontainer tag and container is not burnt.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.yots_lantern_post.itemtestfn(container, item, slot)`
-* **Description:** Validates light tags using helper table, excluding burnt lights.
+* **Description:** Tests if item has any light-related tags (lightbattery, spore, lightcontainer) and container is not burnt.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.hermitcrab_lightpost.widget.bganim_visualfn(bganim, container, doer)`
-* **Description:** Sets the symbol mult colour of the coral symbol based on container anim state.
+* **Description:** Sets coral symbol color on background animation to match container's AnimState coral symbol color.
 * **Parameters:**
-  - `bganim` -- The background animation widget
-  - `container` -- The container component instance
-  - `doer` -- The player entity
-* **Returns:** nil
+  - `bganim` -- Background animation widget
+  - `container` -- Container component instance
+  - `doer` -- Player entity
+* **Returns:** None
+* **Error states:** None
 
 ### `params.hermithouse2.itemtestfn(container, item, slot)`
-* **Description:** Validates hermit house ornament items.
+* **Description:** Tests if item has hermithouse_ornament tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.winter_tree.itemtestfn(container, item, slot)`
-* **Description:** Validates winter or hermit house ornament items, excluding burnt trees.
+* **Description:** Tests if item has winter_ornament or hermithouse_ornament tag and container is not burnt.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.sisturn.itemtestfn(container, item, slot)`
-* **Description:** Determines if an item is valid for the sisturn container, checking owner skilltree activation.
+* **Description:** Tests if item is valid for sisturn. Checks owner's skilltreeupdater for wendy_sisturn_3 skill to allow additional flower types.
 * **Parameters:**
-  - `container` -- The container component instance holding the items
-  - `item` -- The item entity being tested for validity
-  - `slot` -- The slot index in the container
-* **Returns:** boolean indicating if the item is accepted
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.offering_pot.itemtestfn(container, item, slot)`
-* **Description:** Checks if the container is not burnt and the item is kelp.
+* **Description:** Tests if item is kelp and container is not burnt.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.merm_toolshed.itemtestfn(container, item, slot)`
-* **Description:** Validates twigs or rocks for specific slots in the merm toolshed.
+* **Description:** Tests if item matches slot requirements: slot 1 accepts twigs, slot 2 accepts rocks.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index (1=twigs, 2=rocks) or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.merm_armory.itemtestfn(container, item, slot)`
-* **Description:** Validates log or cutgrass for specific slots in the merm armory.
+* **Description:** Tests if item matches slot requirements for merm armory: slot 1 accepts log, slot 2 accepts cutgrass. Also checks that container is not burnt.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index (1=log, 2=cutgrass) or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.livingtree_halloween.itemtestfn(container, item, slot)`
-* **Description:** Checks if item has halloween_ornament tag and container is not burnt.
+* **Description:** Tests if item has halloween_ornament tag and container is not burnt.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.icebox.itemtestfn(container, item, slot)`
-* **Description:** Validates perishable or edible items for the icebox.
+* **Description:** Tests if item is icebox_valid, or is perishable food with fresh/stale/spoiled tags and edible tag, excluding small creatures.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.saltbox.itemtestfn(container, item, slot)`
-* **Description:** Validates cookable perishable items or saltbox_valid tagged items.
+* **Description:** Tests if item is perishable cookable food without deployable/smallcreature tags and no health replica, or has saltbox_valid tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.teleportato_base.itemtestfn(container, item, slot)`
-* **Description:** Checks if item does not have nonpotatable tag.
+* **Description:** Tests if item does not have nonpotatable tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.teleportato_base.widget.buttoninfo.fn(inst, doer)`
-* **Description:** Placeholder function for teleportato activation, currently unsupported.
+* **Description:** Placeholder function for teleportato activation. Currently commented out as not supported in multiplayer.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
-  - `doer` -- The player entity activating the button
-* **Returns:** nil
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity performing the action
+* **Returns:** None
+* **Error states:** None
 
 ### `params.balatro_machine.itemtestfn(container, item, slot)`
-* **Description:** Checks if container is not burnt.
+* **Description:** Tests if container is not burnt. Item prefab check is commented out.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.balatro_machine.widget.buttoninfo.fn(inst, doer)`
-* **Description:** Activates the container via BufferedAction or RPC depending on network state.
+* **Description:** Executes ACTIVATE_CONTAINER action via BufferedAction on master or SendRPCToServer on client.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
-  - `doer` -- The player entity activating the button
-* **Returns:** nil
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity performing the action
+* **Returns:** None
+* **Error states:** None
 
 ### `params.antlionhat.itemtestfn(container, item, slot)`
-* **Description:** Checks if item has groundtile tag and tile property.
+* **Description:** Tests if item has groundtile tag and has a tile property.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.fish_box.itemtestfn(container, item, slot)`
-* **Description:** Checks if item has smalloceancreature tag.
+* **Description:** Tests if item has smalloceancreature tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.oceanfishingrod.itemtestfn(container, item, slot)`
-* **Description:** Validates oceanfishing_bobber or oceanfishing_lure tags for specific slots.
+* **Description:** Tests if item matches fishing rod slot requirements: slot 1 accepts bobbers, slot 2 accepts lures.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index (1=bobber, 2=lure) or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.beard_sack_1.itemtestfn(container, item, slot)`
-* **Description:** Checks if item is edible according to OMNI food group.
+* **Description:** Tests if item has edible tag matching any FOODGROUP.OMNI.types.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.beard_sack_2.itemtestfn(container, item, slot)`
-* **Description:** Checks if item is edible according to OMNI food group.
+* **Description:** Tests if item has edible tag matching any FOODGROUP.OMNI.types.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.beard_sack_3.itemtestfn(container, item, slot)`
-* **Description:** Checks if item is edible according to OMNI food group.
+* **Description:** Tests if item has edible tag matching any FOODGROUP.OMNI.types.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.slingshot.itemtestfn(container, item, slot)`
-* **Description:** Validates slingshotammo tag and checks owner skilltree for required skill.
+* **Description:** Tests if item has slingshotammo tag. Also checks REQUIRED_SKILL against owner's skilltreeupdater if present.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The item entity being tested
-  - `slot` -- The slot index
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
 * **Returns:** boolean
+* **Error states:** None
 
 ### `params.slingshotmodscontainer.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the slingshot mods container based on skill requirements and specific slingshot tags.
+* **Description:** Tests if item matches slingshot mod slot requirements and checks REQUIRED_SKILL against owner's skilltreeupdater.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
-* **Error states:** Returns false if owner lacks required skill or item lacks correct tag
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index (1=band, 2=frame, 3=handle) or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.tacklecontainer.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the tackle container by checking for fishing bobber or lure tags.
+* **Description:** Tests if item has oceanfishing_bobber or oceanfishing_lure tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.seedpouch.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the seed pouch by checking prefab name or treeseed tag.
+* **Description:** Tests if item prefab is seeds, matches _seeds pattern, or has treeseed tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
+
+
 
 ### `params.candybag.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the candy bag by checking halloween or trinket tags.
+* **Description:** Tests if item has halloweencandy, halloween_ornament tag, or prefab starts with trinket_.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
+
+
 
 ### `params.alterguardianhatshard.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the alter guardian hat shard container by checking spore tag.
+* **Description:** Tests if item has spore tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.alterguardianhat.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the alter guardian hat by checking spore or lunarseed tags.
+* **Description:** Tests if item has spore or lunarseed tag using HasAnyTag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.pocketwatch.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the pocketwatch by checking pocketwatchpart tag.
+* **Description:** Tests if item has pocketwatchpart tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.ocean_trawler.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the ocean trawler by checking cookable or oceanfish tags.
+* **Description:** Tests if item has cookable or oceanfish tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.bookstation.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the book station by checking bookcabinet_item tag.
+* **Description:** Tests if item has bookcabinet_item tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
+
+
 
 ### `params.beargerfur_sack.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the beargers fur sack by checking prepared food tags.
+* **Description:** Tests if item has beargerfur_sack_valid or preparedfood tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.houndstooth_blowpipe.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the houndstooth blowpipe by checking blowpipeammo tag.
+* **Description:** Tests if item has blowpipeammo tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.battlesong_container.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the battlesong container by checking battlesong tag.
+* **Description:** Tests if item has battlesong tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.wortox_souljar.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the wortox souljar by checking soul tag and excluding nosouljar.
+* **Description:** Tests if item has soul tag but not nosouljar tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.elixir_container.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the elixir container by checking ghostly elixir or ghostflower tags.
+* **Description:** Tests if item has ghostlyelixir or ghostflower tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.dragonflyfurnace.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the dragonfly furnace by excluding irreplaceable items.
+* **Description:** Tests if item does not have irreplaceable tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.dragonflyfurnace.widget.buttoninfo.fn(inst, doer)`
-* **Description:** Executes the incinerate action when the dragonfly furnace button is clicked.
+* **Description:** Executes INCINERATE action via BufferedAction on master or SendRPCToServer on client.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
-  - `doer` -- The player entity performing the action
-* **Returns:** nil
-* **Error states:** Checks for container component or replica before sending RPC
+  - `inst` -- Container entity instance
+  - `doer` -- Player entity performing the action
+* **Returns:** None
+* **Error states:** None
 
 ### `params.dragonflyfurnace.widget.buttoninfo.validfn(inst)`
-* **Description:** Checks if the dragonfly furnace container is valid for interaction.
+* **Description:** Validates if furnace button should be enabled. Returns true if replica container exists and is not empty.
 * **Parameters:**
-  - `inst` -- The entity instance owning the widget
-* **Returns:** boolean indicating if the button is valid
+  - `inst` -- Container entity instance
+* **Returns:** boolean
+* **Error states:** None
 
 ### `params.slingshotammo_container.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the slingshot ammo container by checking slingshotammo tag.
+* **Description:** Tests if item has slingshotammo tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
-### `params.quagmire_pot.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the quagmire pot by checking stewable tags and held status.
+### `params.wx78_backupbody.itemtestfn(container, item, slot)`
+* **Description:** Tests if item does not have irreplaceable tag.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
-* **Error states:** Excludes spoiled food, prepared food, overcooked, or takeonly tags
+  - `container` -- Container component instance
+  - `item` -- Item entity being tested
+  - `slot` -- Slot index or nil
+* **Returns:** boolean
+* **Error states:** None
 
-### `params.quagmire_pot_syrup.itemtestfn(container, item, slot)`
-* **Description:** Validates items for the quagmire pot syrup by checking stewable tags and sap logic.
+### `params.cookpot`
+* **Description:** Container configuration for cookpot (1x4 vertical layout, 4 slots). Cooker type with COOK button action. itemtestfn validates cooking ingredients via cooking.IsCookingIngredient and checks container is not burnt.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.portablespicer`
+* **Description:** Container configuration for portable spicer (1x2 vertical layout, 2 slots). Cooker type with SPICE button action. usespecificslotsforitems=true; slot 1 accepts prepared food without spicedfood tag, slot 2 accepts spice items.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.bundle_container`
+* **Description:** Container configuration for bundle container (2x2 layout, 4 slots). Cooker type with WRAPBUNDLE button action. itemtestfn rejects items with irreplaceable, _container, bundle, or nobundling tags.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.construction_container`
+* **Description:** Container configuration for construction container (4x1 horizontal layout, 4 slots). Cooker type with APPLYCONSTRUCTION button action. usespecificslotsforitems=true; itemtestfn validates items match required ingredients via constructionbuilderuidata:GetIngredientForSlot.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.enable_shadow_rift_construction_container`
+* **Description:** Container configuration for shadow rift construction (1 slot). Cooker type with APPLYCONSTRUCTION.OFFER button action. Shows RiftConfirmScreen dialog if construction site is complete.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.mushroom_light`
+* **Description:** Container configuration for mushroom light (1x4 vertical layout, 4 slots). Cooker type. itemtestfn accepts items with lightbattery or lightcontainer tag, checks container is not burnt.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.mushroom_light2`
+* **Description:** Container configuration for mushroom light variant (1x4 vertical layout, 4 slots). Cooker type. itemtestfn accepts items with lightbattery, spore, or lightcontainer tag, checks container is not burnt.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.yots_lantern_post`
+* **Description:** Container configuration for YOTB lantern post (1x1 layout, 1 slot). Chest type. itemtestfn accepts items with lightbattery, spore, or lightcontainer tag, checks container is not burnt.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.hermithouse2`
+* **Description:** Container configuration for hermit house 2 (2x2 layout, 4 slots). Cooker type. itemtestfn accepts items with hermithouse_ornament tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.winter_tree`
+* **Description:** Container configuration for winter tree (2x4 layout, 8 slots). Cooker type. itemtestfn accepts items with winter_ornament or hermithouse_ornament tag, checks container is not burnt.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.sisturn`
+* **Description:** Container configuration for sisturn (2x2 layout, 4 slots). Cooker type with openlimit of 1. itemtestfn checks owner's skilltreeupdater for wendy_sisturn_3 skill to allow additional flower types (petals, moon_tree_blossom, petals_evil).
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.offering_pot`
+* **Description:** Container configuration for offering pot (2x2 layout, 4 slots). Cooker type. itemtestfn accepts kelp prefab, checks container is not burnt.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.offering_pot_upgraded`
+* **Description:** Container configuration for upgraded offering pot (3x2 layout, 6 slots). Cooker type. Shares itemtestfn with params.offering_pot.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.merm_toolshed`
+* **Description:** Container configuration for merm toolshed (1x2 vertical layout, 2 slots). Cooker type. usespecificslotsforitems=true; slot 1 accepts twigs, slot 2 accepts rocks. Checks container is not burnt.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.merm_toolshed_upgraded`
+* **Description:** Container configuration for upgraded merm toolshed. Deepcopy of params.merm_toolshed.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.merm_armory`
+* **Description:** Container configuration for merm armory (1x2 vertical layout, 2 slots). Cooker type. Deepcopy of params.merm_toolshed with different slotbg. usespecificslotsforitems=true; slot 1 accepts log, slot 2 accepts cutgrass. Checks container is not burnt.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.merm_armory_upgraded`
+* **Description:** Container configuration for upgraded merm armory. Deepcopy of params.merm_armory.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.livingtree_halloween`
+* **Description:** Container configuration for living tree halloween (3x1 horizontal layout, 3 slots). Cooker type. itemtestfn accepts items with halloween_ornament tag, checks container is not burnt.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.icebox`
+* **Description:** Container configuration for icebox (3x3 layout, 9 slots). Chest type. itemtestfn accepts icebox_valid items or perishable food with fresh/stale/spoiled and edible tags, excluding small creatures.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.saltbox`
+* **Description:** Container configuration for saltbox (3x3 layout, 9 slots). Chest type. Deepcopy of params.icebox. itemtestfn accepts perishable cookable food without deployable/smallcreature tags and no health replica, or saltbox_valid items.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.krampus_sack`
+* **Description:** Container configuration for krampus sack (2x8 layout, 16 slots). Side widget pack with openlimit of 1.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.piggyback`
+* **Description:** Container configuration for piggyback (2x6 layout, 12 slots). Side widget pack with openlimit of 1.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.teleportato_base`
+* **Description:** Container configuration for teleportato base (1x4 vertical layout, 4 slots). Cooker type with ACTIVATE button (currently commented out, not supported in multiplayer). itemtestfn rejects items with nonpotatable tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.balatro_machine`
+* **Description:** Container configuration for balatro machine (1x5 horizontal layout, 5 slots). Cooker type with openlimit of 1 and ACTIVATE button. itemtestfn checks container is not burnt.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.treasurechest`
+* **Description:** Container configuration for treasure chest (3x3 layout, 9 slots). Chest type with upgraded anim variants.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.antlionhat`
+* **Description:** Container configuration for antlion hat (1x1 layout, 1 slot). hand_inv type, excludefromcrafting=true. itemtestfn accepts items with groundtile tag and tile property.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.fish_box`
+* **Description:** Container configuration for fish box (5x4 layout, 20 slots). Chest type. itemtestfn accepts items with smalloceancreature tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.oceanfishingrod`
+* **Description:** Container configuration for ocean fishing rod (1x2 vertical layout, 2 slots). hand_inv type, excludefromcrafting=true, usespecificslotsforitems=true. Slot 1 accepts bobbers, slot 2 accepts lures.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.beard_sack_1`
+* **Description:** Container configuration for beard sack tier 1 (1x1 layout, 1 slot). side_inv_behind type, acceptsstacks=true. itemtestfn accepts items with edible tags matching FOODGROUP.OMNI.types.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.beard_sack_2`
+* **Description:** Container configuration for beard sack tier 2 (2x1 layout, 2 slots). side_inv_behind type, acceptsstacks=true. itemtestfn accepts items with edible tags matching FOODGROUP.OMNI.types.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.beard_sack_3`
+* **Description:** Container configuration for beard sack tier 3 (3x1 layout, 3 slots). side_inv_behind type, acceptsstacks=true. itemtestfn accepts items with edible tags matching FOODGROUP.OMNI.types.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.slingshot`
+* **Description:** Container configuration for slingshot (1 slot). hand_inv type, excludefromcrafting=true. itemtestfn accepts slingshotammo items and checks REQUIRED_SKILL against owner's skilltreeupdater if present.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.slingshotex`
+* **Description:** Container configuration for slingshot extended variant. Deepcopy of params.slingshot with different animbank/animbuild.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.slingshot999ex`
+* **Description:** Container configuration for slingshot 999 extended variant. Deepcopy of params.slingshotex with different animbank/animbuild.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.slingshot2`
+* **Description:** Container configuration for slingshot 2 (2 slots vertical). hand_inv type, excludefromcrafting=true. Shares itemtestfn with params.slingshot.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.slingshot2ex`
+* **Description:** Container configuration for slingshot 2 extended variant. Deepcopy of params.slingshot2 with different animbank/animbuild.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.slingshotmodscontainer`
+* **Description:** Container configuration for slingshot mods container (3 slots). Cooker type with openlimit of 1, usespecificslotsforitems=true, acceptsstacks=false. Slot 1 accepts slingshot_band, slot 2 accepts slingshot_frame, slot 3 accepts slingshot_handle. Checks REQUIRED_SKILL against owner's skilltreeupdater.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.tacklecontainer`
+* **Description:** Container configuration for tackle container (3x2 layout, 6 slots). Chest type. itemtestfn accepts items with oceanfishing_bobber or oceanfishing_lure tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.supertacklecontainer`
+* **Description:** Container configuration for super tackle container (3x5 layout, 15 slots). Chest type. Shares itemtestfn with params.tacklecontainer.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.sunkenchest`
+* **Description:** Container configuration for sunken chest (3x5 layout, 15 slots). Independent definition (not deepcopy) to ensure it is not potentially messed with; no custom itemtestfn.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.sacred_chest`
+* **Description:** Container configuration for sacred chest (3x2 layout, 6 slots). Chest type. No custom itemtestfn; uses default container validation.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.seedpouch`
+* **Description:** Container configuration for seed pouch (2x8 layout, 16 slots). Side widget pack with openlimit of 1. itemtestfn accepts seeds prefab, _seeds pattern match, or treeseed tag. priorityfn references itemtestfn.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.candybag`
+* **Description:** Container configuration for candy bag (2x8 layout, 16 slots). Side widget pack with openlimit of 1. itemtestfn accepts halloweencandy, halloween_ornament tags, or prefab starting with trinket_. priorityfn references itemtestfn.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.alterguardianhatshard`
+* **Description:** Container configuration for alter guardian hat shard (1x1 layout, 1 slot). Chest type, acceptsstacks=false. itemtestfn accepts items with spore tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.alterguardianhat`
+* **Description:** Container configuration for alter guardian hat (1x6 vertical layout, 6 slots). hand_inv type, excludefromcrafting=true, acceptsstacks=false. itemtestfn accepts items with spore or lunarseed tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.pocketwatch`
+* **Description:** Container configuration for pocketwatch (3x2 layout, 6 slots). hand_inv type, excludefromcrafting=true. itemtestfn accepts items with pocketwatchpart tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.ocean_trawler`
+* **Description:** Container configuration for ocean trawler (1x4 vertical layout, 4 slots). Cooker type, acceptsstacks=false. itemtestfn accepts items with cookable or oceanfish tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.bookstation`
+* **Description:** Container configuration for book station (4x5 layout, 20 slots). Chest type. itemtestfn accepts items with bookcabinet_item tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.beargerfur_sack`
+* **Description:** Container configuration for bearger fur sack (2x3 layout, 6 slots). Chest type. itemtestfn accepts items with beargerfur_sack_valid or preparedfood tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.houndstooth_blowpipe`
+* **Description:** Container configuration for houndstooth blowpipe. Deepcopy of params.slingshot with different slotbg. itemtestfn accepts items with blowpipeammo tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.battlesong_container`
+* **Description:** Container configuration for battlesong container (2x4 layout, 8 slots). Chest type. itemtestfn accepts items with battlesong tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.wortox_souljar`
+* **Description:** Container configuration for wortox soul jar (1x1 layout, 1 slot). Chest type. itemtestfn accepts items with soul tag but not nosouljar tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.elixir_container`
+* **Description:** Container configuration for wendy elixir container (3x3 layout, 9 slots). Chest type. itemtestfn accepts items with ghostlyelixir or ghostflower tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.dragonflyfurnace`
+* **Description:** Container configuration for dragonfly furnace (2x2 layout, 4 slots). Cooker type with INCINERATE button action. itemtestfn rejects items with irreplaceable tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.slingshotammo_container`
+* **Description:** Container configuration for slingshot ammo container (3x2 layout, 6 slots). Chest type. itemtestfn accepts items with slingshotammo tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.wx78_backupbody`
+* **Description:** Container configuration for WX-78 backup body (5x3 layout, 15 slots). Chest type. itemtestfn rejects items with irreplaceable tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.wx78_drone_delivery`
+* **Description:** Container configuration for WX-78 delivery drone (3x2 layout). No custom itemtestfn defined; uses default container item validation.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.wx78_drone_delivery_small`
+* **Description:** Container configuration for WX-78 small delivery drone (3x1 layout). No custom itemtestfn defined; uses default container item validation.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.wx78_inventorycontainer`
+* **Description:** Container configuration for WX-78 inventory container (1 slot with dynamic positioning). inv type with dynamic typefn returning "chest_addon" when in backup body. Uses slotposfn, slotscalefn, slothighlightscalefn, animfn, posfn, bottom_align_tip_fn, top_align_tip_fn for dynamic widget behavior based on whether container is in backup body.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.quagmire_pot`
+* **Description:** Container configuration for quagmire pot (1x4 vertical layout, 4 slots). Cooker type, acceptsstacks=false. itemtestfn accepts quagmire_stewable items that are not quagmire_sap and not held or prepared/overcooked food.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.quagmire_pot_small`
+* **Description:** Container configuration for quagmire pot small (1x3 vertical layout, 3 slots). Cooker type, acceptsstacks=false. Shares itemtestfn with params.quagmire_pot.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.quagmire_casseroledish`
+* **Description:** Container configuration alias; references params.quagmire_pot configuration.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.quagmire_casseroledish_small`
+* **Description:** Container configuration alias; references params.quagmire_pot_small configuration.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.quagmire_grill`
+* **Description:** Container configuration alias; references params.quagmire_pot configuration.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.quagmire_grill_small`
+* **Description:** Container configuration alias; references params.quagmire_pot_small configuration.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.quagmire_pot_syrup`
+* **Description:** Container configuration for quagmire pot syrup (1x3 vertical layout, 3 slots). Cooker type, acceptsstacks=false. itemtestfn accepts quagmire_stewable items that are either not held or are quagmire_sap without takeonly tag.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.quagmire_backpack_small`
+* **Description:** Container configuration for Quagmire small backpack (4-slot horizontal layout). backpack type.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.quagmire_backpack`
+* **Description:** Container configuration for Quagmire backpack (8-slot horizontal layout). backpack type.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.backpack`
+* **Description:** Container configuration for backpack (2x4 layout, 8 slots). Side widget with openlimit of 1.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.spicepack`
+* **Description:** Container configuration for spicepack (2x3 layout, 6 slots). Side widget with openlimit of 1.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.chester`
+* **Description:** Container configuration for Chester (3x3 layout, 9 slots). Standard chest type.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.shadowchester`
+* **Description:** Container configuration for Shadow Chester (3x4 layout, 12 slots). Deprecated but kept for dragonflychest, minotaurchest, mods, and legacy save data.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `params.wobysmall`
+* **Description:** Container configuration for Woby small form (3x3 layout, 9 slots). Chest type with side_align_tip.
+* **Parameters:** None (configuration entry)
+* **Returns:** None
+* **Error states:** None
+
+### `wx78_inventorycontainer_isinbackupbody(container, doer)` (local)
+* **Description:** Local function that checks if container inventoryitem is not held by doer.
 * **Parameters:**
-  - `container` -- The container component instance
-  - `item` -- The inventory item entity
-  - `slot` -- The slot index being checked
-* **Returns:** boolean indicating if the item is valid for the slot
+  - `container` -- Container component instance
+  - `doer` -- Player entity
+* **Returns:** boolean
+* **Error states:** None
+
+### `wx78_inventorycontainer_getcolumn(container)` (local)
+* **Description:** Local function that returns column index (1-5) based on container slot position in parent container.
+* **Parameters:**
+  - `container` -- Container component instance
+* **Returns:** number
+* **Error states:** None
+
+### `params.wx78_inventorycontainer.widget.slotposfn(container, doer)`
+* **Description:** Returns slot position from WX78_INVENTORY_CONTAINER_SLOTPOS if in backup body, nil otherwise.
+* **Parameters:**
+  - `container` -- Container component instance
+  - `doer` -- Player entity
+* **Returns:** Vector3 or nil
+* **Error states:** None
+
+### `params.wx78_inventorycontainer.widget.slotscalefn(container, doer)`
+* **Description:** Returns slot scale 0.85 if in backup body, nil otherwise.
+* **Parameters:**
+  - `container` -- Container component instance
+  - `doer` -- Player entity
+* **Returns:** number or nil
+* **Error states:** None
+
+### `params.wx78_inventorycontainer.widget.slothighlightscalefn(container, doer)`
+* **Description:** Returns slot highlight scale 1.08 if in backup body, nil otherwise.
+* **Parameters:**
+  - `container` -- Container component instance
+  - `doer` -- Player entity
+* **Returns:** number or nil
+* **Error states:** None
+
+### `params.wx78_inventorycontainer.widget.animfn(container, doer, anim)`
+* **Description:** Returns animation name with column suffix if in backup body, nil otherwise.
+* **Parameters:**
+  - `container` -- Container component instance
+  - `doer` -- Player entity
+  - `anim` -- Base animation name string
+* **Returns:** string or nil
+* **Error states:** None
+
+### `params.wx78_inventorycontainer.widget.posfn(container, doer)`
+* **Description:** Returns WX78_BACKUPBODY_POS if in backup body, or calculates position from HUD inv tile.
+* **Parameters:**
+  - `container` -- Container component instance
+  - `doer` -- Player entity
+* **Returns:** Vector3 or nil
+* **Error states:** None
+
+### `params.wx78_inventorycontainer.widget.bottom_align_tip_fn(container, doer)`
+* **Description:** Returns -90 if in backup body, nil otherwise.
+* **Parameters:**
+  - `container` -- Container component instance
+  - `doer` -- Player entity
+* **Returns:** number or nil
+* **Error states:** None
+
+### `params.wx78_inventorycontainer.widget.top_align_tip_fn(container, doer)`
+* **Description:** Returns 70 if not in backup body, nil otherwise.
+* **Parameters:**
+  - `container` -- Container component instance
+  - `doer` -- Player entity
+* **Returns:** number or nil
+* **Error states:** None
+
+### `params.wx78_inventorycontainer.typefn(container, doer)`
+* **Description:** Returns container type identifier. Returns "chest_addon" if container is in backup body, nil otherwise.
+* **Parameters:**
+  - `container` -- Container component instance
+  - `doer` -- Player entity
+* **Returns:** string or nil
+* **Error states:** None
 
 ## Events & listeners
-
-* **Listens to:** None
-* **Pushes:** None
+None.

@@ -1,365 +1,805 @@
 ---
 id: commonstates
 title: Commonstates
-description: Provides reusable state definitions and event handlers for common entity behaviors such as movement, sleep, freezing, electrocution, death, and hopping.
-tags: [stategraph, entity, movement, combat, animation]
+description: This file defines the CommonStates and CommonHandlers tables containing reusable state definitions, event handlers, and helper functions for entity stategraphs, including locomotion, combat, sleep, freeze, fossilize, electrocute, death, corpse management, rowing, drowning, void falling, lunar mutations, and gestalt possession behaviors.
+tags: [stategraphs, locomotion, combat, entities, ai]
 sidebar_position: 10
 
-last_updated: 2026-03-08
-build_version: 714014
+last_updated: 2026-04-18
+build_version: 722832
 change_status: stable
 category_type: stategraphs
-source_hash: 28bc56a4
+source_hash: 4f633ff0
 system_scope: entity
 ---
 
 # Commonstates
 
-> Based on game build **714014** | Last updated: 2026-03-08
+> Based on game build **722832** | Last updated: 2026-04-18
 
 ## Overview
-The `commonstates.lua` file defines a collection of reusable state definitions and event handlers for managing core gameplay behaviors in DST entities. It centralizes logic for locomotion (idle/walking/running/hopping), status states (sleep, freeze/thaw, electrocute), death-related transitions (corpse, fossilize, void fall, drowning), and combat reactions (hit, attack). It integrates tightly with components like `freezable`, `pinnable`, `health`, `drownable`, `sleeper`, `combat`, `inventory`, and `locomotor` via `inst:ListenForEvent()` and direct component calls, and it extensively uses `AnimState` and state-local memory (`inst.sg.mem`) to coordinate animations, physics, and networked behavior.
+`commonstates.lua` provides a comprehensive library of reusable state definitions and event handlers for Don't Starve Together entity stategraphs. The file exports two primary tables: `CommonStates` for adding complete state groups (idle, walk, run, hop, sleep, frozen, combat, death, corpse, rowing, sinking, void falling, mutations, and possession), and `CommonHandlers` for standardized event handlers (attacked, electrocute, sleep, wake, death, locomote, and more). These helpers abstract common stategraph patterns, reducing duplication across entity definitions while ensuring consistent behavior for status ailments, locomotion transitions, combat reactions, and special mechanics like drowning or lunar mutations. Modders can extend existing stategraphs by calling these helper functions to inject standardized states without reimplementing core logic.
 
 ## Usage example
 ```lua
-local states = {}
-CommonStates.AddIdle(states, "funny_idle", nil, idle_timeline)
-CommonStates.AddRunStates(states, run_timelines, run_anims, true, false, run_fns)
-CommonStates.AddWalkStates(states, walk_timelines, walk_anims, true, false, walk_fns)
-CommonStates.AddSleepStates(states, sleep_timelines, sleep_fns)
-CommonStates.AddCombatStates(states, combat_timelines, combat_anims, combat_fns, data)
-CommonStates.AddElectrocuteStates(states, electrocute_timelines, electrocute_anims, electrocute_fns)
-CommonStates.AddFrozenStates(states)
-CommonStates.AddSinkAndWashAshoreStates(states, sink_anims, sink_timelines, sink_fns)
+local CommonStates = require("stategraphs/commonstates")
+local CommonHandlers = require("stategraphs/commonstates")
+
+-- Add standard idle and walk states to a stategraph
+CommonStates.AddIdle(states, nil, "idle_anim")
+CommonStates.AddSimpleWalkStates(states, "walk")
+
+-- Add combat states with custom callbacks
+CommonStates.AddCombatStates(states, nil, nil, {
+    onhitanimover = function(inst) inst.components.health:DoDamage(10) end
+})
+
+-- Use CommonHandlers for standardized event handling
+events = {
+    CommonHandlers.OnAttacked(1.5, 3),
+    CommonHandlers.OnSleep(),
+    CommonHandlers.OnDeath(),
+}
 ```
 
 ## Dependencies & tags
+**External dependencies:**
+- `easing` -- Required module imported via require()
+
 **Components used:**
-- `freezable`: Used to check/unfreeze (`:IsFrozen()`, `:Unfreeze()`), query thawing status (`:IsThawing()`), and extend freeze duration (`:OnExtend()`).
-- `pinnable`: Used to check/unstick (`:IsStuck()`, `:Unstick()`).
-- `drownable`: Used to determine falling reason (`:GetFallingReason()`), handle drowning conditions (`:ShouldDrown()`), manage sinking/washed-ashore/void-fall logic (`:OnFallInOcean()`, `:WashAshore()`, `:OnFallInVoid()`, `:VoidArrive()`, `:TakeDrowningDamage()`).
-- `health`: Used to check death state (`:IsDead()`), set invincibility (`:SetInvincible()`).
-- `sleeper`: Used to wake up (`:WakeUp()`), check sleep state (`:IsAsleep()`).
-- `combat`: Used to inspect attack types (`lastattacktype`, `laststimuli`), check cooldown (`:InCooldown()`), start attacks (`:StartAttack()`), drop targets (`:DropTarget()`).
-- `burnable`: Used to check burning state (`:IsBurning()`) and ignite (`:Ignite(...)`).
-- `inventory`: Used to check insulation (`:IsInsulated()`).
-- `locomotor`: Used for movement state (`:WantsToMoveForward()`, `:WantsToRun()`), control (`:StopMoving()`, `:WalkForward()`, `:RunForward()`), and track movement state (`.isrunning`, `.dest`, `.wantstomoveforward`, `.runspeed`).
-- `embarker`: Used for embark coordination (`:GetEmbarkPosition()`, `:StartMoving()`, `:Embark()`, `:HasDestination()`, `:Cancel()`).
-- `fossilizable`: Used for FX generation (`:OnSpawnFX()`) and lifecycle hooks (`:OnFossilize()`, `:OnExtend()`, `:OnUnfossilize()`).
-- `amphibiouscreature`: Used in amphibious hop states (`:OnEnterOcean()`, `:OnExitOcean()`).
-- `playercontroller`: Used to detect client-side logic (`isclientcontrollerattached`).
-- `buffered action`: Used to inspect and execute buffered actions (`GetBufferedAction()`, `PerformBufferedAction()`, `PerformPreviewBufferedAction()`, `ClearBufferedAction()`).
-- `physics`: Used to stop/modify collision (`Stop()`, `GetCollisionMask()`, `SetCollisionMask()`).
-- `transform`: Used for orientation (`GetWorldPosition()`, `SetRotation()`, `GetAngleToPoint()`).
-- `dynamicshadow`: Used to enable/disable shadows (`Enable()`).
-- `sg.mem`, `statemem`: Used for state-local memory (e.g., `inst.sg.mem.thawing`, `continuesleeping`, `sleeping`).
-- `anim`: Via `inst.AnimState` (`PlayAnimation`, `PushAnimation`, `OverrideSymbol`, `ClearOverrideSymbol`, `GetCurrentAnimationNumFrames`).
-- `soundemitter`: Used to play/kills sounds (`PlaySound`, `KillSound`).
+- `freezable` -- IsFrozen(), Unfreeze() called to manage freeze status
+- `pinnable` -- IsStuck(), Unstick() called to manage pin status
+- `health` -- IsDead() checked before state transitions
+- `drownable` -- GetFallingReason() called during sleep handling
+- `fossilizable` -- OnSpawnFX() called during fossilization
+- `combat` -- lastattacktype, laststimuli, InCooldown() accessed for hit recovery
+- `sleeper` -- WakeUp() called during electrocute
+- `burnable` -- Ignite(), IsBurning() called during electrocute
+- `inventory` -- IsInsulated() checked for electrocute immunity
+- `locomotor` -- WantsToMoveForward(), WantsToRun(), RunForward(), StopMoving() for movement
+- `weapon` -- overridestimulifn, stimuli accessed for electric attack detection
+- `electricattacks` -- Checked on attacker for electric attack source
+- `embarker` -- GetEmbarkPosition, StartMoving, Cancel, Embark, HasDestination, antic accessed in hop states
+- `amphibiouscreature` -- OnEnterOcean, OnExitOcean called in amphibious hop states
+- `herdmember` -- Leave called in sink onexit
+- `playercontroller` -- isclientcontrollerattached checked in GetRowHandAndFacing
+- `gestaltcapturable` -- GetIsPlanar() called to determine planar status during possession
 
 **Tags:**
-- `"idle"`, `"moving"`, `"running"`, `"walking"` — added/checked in movement states.
-- `"busy"` — added to nearly all action-blocking states (sleep, hop, attack, hit, death, electrocute, frozen, thaw, corpse, row, sink, abyss_fall, ipecacpoop, parasite_revive, lunarrift states).
-- `"sleeping"`, `"waking"`, `"nowake"`, `"nosleep"`, `"continuesleeping"` — added/checked in sleep states.
-- `"frozen"`, `"thawing"`, `"swap_frozen"` — added/checked in freeze/thaw states.
-- `"hit"`, `"attack"`, `"electrocute"`, `"noelectrocute"`, `"nointerrupt"`, `"caninterrupt"`, `"electricdamageimmune"` (commented, unused).
-- `"corpse"`, `"noattack"`, `"NOCLICK"`, `"NOBLOCK"`, `"dead"` — added/checked in corpse and related states.
-- `"drowning"`, `"falling"`, `"nopredict"`, `"nomorph"`, `"silentmorph"`, `"caninterrupt"` (in some states).
-- `"rowing"`, `"row_fail"`, `"is_rowing"`, `"is_row_failing"` — added to row states.
-- `"jumping"`, `"boathopping"`, `"autopredict"`, `"nosleep"`, `"nomorph"`, `"nointerrupt"`, `"ignorewalkableplatforms"`, `"swimming"` — added/checked in hop states.
-- `"lunarrift_mutating"`, `"temp_invincible"` — added in lunar rift mutation states.
-- `"prerift_mutating"` — added in pre-rift mutation states.
+- `creaturecorpse` -- check
+- `epic` -- check
+- `electrocute` -- add/check
+- `jumping` -- add/check
+- `sleeping` -- add/check
+- `nofreeze` -- check
+- `fossilized` -- add/check
+- `idle` -- add/check
+- `busy` -- add/check
+- `caninterrupt` -- add/check
+- `frozen` -- add/check
+- `dead` -- add/check
+- `nointerrupt` -- add/check
+- `noelectrocute` -- add/check
+- `canelectrocute` -- check
+- `moving` -- add/check
+- `running` -- add/check
+- `canrotate` -- add/check
+- `doing` -- add/check
+- `swimming` -- add/check
+- `ignorewalkableplatforms` -- add/check
+- `boathopping` -- add/check
+- `autopredict` -- add/check
+- `nomorph` -- add/check
+- `nosleep` -- add/check
+- `waking` -- add/check
+- `nowake` -- add/check
+- `thawing` -- add/check
+- `hit` -- add/check
+- `attack` -- add/check
+- `nopredict` -- add/check
+- `rowing` -- add/check
+- `is_rowing` -- add/check
+- `row_fail` -- add/check
+- `is_row_failing` -- add/check
+- `drowning` -- add/check
+- `silentmorph` -- add/check
+- `falling` -- add/check
+- `noattack` -- add/check
+- `corpse` -- add/check
+- `prerift_mutating` -- add/check
+- `lunarrift_mutating` -- add/check
+- `temp_invincible` -- add/check
+- `NOCLICK` -- add
+- `NOBLOCK` -- add
+- `moonglass` -- check
+- `LunarBuildup` -- check
+- `crystal` -- check
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `_last_hitreact_time` | number | `nil` | Timestamp of last hit reaction (`GetTime()`). Used to enforce recovery delay. |
-| `_last_hitreact_count` | number | `nil` | Count of hit reactions. Used to cap max hit reacts. |
-| `_last_electrocute_time` | number | `nil` | Timestamp of last electrocution. |
-| `_last_electrocute_delay` | number | `nil` | Previous electrocute delay used for resist decay. |
-| `inst.hit_recovery` | number | `TUNING.DEFAULT_HIT_RECOVERY` | Default hit recovery delay override. |
-| `inst.frozen_duration` | number | `TUNING.FROZEN_DURATION` | Default frozen state duration. |
-| `inst.electrocute_duration` | number | `TUNING.ELECTROCUTE_DURATION` | Default electrocute loop duration. |
-| `inst.corpse_duration` | number | `TUNING.CORPSE_DURATION` | Default corpse duration before fading. |
+| None | | | No properties are defined. |
 
 ## Main functions
 
-### `ClearStatusAilments(inst)`
-* **Description:** Unfreezes and unsticks the entity by checking `freezable:IsFrozen()` and `pinnable:IsStuck()`, calling `Unfreeze()` and `Unstick()` respectively.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `onstep(inst)`
-* **Description:** Plays the `"dontstarve/movement/run_dirt"` sound if `inst.SoundEmitter` exists and the entity is moving.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `onsleep(inst)`
-* **Description:** Determines and transitions the stategraph to appropriate sleep/falling states (`"sink"`, `"abyss_fall"`, `"sleeping"`, or `"sleep"`) based on drownable falling reason and state tags. Skips if dead or in `"electrocute"`.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `onsleepex(inst)`
-* **Description:** Internal handler for `gotosleep` event; checks conditions and transitions to `"sleep"` or sink/abyss states if falling. Skips if `"nosleep"`/`"sleeping"` or dead.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `onwakeex(inst)`
-* **Description:** Internal handler for `onwakeup` event; wakes entity via `sleeper:WakeUp()` and transitions to `"wake"` if not `"nowake"` or dead.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
+### `CommonHandlers.OnStep()`
+* **Description:** Returns an EventHandler for the 'step' event that plays movement sounds.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
 
-### `onfreeze(inst)`
-* **Description:** Transitions to `"frozen"` state if entity has a `health` component and is not dead.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `onfreezeex(inst)`
-* **Description:** Similar to `onfreeze`, but allows freezing even if `health` component is missing (improved V2C variant).
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `onfossilize(inst, data)`
-* **Description:** Attempts to transition to `"fossilized"` state unless dead or already fossilized; if `"nofreeze"` tag present, executes FX-only fallback (`fossilizable:OnSpawnFX()`).
-* **Parameters:** `inst`, `data` — event data passed through.
-* **Returns:** None.
+### `CommonHandlers.OnSleep()`
+* **Description:** Returns an EventHandler for the 'gotosleep' event.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
 
-### `onunfreeze(inst)`
-* **Description:** Transitions to `"hit"` (if available) or `"idle"` on unfreeze.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `onthaw(inst)`
-* **Description:** Sets `inst.sg.statemem.thawing = true` and transitions to `"thaw"`.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `onenterfrozenpre(inst)`
-* **Description:** Pre-frozen setup: plays `"frozen"` looping animation, sound, and sets `"swap_frozen"` override symbol to `"frozen"`.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
+### `CommonHandlers.OnFreeze()`
+* **Description:** Returns an EventHandler for the 'freeze' event.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
 
-### `onenterfrozenpst(inst)`
-* **Description:** Post-frozen check: re-evaluates state transitions based on `freezable` component status (thawing, unfrozen, missing).
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `onenterfrozen(inst)`
-* **Description:** Calls `onenterfrozenpre(inst)` and `onenterfrozenpst(inst)` sequentially.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `onexitfrozen(inst)`
-* **Description:** Clears `"swap_frozen"` override symbol unless `inst.sg.statemem.thawing` is true.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
+### `CommonHandlers.OnFreezeEx()`
+* **Description:** Returns an EventHandler for the 'freeze' event using the extended handler.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
 
-### `onenterthawpre(inst)`
-* **Description:** Pre-thaw setup: stops locomotion, plays `"frozen_loop_pst"`, starts `"thawing"` sound, and sets `"swap_frozen"` override symbol to `"frozen"`.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `onenterthawpst(inst)`
-* **Description:** Post-thaw check: if `freezable` is absent or not frozen, calls `onunfreeze(inst)`.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `onenterthaw(inst)`
-* **Description:** Calls `onenterthawpre(inst)` and `onenterthawpst(inst)` sequentially.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
+### `CommonHandlers.OnFossilize()`
+* **Description:** Returns an EventHandler for the 'fossilize' event.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
 
-### `onexitthaw(inst)`
-* **Description:** Kills `"thawing"` sound and clears `"swap_frozen"` override symbol.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `hit_recovery_delay(inst, delay, max_hitreacts, skip_cooldown_fn)`
-* **Description:** Returns `true` if the entity is currently in a hit reaction cooldown. Implements projectile-specific recovery time, max hit reacts, and optional cooldown bypass.
-* **Parameters:**  
-  - `inst` — the entity instance.  
-  - `delay` — optional override for hit recovery duration (default: `inst.hit_recovery` or `TUNING.DEFAULT_HIT_RECOVERY`).  
-  - `max_hitreacts` — optional max hit reacts before enforced cooldown.  
-  - `skip_cooldown_fn` — optional function returning `true` to bypass cooldown.  
-* **Returns:** `true` if still in cooldown, `false` otherwise.
 
-### `electrocute_recovery_delay(inst)`
-* **Description:** Returns `true` if the entity is in an electrocute recovery delay window; handles first-hit no-delay and resist decay logic.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `true` if still in cooldown, `false` otherwise.
 
-### `update_hit_recovery_delay(inst)`
-* **Description:** Updates `_last_hitreact_time` to current time (`GetTime()`), resetting the hit react timer.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
 
-### `update_electrocute_recovery_delay(inst)`
-* **Description:** Updates electrocute-related timers and resist decay, including max resist cap increase.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
+
+
+
 
 ### `CommonHandlers.ResetHitRecoveryDelay(inst)`
-* **Description:** Clears hit recovery state variables `_last_hitreact_time` and `_last_hitreact_count`.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
+* **Description:** Resets hit recovery delay tracking by clearing last hit react time and count.
+* **Parameters:**
+  - `inst` -- Entity instance
+* **Returns:** nil
+* **Error states:** None
 
 ### `CommonHandlers.ResetElectrocuteRecoveryDelay(inst)`
-* **Description:** Clears electrocute recovery state variables `_last_electrocute_time` and `_last_electrocute_delay`.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
+* **Description:** Resets electrocute recovery delay tracking by clearing last electrocute time and delay.
+* **Parameters:**
+  - `inst` -- Entity instance
+* **Returns:** nil
+* **Error states:** None
 
-### `attack_can_electrocute(inst, data)`
-* **Description:** Returns `true` if the incoming attack is electric and can electrocute this entity (checks `stimuli == "electric"`, `weaponoverride`, or `attacker.electricattacks`).
-* **Parameters:**  
-  - `inst` — the entity instance.  
-  - `data` — attack event data.  
-* **Returns:** `true` if electrocutable, `false` otherwise.
+### `CommonHandlers.HitRecoveryDelay(inst, delay, max_hitreacts, skip_cooldown_fn)`
+* **Description:** Calculates hit recovery delay, returns true if entity is still in hit reaction cooldown. Handles projectile and electric attack modifiers.
+* **Parameters:**
+  - `inst` -- Entity instance
+  - `delay` -- Custom delay time or nil to use default
+  - `max_hitreacts` -- Maximum hit reactions before cooldown
+  - `skip_cooldown_fn` -- Optional function to determine if cooldown should be skipped
+* **Returns:** boolean - true if on cooldown
+* **Error states:** None
 
-### `spawn_electrocute_fx(inst, data, duration)`
-* **Description:** Spawns `"electrocute_fx"` prefab, sets its target, parameters (duration, noburn, numforks), and returns the spawned FX.
-* **Parameters:**  
-  - `inst` — the entity instance.  
-  - `data` — optional event/data with `attackdata`, `duration`, `noburn`, `numforks`, etc.  
-  - `duration` — optional override duration.  
-* **Returns:** The spawned FX instance (`fx`).
+### `CommonHandlers.ElectrocuteRecoveryDelay(inst)`
+* **Description:** Checks if entity is in electrocute recovery delay based on last electrocute time and resistance.
+* **Parameters:**
+  - `inst` -- Entity instance
+* **Returns:** boolean - true if on delay
+* **Error states:** None
 
-### `try_goto_electrocute_state(inst, data, state, statedata, ongotostatefn)`
-* **Description:** Attempts to go to `"electrocute"` or fallback states (`"corpse_hit"`, `"hit"`) based on entity capabilities and available states. Handles burn ignition, status cleanup, and animation states.
-* **Parameters:**  
-  - `inst` — the entity instance.  
-  - `data` — event/data with `attackdata`, `duration`, `noburn`, `numforks`, etc.  
-  - `state` — optional override state name.  
-  - `statedata` — optional override state data.  
-  - `ongotostatefn` — optional callback after state transition.  
-* **Returns:** `true` if transition succeeded, `false` otherwise.
+### `CommonHandlers.UpdateHitRecoveryDelay(inst)`
+* **Description:** Updates the last hit react time to current time.
+* **Parameters:**
+  - `inst` -- Entity instance
+* **Returns:** nil
+* **Error states:** None
 
-### `try_electrocute_onattacked(inst, data, state, statedata, ongotostatefn)`
-* **Description:** Evaluates electrocution conditions (`CanEntityBeElectrocuted`, `attack_can_electrocute`, insulation, resistances, interruptability), then calls `try_goto_electrocute_state`.
-* **Parameters:** Same as `try_goto_electrocute_state`.
-* **Returns:** Result of `try_goto_electrocute_state`.
+### `CommonHandlers.UpdateElectrocuteRecoveryDelay(inst)`
+* **Description:** Updates electrocute recovery delay tracking, managing resistance decay and timing.
+* **Parameters:**
+  - `inst` -- Entity instance
+* **Returns:** nil
+* **Error states:** None
 
-### `try_electrocute_onevent(inst, data, state, statedata, ongotostatefn)`
-* **Description:** Similar to `try_electrocute_onattacked`, but for generic `"electrocute"` events (e.g., environmental triggers). Checks insulation, SG flags, resistances.
-* **Parameters:** Same as `try_goto_electrocute_state`.
-* **Returns:** `true` if electrocuted, else `false`.
+### `CommonHandlers.AttackCanElectrocute(inst, data)`
+* **Description:** Determines if an attack can cause electrocute based on electric stimuli and weapon properties.
+* **Parameters:**
+  - `inst` -- Target entity instance
+  - `data` -- Attack data including stimuli and weapon info
+* **Returns:** boolean
+* **Error states:** None
 
-### `onattacked(inst, data, hitreact_cooldown, max_hitreacts, skip_cooldown_fn)`
-* **Description:** Core handler for `"attacked"` event: attempts electrocution or fallback to `"hit"` state, respecting interrupt and cooldown constraints.
-* **Parameters:**  
-  - `inst` — the entity instance.  
-  - `data` — attack event data.  
-  - `hitreact_cooldown`, `max_hitreacts`, `skip_cooldown_fn` — optional overrides for hit recovery logic.  
-* **Returns:** None.
+### `CommonHandlers.SpawnElectrocuteFx(inst, data, duration)`
+* **Description:** Spawns electrocute visual FX on the target entity.
+* **Parameters:**
+  - `inst` -- Target entity instance
+  - `data` -- Attack data
+  - `duration` -- Optional duration override for the FX
+* **Returns:** fx entity instance
+* **Error states:** None
 
-### `onelectrocute(inst, data)`
-* **Description:** Event handler for `"electrocute"` event — attempts `try_electrocute_onevent` unless dead.
-* **Parameters:**  
-  - `inst` — the entity instance.  
-  - `data` — event data.  
-* **Returns:** None.
+### `CommonHandlers.TryGoToElectrocuteState(inst, data, state, statedata, ongotostatefn)`
+* **Description:** Attempts to transition entity to electrocute or hit state, spawning FX and clearing status ailments.
+* **Parameters:**
+  - `inst` -- Entity instance
+  - `data` -- Attack/event data
+  - `state` -- Optional state override
+  - `statedata` -- Optional state data override
+  - `ongotostatefn` -- Optional callback after state transition
+* **Returns:** boolean - true if successful
+* **Error states:** None
 
-### `onattack(inst)`
-* **Description:** Transitions to `"attack"` state unless currently `"busy"` (unless `"caninterrupt"` or `"frozen"` tags present).
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** None.
+### `CommonHandlers.TryElectrocuteOnAttacked(inst, data, state, statedata, ongotostatefn)`
+* **Description:** Checks all conditions for electrocute on attacked and attempts state transition if valid.
+* **Parameters:**
+  - `inst` -- Entity instance
+  - `data` -- Attack data
+  - `state` -- Optional state override
+  - `statedata` -- Optional state data override
+  - `ongotostatefn` -- Optional callback after state transition
+* **Returns:** boolean
+* **Error states:** None
 
-### `should_use_corpse_state_on_load(inst, cause)`
-* **Description:** Returns `true` if the entity should enter the `"corpse"` state upon load (i.e., if `cause == "file_load"`, has a corpse, and `GetDeathLootLevel() > 0`).
-* **Parameters:**  
-  - `inst` — the entity instance.  
-  - `cause` — the cause string (e.g., `"file_load"`).  
-* **Returns:** Boolean.
+### `CommonHandlers.TryElectrocuteOnEvent(inst, data, state, statedata, ongotostatefn)`
+* **Description:** Attempts electrocute state transition on generic event, checking insulation and state tags.
+* **Parameters:**
+  - `inst` -- Entity instance
+  - `data` -- Event data
+  - `state` -- Optional state override
+  - `statedata` -- Optional state data override
+  - `ongotostatefn` -- Optional callback after state transition
+* **Returns:** boolean
+* **Error states:** None
 
-### `ondeath(inst, data)`
-* **Description:** Transitions to `"corpse"` or `"death"` state depending on `should_use_corpse_state_on_load`.
-* **Parameters:**  
-  - `inst` — the entity instance.  
-  - `data` — event data (e.g., with `cause`).  
-* **Returns:** None.
+### `CommonHandlers.ShouldUseCorpseStateOnLoad(inst, cause)`
+* **Description:** Determines if corpse state should be used on file load based on death cause and loot level.
+* **Parameters:**
+  - `inst` -- Entity instance
+  - `cause` -- Death cause string
+* **Returns:** boolean
+* **Error states:** None
 
-### `onsink(inst, data)`
-* **Description:** Handler for `"onsink"` event: transitions to `"sink"` if drowning conditions are met.
-* **Parameters:** `inst`, `data`.
-* **Returns:** None.
+### `CommonHandlers.CorpseDeathAnimOver`
+* **Description:** Direct function reference for corpse death animation over handler (assigned directly to CommonHandlers table, not a factory function).
+* **Parameters:** `inst` -- Entity instance
+* **Returns:** None (this is the handler function itself, assigned directly to CommonHandlers table)
+* **Error states:** None
 
-### `DoWashAshore(inst, skip_splash)`
-* **Description:** Teleports entity, spawns splash FX, hides, sets invincibility, and calls `drownable:WashAshore()`.
-* **Parameters:**  
-  - `inst`.  
-  - `skip_splash` — boolean to suppress splash FX.  
-* **Returns:** None.
+### `CommonHandlers.OnAttacked(hitreact_cooldown, max_hitreacts, skip_cooldown_fn)`
+* **Description:** Returns an EventHandler for the 'attacked' event with optional cooldown parameters.
+* **Parameters:**
+  - `hitreact_cooldown` -- Optional hit reaction cooldown duration
+  - `max_hitreacts` -- Optional maximum hit reactions
+  - `skip_cooldown_fn` -- Optional function to skip cooldown
+* **Returns:** EventHandler
+* **Error states:** None
 
-### `onfallinvoid(inst, data)`
-* **Description:** Handler for `"onfallinvoid"` event: transitions to `"abyss_fall"` if void-falling conditions are met.
-* **Parameters:** `inst`, `data`.
-* **Returns:** None.
 
-### `DoVoidFall(inst, skip_vfx)`
-* **Description:** Teleports entity to void destination, spawns FX, hides, sets invincibility, calls `drownable:VoidArrive()`.
-* **Parameters:**  
-  - `inst`.  
-  - `skip_vfx`.  
-* **Returns:** None.
 
-### `IpecacPoop(inst)`
-* **Description:** Transitions to `"ipecacpoop"` state if not `"busy"` or dead.
-* **Parameters:** `inst`.
-* **Returns:** None.
 
-### `oncorpsedeathanimover(inst)` (local)
-* **Description:** Convenience handler: transitions entity to `"corpse"` state upon animation completion if entity is recognized as a corpse.
-* **Parameters:**  
-  - `inst`: The entity instance.  
-* **Returns:** `nil`.
 
-### `oncorpsechomped(inst, data)` (local)
-* **Description:** Transitions from `"corpse"` to `"corpse_hit"` on `chomped` event, *unless* already in a `"hit"` state.
-* **Parameters:**  
-  - `inst`: The entity instance.  
-  - `data`: Event data payload.  
-* **Returns:** `nil`.
+### `CommonHandlers.OnElectrocute()`
+* **Description:** Returns an EventHandler for the 'electrocute' event.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
 
-### `GetRowHandAndFacing(inst)`
-* **Description:** Calculates row direction and left-hand flag for rowing states on boats, adjusting based on buffered action, facing, and platform physics.
-* **Parameters:** `inst` — entity instance (assumed to be on a boat).
-* **Returns:** `dir` (float), `lefthand` (boolean), or `nil, nil` if not on boat.
+
+
+### `CommonHandlers.OnAttack()`
+* **Description:** Returns an EventHandler for the 'doattack' event.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
+
+
+
+
+
+### `CommonHandlers.OnDeath()`
+* **Description:** Returns an EventHandler for the 'death' event.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
+
+### `CommonHandlers.OnLocomote(can_run, can_walk)`
+* **Description:** Returns an EventHandler for the 'locomote' event that manages walk/run state transitions based on locomotor desires.
+* **Parameters:**
+  - `can_run` -- Whether entity can run
+  - `can_walk` -- Whether entity can walk
+* **Returns:** EventHandler
+* **Error states:** None
+
+### `CommonStates.AddIdle(states, funny_idle_state, anim_override, timeline)`
+* **Description:** Adds an idle state to the states table with configurable animation and optional funny idle variation.
+* **Parameters:**
+  - `states` -- State table to insert into
+  - `funny_idle_state` -- Optional alternate idle state for variety
+  - `anim_override` -- Optional animation override (string or function)
+  - `timeline` -- Optional timeline for the state
+* **Returns:** nil
+* **Error states:** None
+
+### `CommonStates.AddSimpleState(states, name, anim, tags, finishstate, timeline, fns)`
+* **Description:** Adds a simple animation state that plays once and transitions to finishstate.
+* **Parameters:**
+  - `states` -- State table to insert into
+  - `name` -- State name
+  - `anim` -- Animation to play
+  - `tags` -- Optional state tags table
+  - `finishstate` -- State to transition to on completion
+  - `timeline` -- Optional timeline
+  - `fns` -- Optional table with onenter/onexit callbacks
+* **Returns:** nil
+* **Error states:** None
+
+### `CommonStates.AddSimpleActionState(states, name, anim, time, tags, finishstate, timeline, fns)`
+* **Description:** Adds a simple action state that performs a buffered action at specified time.
+* **Parameters:**
+  - `states` -- State table to insert into
+  - `name` -- State name
+  - `anim` -- Animation to play
+  - `time` -- Time event for performing buffered action
+  - `tags` -- Optional state tags table
+  - `finishstate` -- State to transition to on completion
+  - `timeline` -- Optional timeline override
+  - `fns` -- Optional table with onenter/onexit callbacks
+* **Returns:** nil
+* **Error states:** None
+
+### `CommonStates.AddShortAction(states, name, anim, timeout, finishstate)`
+* **Description:** Adds a short action state with timeout-based buffered action execution. Note: the state name is hardcoded as "name" in the source (the name parameter is not used for the state name).
+* **Parameters:**
+  - `states` -- State table to insert into
+  - `name` -- State name
+  - `anim` -- Animation to play
+  - `timeout` -- Optional timeout duration
+  - `finishstate` -- State to transition to on completion
+* **Returns:** nil
+* **Error states:** None
+
+
+
+
+
+
+
+
+
+### `CommonStates.AddRunStates(states, timelines, anims, softstop, delaystart, fns)`
+* **Description:** Adds run_start, run, and run_stop states with configurable animations, timelines, and callbacks.
+* **Parameters:**
+  - `states` -- State table to insert into
+  - `timelines` -- Optional table with starttimeline/runtimeline/endtimeline
+  - `anims` -- Optional table with startrun/run/stoprun animations
+  - `softstop` -- Boolean or function to determine soft stop behavior
+  - `delaystart` -- Whether to delay movement start
+  - `fns` -- Optional table with start/run/end onenter/onupdate/onexit callbacks
+* **Returns:** nil
+* **Error states:** None
+* **Description:** Adds simplified run states using a single animation for all phases.
+* **Parameters:**
+  - `states` -- State table to insert into
+  - `anim` -- Animation to use for all run states
+  - `timelines` -- Optional timelines table
+* **Returns:** nil
+* **Error states:** None
+
+
+
+
+
+### `CommonStates.AddWalkStates(states, timelines, anims, softstop, delaystart, fns)`
+* **Description:** Adds walk_start, walk, and walk_stop states to the stategraph with configurable animations, timelines, and callbacks.
+* **Parameters:**
+  - `states` -- table - state array to insert walk states into
+  - `timelines` -- table - optional timeline definitions for start/walk/end
+  - `anims` -- table - optional animation names for startwalk/walk/stopwalk
+  - `softstop` -- boolean or function - whether to use soft stop animation behavior
+  - `delaystart` -- boolean - whether to delay walk start by stopping movement first
+  - `fns` -- table - optional callback functions for state enter/update/exit events
+* **Returns:** nil
+* **Error states:** None
+
+### `CommonStates.AddSimpleWalkStates(states, anim, timelines)`
+* **Description:** Simplified wrapper for AddWalkStates using a single animation for all walk phases with softstop enabled.
+* **Parameters:**
+  - `states` -- table - state array to insert walk states into
+  - `anim` -- string - animation name used for all walk phases
+  - `timelines` -- table - optional timeline definitions
+* **Returns:** nil
+* **Error states:** None
+
+### `CommonHandlers.OnHop()`
+* **Description:** Returns an EventHandler for the onhop event that transitions to hop_pre or hop_antic state based on swimming status and embarker state.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
+
+### `CommonStates.AddHopStates(states, wait_for_pre, anims, timelines, land_sound, landed_in_falling_state, data, fns)`
+* **Description:** Adds hop_pre, hop_loop, hop_pst, hop_pst_complete, and hop_cancelhop states for entity hopping/embarking behavior.
+* **Parameters:**
+  - `states` -- table - state array to insert hop states into
+  - `wait_for_pre` -- boolean - whether to wait for pre-hop animation before proceeding
+  - `anims` -- table - optional animation names for pre/loop/pst phases
+  - `timelines` -- table - optional timeline definitions for hop phases
+  - `land_sound` -- string or function - sound to play on landing
+  - `landed_in_falling_state` -- string or function - state to transition to if landed in water
+  - `data` -- table - optional data configuration for hop behavior
+  - `fns` -- table - optional callback functions for hop state events
+* **Returns:** nil
+* **Error states:** None
+
+### `CommonStates.AddAmphibiousCreatureHopStates(states, config, anims, timelines, updates)`
+* **Description:** Adds specialized hop states for amphibious creatures that transition between water and land, handling swimming tag and ocean entry/exit.
+* **Parameters:**
+  - `states` -- table - state array to insert amphibious hop states into
+  - `config` -- table - configuration including onenters/onexits callbacks and swimming_clear_collision_frame
+  - `anims` -- table - optional animation names for pre/pst/antic phases
+  - `timelines` -- table - optional timeline definitions for hop phases
+  - `updates` -- table - unused in this chunk
+* **Returns:** nil
+* **Error states:** None
+
+
+
+
+
+
+
+### `CommonStates.AddSleepStates(states, timelines, fns)`
+* **Description:** Adds sleep, sleeping, and wake states for entity sleep behavior with optional callbacks.
+* **Parameters:**
+  - `states` -- table - state array to insert sleep states into
+  - `timelines` -- table - optional timeline definitions for sleep/wake phases
+  - `fns` -- table - optional callback functions for onsleep/onwake/onsleepexit
+* **Returns:** nil
+* **Error states:** None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### `CommonStates.AddFrozenStates(states, onoverridesymbols, onclearsymbols)`
+* **Description:** Adds frozen and thaw states for entity freeze behavior with optional symbol override callbacks.
+* **Parameters:**
+  - `states` -- table - state array to insert frozen states into
+  - `onoverridesymbols` -- function - optional callback for additional symbol overrides on enter
+  - `onclearsymbols` -- function - optional callback for additional symbol cleanup on exit
+* **Returns:** nil
+* **Error states:** None
+
+### `CommonStates.AddCombatStates(states, timelines, anims, fns, data)`
+* **Description:** Adds hit, attack, and death states for combat behavior with configurable animations and callbacks.
+* **Parameters:**
+  - `states` -- table - state array to insert combat states into
+  - `timelines` -- table - optional timeline definitions for hit/attack/death
+  - `anims` -- table - optional animation names for hit/attack/death
+  - `fns` -- table - optional callback functions for combat state events
+  - `data` -- table - optional data including has_corpse_handler flag
+* **Returns:** nil
+* **Error states:** None
+
+### `CommonStates.AddHitState(states, timeline, anim)`
+* **Description:** Adds a hit state to the stategraph that plays a hit animation, stops locomotion, and plays hit sound.
+* **Parameters:**
+  - `states` -- table - state array to insert the hit state into
+  - `timeline` -- table - animation timeline for the hit state
+  - `anim` -- string or function - hit animation name or function returning animation name
+* **Returns:** None
+* **Error states:** None
+
+### `CommonStates.AddElectrocuteStates(states, timelines, anims, fns)`
+* **Description:** Adds electrocute and electrocute_pst states that handle electrocution status ailment with optional burn on exit.
+* **Parameters:**
+  - `states` -- table - state array to insert electrocute states into
+  - `timelines` -- table - animation timelines for loop and pst states
+  - `anims` -- table - animation names for loop and pst states
+  - `fns` -- table - callback functions for various state events
+* **Returns:** None
+* **Error states:** None
+
+### `CommonStates.AddDeathState(states, timeline, anim, fns, data)`
+* **Description:** Adds a death state that stops locomotion, plays death animation, removes physics colliders, and drops death loot.
+* **Parameters:**
+  - `states` -- table - state array to insert the death state into
+  - `timeline` -- table - animation timeline for death state
+  - `anim` -- string - death animation name, defaults to 'death'
+  - `fns` -- table - callback functions for deathenter and deathexit
+  - `data` -- table - optional data including has_corpse_handler flag
+* **Returns:** None
+* **Error states:** None
+
+
+
+
+
+### `CommonHandlers.OnSleepEx()`
+* **Description:** Returns an EventHandler for the gotosleep event that calls onsleepex.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
+
+### `CommonHandlers.OnWakeEx()`
+* **Description:** Returns an EventHandler for the onwakeup event that calls onwakeex.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
+
+### `CommonHandlers.OnNoSleepAnimOver(nextstate)`
+* **Description:** Returns an EventHandler for animover that transitions to sleep if sleeping, otherwise to nextstate.
+* **Parameters:**
+  - `nextstate` -- string or function - state name or function to transition to after animation
+* **Returns:** EventHandler
+* **Error states:** None
+
+### `CommonHandlers.OnNoSleepAnimQueueOver(nextstate)`
+* **Description:** Returns an EventHandler for animqueueover that transitions to sleep if sleeping, otherwise to nextstate.
+* **Parameters:**
+  - `nextstate` -- string or function - state name or function to transition to after animation queue
+* **Returns:** EventHandler
+* **Error states:** None
+
+### `CommonHandlers.OnNoSleepTimeEvent(t, fn)`
+* **Description:** Returns a TimeEvent that transitions to sleep if sleeping and not dead, otherwise calls fn.
+* **Parameters:**
+  - `t` -- number - time in seconds for the TimeEvent
+  - `fn` -- function - callback function to execute if not sleeping
+* **Returns:** TimeEvent
+* **Error states:** None
+
+### `CommonHandlers.OnNoSleepFrameEvent(frame, fn)`
+* **Description:** Returns a TimeEvent based on frame count that calls OnNoSleepTimeEvent.
+* **Parameters:**
+  - `frame` -- number - frame number for the event
+  - `fn` -- function - callback function to execute
+* **Returns:** TimeEvent
+* **Error states:** None
+
+### `CommonStates.AddSleepExStates(states, timelines, fns)`
+* **Description:** Adds sleep, sleeping, and wake states with improved nosleep tag support.
+* **Parameters:**
+  - `states` -- table - state array to insert sleep states into
+  - `timelines` -- table - animation timelines for start, sleep, and wake
+  - `fns` -- table - callback functions for sleep state events
+* **Returns:** None
+* **Error states:** None
+
+### `CommonStates.AddFossilizedStates(states, timelines, fns)`
+* **Description:** Adds fossilized, unfossilizing, and unfossilized states that handle fossilization status ailment.
+* **Parameters:**
+  - `states` -- table - state array to insert fossilized states into
+  - `timelines` -- table - animation timelines for fossilized states
+  - `fns` -- table - callback functions for fossilized state events
+* **Returns:** None
+* **Error states:** None
+
+### `CommonStates.AddRowStates(states, is_client)`
+* **Description:** Adds row, row_fail, and row_idle states for boat rowing mechanics.
+* **Parameters:**
+  - `states` -- table - state array to insert row states into
+  - `is_client` -- boolean - whether this is running on client
+* **Returns:** None
+* **Error states:** None
+
+### `CommonHandlers.OnSink()`
+* **Description:** Returns an EventHandler for the onsink event that calls onsink.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
+
+
+
+### `CommonStates.AddSinkAndWashAshoreStates(states, anims, timelines, fns, data)`
+* **Description:** Adds sink and washed_ashore states that handle drowning and teleporting to shore.
+* **Parameters:**
+  - `states` -- table - state array to insert sink states into
+  - `anims` -- table - animation names for sink and washashore
+  - `timelines` -- table - animation timelines for sink and washashore
+  - `fns` -- table - callback functions for sink state events
+  - `data` -- table - optional data including shore_pt, noanim, skip_splash
+* **Returns:** None
+* **Error states:** None
+
+### `CommonStates.AddSinkAndWashAsoreStates(states, anims, timelines, fns, data)`
+* **Description:** Backward compatibility alias for AddSinkAndWashAshoreStates (originally misspelled).
+* **Parameters:**
+  - `states` -- table - state array to insert sink states into
+  - `anims` -- table - animation names for sink and washashore
+  - `timelines` -- table - animation timelines for sink and washashore
+  - `fns` -- table - callback functions for sink state events
+  - `data` -- table - optional data including shore_pt, noanim, skip_splash
+* **Returns:** None
+* **Error states:** None
+
+
+
+### `CommonHandlers.OnFallInVoid()`
+* **Description:** Returns an EventHandler for the onfallinvoid event that calls onfallinvoid.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
+
+
+
+### `CommonStates.AddVoidFallStates(states, anims, timelines, fns, data)`
+* **Description:** Adds abyss_fall and abyss_drop states to handle entities falling into the void, including collision mask changes, locomotor cleanup, and teleportation via drownable component.
+* **Parameters:**
+  - `states` -- table - State array to insert abyss_fall and abyss_drop states into
+  - `anims` -- table - Optional animation names for fallinvoid and voiddrop animations
+  - `timelines` -- table - Optional timeline definitions for state animations
+  - `fns` -- table - Optional callback functions for state events
+  - `data` -- table - Optional configuration data including teleport_pt and noanim flags
+* **Returns:** None
+* **Error states:** None
+
+### `CommonHandlers.OnIpecacPoop()`
+* **Description:** Returns an EventHandler for the ipecacpoop event that triggers the IpecacPoop function.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
 
 ### `PlayMiningFX(inst, target, nosound)`
-* **Description:** Spawns appropriate mining FX based on `target` tags (`frozen`, `moonglass`, `crystal`, etc.) and optionally plays sound.
-* **Parameters:**  
-  - `inst`.  
-  - `target` — entity or `nil`.  
-  - `nosound` — boolean to suppress sound.  
-* **Returns:** None.
+* **Description:** Spawns mining visual FX and plays appropriate sound based on target type (frozen, moonglass, crystal, or default). Does not play sound if nosound is true.
+* **Parameters:**
+  - `inst` -- Entity instance performing the mining
+  - `target` -- Target entity being mined
+  - `nosound` -- boolean - If true, skip sound playback
+* **Returns:** None
+* **Error states:** None
+
+### `CommonStates.AddIpecacPoopState(states, anim)`
+* **Description:** Adds ipecacpoop state that plays a laxative sound and animation while stopping physics.
+* **Parameters:**
+  - `states` -- table - State array to insert ipecacpoop state into
+  - `anim` -- string - Animation name to play, defaults to 'hit'
+* **Returns:** None
+* **Error states:** None
+
+### `CommonStates.AddCorpseStates(states, anims, fns, overridecorpseprefab)`
+* **Description:** Adds corpse management states including corpse (death handling), corpse_idle (static corpse), and corpse_hit (corpse being attacked).
+* **Parameters:**
+  - `states` -- table - State array to insert corpse, corpse_idle, and corpse_hit states into
+  - `anims` -- table - Animation names for corpse and corpse_hit states
+  - `fns` -- table - Callback functions for corpseonenter, corpseonerode, corpseoncreate events
+  - `overridecorpseprefab` -- string - Optional prefab name to override default corpse prefab
+* **Returns:** None
+* **Error states:** None
+
+### `CommonStates.AddLunarPreRiftMutationStates(states, timelines, anims, fns, data)`
+* **Description:** Adds pre-rift lunar mutation states for corpse transformation into mutated mob with loot drop and component removal.
+* **Parameters:**
+  - `states` -- table - State array to insert pre-rift mutation states into
+  - `timelines` -- table - Timeline definitions for mutation animations
+  - `anims` -- table - Animation names for mutate and mutate_pst states
+  - `fns` -- table - Callback functions for mutation events
+  - `data` -- table - Configuration including mutated_spawn_timing and post_mutate_state
+* **Returns:** None
+* **Error states:** None
+
+### `CommonStates.AddLunarRiftMutationStates(states, timelines, anims, fns, data)`
+* **Description:** Adds lunar rift mutation states with gestalt possession behavior, including twitching pre-mutation, mutation animation, and post-mutation flash effects.
+* **Parameters:**
+  - `states` -- table - State array to insert lunar rift mutation states into
+  - `timelines` -- table - Timeline definitions for mutation animations
+  - `anims` -- table - Animation names for mutate_pre, mutate, and mutate_pst states
+  - `fns` -- table - Callback functions for mutation events
+  - `data` -- table - Configuration including twitch_lp sound, mutatepst_flashtime, and post_mutate_state
+* **Returns:** None
+* **Error states:** None
+
+### `CommonHandlers.OnCorpseDeathAnimOver(cancorpsefn)`
+* **Description:** Returns an EventHandler for animover event that transitions to corpse state, with optional cancorpsefn check.
+* **Parameters:**
+  - `cancorpsefn` -- function - Optional function to check if entity can become a corpse
+* **Returns:** EventHandler
+* **Error states:** None
+
+### `CommonHandlers.OnCorpseChomped()`
+* **Description:** Returns an EventHandler for the chomped event that triggers corpse hit behavior.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
+
+### `CommonStates.AddInitState(states, default_state)`
+* **Description:** Adds init state that transitions to corpse_idle if entity is a corpse, otherwise to default_state.
+* **Parameters:**
+  - `states` -- table - State array to insert init state into
+  - `default_state` -- string - Default state to transition to, defaults to 'idle'
+* **Returns:** None
+* **Error states:** None
+
+### `CommonStates.AddParasiteReviveState(states)`
+* **Description:** Adds parasite_revive state that plays parasite_death_pst animation and stops physics.
+* **Parameters:**
+  - `states` -- table - State array to insert parasite_revive state into
+* **Returns:** None
+* **Error states:** None
+
+### `CommonHandlers.OnPossessChassis()`
+* **Description:** Returns an EventHandler for the possess_chassis event that triggers possession behavior.
+* **Parameters:** None
+* **Returns:** EventHandler
+* **Error states:** None
+
+### `CommonStates.AddPossessChassisState(states, anim, possess_frame_timing, fns)`
+* **Description:** Adds possess_chassis state for gestalt entities to possess a chassis, spawning possessed body and removing self on success.
+* **Parameters:**
+  - `states` -- table - State array to insert possess_chassis state into
+  - `anim` -- string or function - Animation name or function returning animation name
+  - `possess_frame_timing` -- number - Frame timing for possession attempt in timeline
+  - `fns` -- table - Optional callback functions including onenter
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-**Events listened to:**
-- `step`: Played run sound in `onstep`.
-- `gotosleep`: Triggers `onsleepex` for sleep/falling transitions.
-- `onwakeup`: Triggers `onwakeex` for waking.
-- `freeze`: Triggers `"frozen"` state via `onfreeze`/`onfreezeex`.
-- `fossilize`: Triggers `"fossilized"` or FX-only fallback via `onfossilize`.
-- `unfreeze`: Triggers `"hit"` or `"idle"` via `onunfreeze`.
-- `onthaw`: Triggers `"thaw"` via `onthaw`.
-- `attacked`: Triggers electrocute or hit recovery logic via `onattacked`.
-- `electrocute`: Triggers `"electrocute"` state via `onelectrocute`.
-- `startelectrocute`: Pushed at `"electrocute"` state entry; triggers `update_electrocute_recovery_delay`.
-- `doattack`: Triggers `"attack"` state via `onattack`.
-- `death`: Triggers `"corpse"`/`"death"` transition via `ondeath`.
-- `locomote`: Handles walk/run transitions via `OnLocomote`.
-- `onhop`: Handles hop event in `OnHop`.
-- `animover`, `animqueueover`: Transitions on animation completion (various states: sleep, hit, attack, death, electrocute, row, sink, void fall, parasite_revive, hop).
-- `done_embark_movement`, `cancelhop`: In hop states for embarker coordination.
-- `onsink`: Triggers sink logic via `onsink`.
-- `on_washed_ashore`: Triggers `"washed_ashore"` state.
-- `onfallinvoid`: Triggers void-fall logic via `onfallinvoid`.
-- `on_void_arrive`: Triggers `"abyss_drop"` state.
-- `ipecacpoop`: Triggers `"ipecacpoop"` state via `IpecacPoop`.
-- `chomped`: Triggers `"corpse_hit"` in corpse via `oncorpsechomped`.
-- `unfossilize`: Triggers `"unfossilizing"` (not in source but implied by tag/listeners).
-- `fossilize` (extended): Extends frozen/fossilize duration via `fossilizable:OnExtend()`.
 
-**Events pushed:**
-- `startelectrocute`: Fired at `"electrocute"` state entry to trigger damage effects.
-- `on_washed_ashore`: Triggered via `DoWashAshore`.
-- `on_void_arrive`: Triggered via `DoVoidFall`.
+> **Note:** The handlers in this file return `EventHandler` objects for stategraph state definitions, not entity-level `inst:ListenForEvent()` registrations. Stategraph events (e.g., `gotosleep`, `freeze`, `attacked`) are handled within state definitions via `events` tables, while animation events (`animover`, `animqueueover`) are triggered internally by the stategraph system when animations complete.
 
+### Stategraph events (handled via CommonHandlers)
+**Listens to:**
+- `step` -- Handled by OnStep for movement sound playback
+- `gotosleep` -- Handled by OnSleep/OnSleepEx for sleep transitions
+- `freeze` -- Handled by OnFreeze/OnFreezeEx for freeze status
+- `fossilize` -- Handled by OnFossilize for fossilization status
+- `attacked` -- Handled by OnAttacked for hit reaction and electrocute checks
+- `electrocute` -- Handled by OnElectrocute for electrocute status
+- `doattack` -- Handled by OnAttack for attack state transition
+- `death` -- Handled by OnDeath for death state transition
+- `locomote` -- Handled by OnLocomote for walk/run state transitions
+- `onhop` -- Handled by OnHop for hop/embark behavior
+- `onsink` -- Handled by OnSink for drowning transitions
+- `onfallinvoid` -- Handled by OnFallInVoid for void fall transitions
+- `ipecacpoop` -- Handled by OnIpecacPoop for laxative behavior
+- `chomped` -- Handled by OnCorpseChomped for corpse hit behavior
+- `possess_chassis` -- Handled by OnPossessChassis for gestalt possession
+
+### State-internal animation events (used within state definitions)
+- `animover` -- Triggered when animation completes, used for state transitions in walk/hop/sleep/combat states
+- `animqueueover` -- Triggered when animation queue completes, used in walk_stop state
+- `done_embark_movement` -- Triggered when embark movement completes during hop
+- `cancelhop` -- Triggered to cancel hop and transition to hop_cancelhop state
+- `onwakeup` -- Triggered to wake entity from sleep state
+- `unfreeze` -- Triggered to unfreeze entity from frozen state
+- `onthaw` -- Triggered to begin thawing from frozen state
+- `fossilize` -- Handled in fossilized state to extend fossilization
+- `unfossilize` -- Handled in fossilized state to begin unfossilizing
+- `unequip` -- Handled in row and row_fail states to return to idle
+- `on_washed_ashore` -- Handled in sink state to transition to washed_ashore
+- `on_void_arrive` -- Triggered in abyss_fall state when entity arrives at void destination
+
+### Events pushed by states
+- `locomote` -- Pushed in hop_loop onexit when locomotor.isrunning is true
+- `startelectrocute` -- Pushed when entering electrocute state

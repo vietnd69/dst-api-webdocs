@@ -1,615 +1,1085 @@
 ---
 id: entityscript
 title: Entityscript
-description: The core entity management system for DST that handles entity lifecycle, components, behavior, persistence, network synchronization, and world interaction.
-tags: [entity, lifecycle, components, persistence, network]
+description: Core entity wrapper class that manages component lifecycle, network replication, event handling, task scheduling, and entity state synchronization for all game entities.
+tags: [entity, core, components, lifecycle, network]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
 category_type: root
-source_hash: 58d6dc8a
+source_hash: eb3345c7
 system_scope: entity
 ---
 
 # Entityscript
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **722832** | Last updated: 2026-04-17
 
 ## Overview
-`EntityScript` is the central runtime wrapper for all entities in Don't Starve Together. It manages the Entity Component System (ECS) by registering, instantiating, and coordinating components; handles entity lifecycle including spawn, save/load, limbo transitions, and removal; provides utilities for world interaction (positioning, lighting, terrain), behavior (stategraphs, brains, events), networking (replica sync, action propagation), and display (naming, skins, inventory overrides). It serves as the glue between engine-level systems (physics, world map, network), game systems (components, actions), and modded logic.
+`entityscript.lua` defines the `EntityScript` class, which serves as the foundational wrapper for all entities in Don't Starve Together. This class manages the complete entity lifecycle including component attachment and removal (e.g., `inventory`, `health`, `locomotor`, `debuffable`), network replication synchronization, event listening and pushing, task scheduling, brain and stategraph control, and persistence data handling. Every entity in the game inherits this class, making it the central hub for entity behavior, state management, and cross-network communication between server and clients.
 
 ## Usage example
 ```lua
-local ent = TheSim:FindEntity(prefab, function(e) return e:HasTag("monster") end)
-if ent then
-    local script = EntityScript(ent)
-    script:AddComponent("health")
-    script:AddComponent("locomotor")
-    script:SetStateGraph("SGmycharacter")
-    script:SetBrain(MyBrainFunction)
-    script:ListenForEvent("death", function() print("Entity died!") end)
-    script:StartUpdatingComponent(script.components.health)
-    print("Entity is wet:", script:GetIsWet())
-    print("Entity name:", script:GetDisplayName())
-end
+-- EntityScript is automatically attached to all entities via the engine
+-- Access entityscript methods through the entity instance directly
+
+local inst = SpawnPrefab("torches")
+
+-- Add and remove tags
+inst:AddTag("custom_tag")
+inst:RemoveTag("custom_tag")
+inst:HasTag("player")
+
+-- Component management
+inst:AddComponent("health")
+inst:AddComponent("inventoryitem")
+inst:RemoveComponent("health")
+
+-- Event handling
+inst:ListenForEvent("onremove", function() print("Entity removed") end)
+inst:PushEvent("custom_event", { data = "value" })
+
+-- Task scheduling
+inst:DoTaskInTime(5, function() print("Delayed task") end)
+inst:DoPeriodicTask(10, function() print("Repeating task") end)
+
+-- Position and rotation
+local pos = inst:GetPosition()
+local rot = inst:GetRotation()
+inst:FacePoint(pos.x, pos.y, pos.z)
+
+-- Limbo state management
+inst:RemoveFromScene()
+inst:ReturnToScene()
 ```
 
 ## Dependencies & tags
-**Components used:** hull, walkableplatform, worldstate, debuffable, health, deathloothandler, lootdropper, LightWatcher, inventoryitem, moisture, temp_moisture, player_classified  
-**Tags:** INLIMBO, terraformblocker, groundtargetblocker, player, smolder, diseased, rotten, withered, waxedplant, wet, broken, deadcreature, moistureimmunity, rainimmunity, swimming, likewateroffducksback, acidrainimmune, critter, `<actionid>_tool`, `trait_<k>`, small_livestock, stale, spoiled, frozen, sickness, add_component_if_missing
+**External dependencies:**
+- `class` -- Required for Class() constructor system
+- `entityreplica` -- Required for network replica component methods
+- `componentactions` -- Required for action registration methods
+- `entityscriptproxy` -- Required module for entity script proxy functionality
+
+**Components used:**
+- `walkableplatform` -- Accessed for GetUID in platform-relative position saving
+- `worldstate` -- Accessed via TheWorld.components.worldstate for AddWatcher/RemoveWatcher
+- `inventoryitem` -- Checked for wetness and acid state via replica or direct access
+- `temp_moisture` -- Checked as fallback for moisture percentage
+- `moisture` -- Checked as fallback for moisture percentage
+- `hull` -- Accessed via boat.components.hull:GetRadius() for boat intersection
+- `playercontroller` -- Called RemoteBufferedAction in PerformPreviewBufferedAction
+- `locomotor` -- Accessed for bufferedaction fallback
+- `debuffable` -- Used for debuff management functions
+- `deathloothandler` -- Used for death loot handling functions
+- `lootdropper` -- Used in DropDeathLoot to generate and drop loot
+- `health` -- Checked for is_corpsing state
+- `lightwatcher` -- Used for light level checking
+- `physics` -- Accessed for radius and position data
+- `equippable` -- Accessed for equip slot information
+
+**Tags:**
+- `INLIMBO` -- add/remove when entity enters/exits limbo state
+- `player` -- check for player-specific behavior
+- `smolder` -- check for smoldering state
+- `diseased` -- check for disease state
+- `rotten` -- check for rotten state
+- `withered` -- check for withered state
+- `waxedplant` -- check for waxed plant state
+- `wet` -- check for wet state
+- `moistureimmunity` -- check for moisture immunity
+- `rainimmunity` -- check for rain immunity
+- `swimming` -- check for swimming state
+- `likewateroffducksback` -- check for water immunity
+- `broken` -- check for broken state
+- `deadcreature` -- check for dead creature state
+- `acidrainimmune` -- check for acid rain immunity
+- `terraformblocker` -- add/remove for terraform spacing
+- `groundtargetblocker` -- add/remove for ground target blocking
+- `idle` -- check for idle state
+- `critter` -- check for critter state
+- `trait_*` -- check for various trait tags
+- `small_livestock` -- check for small livestock state
+- `sickness` -- check for sickness state
+- `stale` -- check for stale state
+- `spoiled` -- check for spoiled state
+- `frozen` -- check for frozen state
+- `*_tool` -- check for tool type tags
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| entity | Entity | — | Raw engine entity instance |
-| components | table | `{}` | Component registry mapping name → component instance |
-| lower_components_shadow | table | `{}` | Lowercase component name map for duplicate detection |
-| GUID | string | — | Unique entity identifier from entity |
-| spawntime | number | `GetTime()` at spawn | Spawn timestamp used by `GetTimeAlive()` |
-| sleepstatepending | boolean | `true` | True until sleep state is received over network |
-| persists | boolean | `true` | Flag determining if entity persists to save |
-| inlimbo | boolean | `false` | Whether entity is currently in limbo state |
-| name | string | `nil` | Entity display name (from STRINGS) |
-| data | table | `nil` | Entity-specific data table (reserved) |
-| actioncomponents | table | `{}` | Action-related component registry |
-| inherentactions | table | `nil` | Map of ACTION constants (or IDs) to true |
-| inherentsceneaction | Action | `nil` | Inherent scene action |
-| inherentscenealtaction | Action | `nil` | Inherent alternate scene action |
-| event_listeners | table | `nil` | Registered event listeners map |
-| event_listening | table | `nil` | Inverse event → entities map |
-| worldstatewatching | table | `nil` | World state variable → list of callbacks |
-| pendingtasks | table | `nil` | Scheduler task registry keyed by GUID |
-| platformfollowers | table | `nil` | Map of child entities following a platform |
-| actionreplica | table | `nil` | Network-replicated action component |
-| replica | table | `{ _ = {}, inst = self }` | Replica container with metatable for component proxy access |
+| `entity` | Entity | parameter value | The underlying entity instance that this EntityScript wraps. |
+| `components` | table | `{}` | Table storing all components attached to this entity, keyed by component name. |
+| `lower_components_shadow` | table | `{}` | Shadow table for case-insensitive component name lookups to prevent duplicate additions. |
+| `GUID` | number | `entity:GetGUID()` | Unique identifier for this entity instance. |
+| `spawntime` | number | `GetTime()` | Game time when this entity was spawned, used for age calculations. |
+| `sleepstatepending` | boolean | `true` | Flag indicating whether initial sleep state has been received from engine. |
+| `persists` | boolean | `true` | Whether this entity should be saved in world state. |
+| `inlimbo` | boolean | `false` | Whether the entity is currently in limbo state (removed from active scene). |
+| `name` | string | `nil` | Custom name override for this entity. |
+| `data` | table | `nil` | Generic data storage table for entity-specific information. |
+| `listeners` | table | `nil` | Event listener registration table. |
+| `updatecomponents` | table | `nil` | Table of components that receive OnUpdate calls each frame. |
+| `updatestaticcomponents` | table | `nil` | Table of components that receive static updates. |
+| `actioncomponents` | table | `{}` | Components that provide player actions for this entity. |
+| `inherentactions` | table | `nil` | Actions this entity can perform inherently without components. |
+| `inherentsceneaction` | any | `nil` | Default scene action for this entity. |
+| `inherentscenealtaction` | any | `nil` | Alternate scene action for this entity. |
+| `event_listeners` | table | `nil` | Internal event listener tracking. |
+| `event_listening` | table | `nil` | Events this entity is currently listening to. |
+| `worldstatewatching` | table | `nil` | World state variables this entity is watching for changes. |
+| `pendingtasks` | table | `nil` | Scheduled tasks pending execution. |
+| `children` | table | `nil` | Child entities attached to this entity. |
+| `platformfollowers` | table | `nil` | Entities following this entity's platform movement. |
+| `actionreplica` | table | `nil` | Network replica container for action-related state synchronization. |
+| `replica` | table | `{ _ = {}, inst = self }` | Container for network-replicated component proxies with custom metatable accessor. |
 
 ## Main functions
-### `EntityScript:LoadComponent(name)`
-* **Description:** Loads and caches a component module, monkey-patching it with world state helper methods.
-* **Parameters:** `name` — component name string.
-* **Returns:** The loaded component module.
 
-### `EntityScript:LoadStateGraph(name)`
-* **Description:** Loads and caches a stategraph module; asserts loaded function is non-nil.
-* **Parameters:** `name` — stategraph name string.
-* **Returns:** The loaded stategraph function.
+### `event_server_data(eventname, path)`
+* **Description:** Module-level utility function (not an EntityScript method) that loads and caches event server files, attaching component watcher methods if path starts with components/.
+* **Parameters:**
+  - `eventname` -- Event name used to construct the path prefix.
+  - `path` -- Relative path within the event server directory.
+* **Returns:** Event server file module table
+* **Error states:** Errors if requireeventfile fails to load the specified path.
 
-### `EntityScript:event_server_data(eventname, path)`
-* **Description:** Loads and caches event-server-specific Lua files (e.g., `network_event_server/components/...`) and patches components with world state helpers.
-* **Parameters:** `eventname` — event folder prefix string; `path` — relative path string (e.g., `"components/..."`).
-* **Returns:** The required module.
-
-### `EntityScript:SerializeAction(action)`
-* **Description:** Maps an ACTION constant to its 1-based index; returns `0` if nil or not found.
-* **Parameters:** `action` — ACTION constant table.
-* **Returns:** `id` — integer or `0`.
-
-### `EntityScript:DeserializeAction(actionid)`
-* **Description:** Maps a 1-based index to the ACTION constant; returns `nil` if invalid.
-* **Parameters:** `actionid` — integer ID.
-* **Returns:** ACTION constant or `nil`.
+### `Entity:AddNetwork()`
+* **Description:** Monkey-patched Entity class method (not EntityScript) that initializes actionreplica netvars and registers client-side dirty event listeners for network synchronization. Defined in entityscript.lua but applies to Entity class.
+* **Parameters:** None
+* **Returns:** `nil`
+* **Error states:** Errors if ModManager:GetServerModsNames() is unavailable or if net_bytearray/net_byte constructors fail.
 
 ### `EntityScript:GetSaveRecord()`
-* **Description:** Builds save data record for this entity (position, skin, persistence data).
-* **Parameters:** None.
-* **Returns:** `record` (table), `references` (table). NaN/inf positions are clamped to 0; platform-relative position computed via `WorldToLocalSpace`; platform UID via `walkableplatform:GetUID()`.
+* **Description:** Generates a save record containing prefab name, position (world or platform-relative), age, skin data, and persist data for world serialization.
+* **Parameters:** None
+* **Returns:** record (table), references (table or nil)
+* **Error states:** Errors in non-PRODUCTION configuration if position values are NaN/inf; may print error in production.
 
 ### `EntityScript:Hide()`
-* **Description:** Hides the entity visually.
-* **Parameters:** None.
-* **Returns:** None.
+* **Description:** Hides the entity's visual representation without removing from scene.
+* **Parameters:** None
+* **Returns:** `nil`
+* **Error states:** Errors if self.entity:Hide is unavailable.
 
 ### `EntityScript:Show()`
-* **Description:** Shows the entity visually.
-* **Parameters:** None.
-* **Returns:** None.
+* **Description:** Shows the entity's visual representation.
+* **Parameters:** None
+* **Returns:** `nil`
+* **Error states:** Errors if self.entity:Show is unavailable.
 
 ### `EntityScript:StackableSkinHack(target)`
-* **Description:** Compares `AnimState:GetSkinBuild()` for equality; returns true if either is nil or builds match.
-* **Parameters:** `target` — another EntityScript instance.
-* **Returns:** Boolean.
+* **Description:** Compares skin builds between this entity and target for stacking compatibility. Returns true if either entity lacks an AnimState.
+* **Parameters:** `target` -- Target entity to compare skin build with.
+* **Returns:** boolean (true if skin builds match or AnimState is nil)
+* **Error states:** None - returns true early if either AnimState is nil.
 
 ### `EntityScript:IsInLimbo()`
-* **Description:** Returns current limbo state.
-* **Parameters:** None.
-* **Returns:** Boolean.
+* **Description:** Returns whether entity is currently in limbo state (faster than tag check, valid only on mastersim).
+* **Parameters:** None
+* **Returns:** boolean
+* **Error states:** None
 
 ### `EntityScript:ForceOutOfLimbo(state)`
-* **Description:** Overrides limbo behavior to force entity in/out of limbo regardless of default rules.
-* **Parameters:** `state` — boolean or `nil`.
-* **Returns:** None.
+* **Description:** Forces entity out of limbo state regardless of normal conditions, storing override in forcedoutoflimbo.
+* **Parameters:** `state` -- Boolean to force out of limbo, or nil to clear override.
+* **Returns:** `nil`
+* **Error states:** Errors if self.entity:SetInLimbo is unavailable.
 
 ### `EntityScript:RemoveFromScene()`
-* **Description:** Moves entity into limbo: adds `INLIMBO` tag, disables physics, animation, light, shadow, minimap, brain, stategraph.
-* **Parameters:** None.
-* **Returns:** None.
-* **Pushes:** `"enterlimbo"`.
+* **Description:** Removes entity from active scene by adding INLIMBO tag, hiding, disabling brain/physics/light/anim/shadow/minimap, and pushing enterlimbo event.
+* **Parameters:** None
+* **Returns:** `nil`
+* **Error states:** None
 
 ### `EntityScript:ReturnToScene()`
-* **Description:** Reverses limbo effects: removes tag, re-enables physics/etc., resumes brain/SG if not asleep.
-* **Parameters:** None.
-* **Returns:** None.
-* **Pushes:** `"exitlimbo"`.
+* **Description:** Returns entity to active scene by removing INLIMBO tag, showing, re-enabling components, restarting brain/stategraph, and pushing exitlimbo event.
+* **Parameters:** None
+* **Returns:** `nil`
+* **Error states:** None
 
-### `EntityScript:PutBackOnGround(radius)`
-* **Description:** Attempts to place entity back on solid ground. Checks current position first; otherwise searches nearby land or ocean within radius.
-* **Parameters:** `radius` — optional radius (default `8`) for searching.
-* **Returns:** `true` if successfully placed, `false` otherwise.
+### `EntityScript:__tostring()`
+* **Description:** Returns string representation showing GUID, prefab name, and limbo status.
+* **Parameters:** None
+* **Returns:** string
+* **Error states:** None
 
-### `EntityScript:GetPersistData()`
-* **Description:** Serializes persistent data for the entity by collecting `OnSave` results from components and entity.
-* **Parameters:** None.
-* **Returns:** `data, references` — two tables: component/entity data and list of entity ID references. Returns `nil` if both tables empty.
+### `EntityScript:AddInherentAction(act)`
+* **Description:** Adds an action to inherentactions table and serializes to network replica.
+* **Parameters:** `act` -- Action table from ACTIONS to add as inherent.
+* **Returns:** `nil`
+* **Error states:** None
 
-### `EntityScript:LoadPostPass(newents, savedata)`
-* **Description:** Performs post-load initialization using saved data. Calls `LoadPostPass` on components and entity itself if defined.
-* **Parameters:**  
-  `newents` — map of new entity instances (for reference resolution),  
-  `savedata` — saved data table.
-* **Returns:** None.
-
-### `EntityScript:SetPersistData(data, newents)`
-* **Description:** Loads persistent data onto entity and components. Includes backward compatibility logic for `add_component_if_missing`. Calls `OnPreLoad`, component `OnLoad`, and entity `OnLoad`.
-* **Parameters:**  
-  `data` — saved data table,  
-  `newents` — map of new entity instances.
-* **Returns:** None.
-
-### `EntityScript:GetBasicDisplayName()`
-* **Description:** Returns first available: `displaynamefn()`, `STRINGS.NAMES[nameoverride]`, filtered `name`, or `self.name`.
-* **Parameters:** None.
-* **Returns:** String.
-
-### `EntityScript:GetAdjectivedName()`
-* **Description:** Applies adjective prefixes based on tags (e.g., `smolder`, `diseased`, `rotten`, `withered`, `broken`, `deadcreature`, `wet`, `acidrainimmune`) and item type (tool/clothing/food/fuel/wet_prefix).
-* **Parameters:** None.
-* **Returns:** String.
-
-### `EntityScript:GetDisplayName()`
-* **Description:** Concatenates `GetAdjectivedName()` with optional `STRINGS.NAME_DETAIL_EXTENTION[prefab]`.
-* **Parameters:** None.
-* **Returns:** String.
-
-### `EntityScript:GetWetMultiplier()`
-* **Description:** Returns 0, 1, or moisture percent based on tags and components (`temp_moisture`, `moisture`, `inventoryitem`).
-* **Parameters:** None.
-* **Returns:** Float or `nil` (not available on client without components).
-
-### `EntityScript:GetIsWet()`
-* **Description:** Client-safe version of `GetWetMultiplier`; uses `replica.inventoryitem`/`replica.moisture` or world state fallback.
-* **Parameters:** None.
-* **Returns:** Boolean.
-
-### `EntityScript:IsAcidSizzling()`
-* **Description:** Checks if entity is currently sizzling from acid via `replica.inventoryitem:IsAcidSizzling()` or `player_classified.isacidsizzling:value()`.
-* **Parameters:** None.
-* **Returns:** Boolean.
-
-### `EntityScript:GetSkinBuild()`, `EntityScript:GetSkinName()`
-* **Description:** Returns cached skin build name or skin name respectively.
-* **Parameters:** None.
-* **Returns:** String.
-
-### `EntityScript:SetPrefabName(name)`, `EntityScript:SetPrefabNameOverride(nameoverride)`
-* **Description:** Sets `self.prefab`, `self.name` (from STRINGS), and optional display override.
-* **Parameters:** `name`, `nameoverride`.
-* **Returns:** None.
-
-### `EntityScript:SetDeployExtraSpacing(spacing)`, `EntityScript:SetDeploySmartRadius(radius)`, `EntityScript:SetTerraformExtraSpacing(spacing)`, `EntityScript:SetGroundTargetBlockerRadius(radius)`
-* **Description:** Registers spacing constraints with `TheWorld.Map` and adds/removes tags (`terraformblocker`, `groundtargetblocker`).
-* **Parameters:** `spacing`/`radius`.
-* **Returns:** None.
-
-### `EntityScript:SpawnChild(name)`
-* **Description:** Spawns and returns a child entity.
-* **Parameters:** `name` — prefab name.
-* **Returns:** Spawned instance.
-
-### `EntityScript:RemoveChild(child)`
-* **Description:** Detaches and removes child entity.
-* **Parameters:** `child` — child entity.
-* **Returns:** None.
-
-### `EntityScript:AddChild(child)`
-* **Description:** Attaches child entity to parent.
-* **Parameters:** `child` — child entity.
-* **Returns:** None.
-
-### `EntityScript:GetPlatformFollowers()`
-* **Description:** Returns list of platform-following children (mastersim only).
-* **Parameters:** None.
-* **Returns:** `self.platformfollowers` or `nil`.
-
-### `EntityScript:AddInherentAction(act)`, `EntityScript:RemoveInherentAction(act)`
-* **Description:** Adds/removes action from `self.inherentactions` and serializes to replica.
-* **Parameters:** `act` — ACTION constant.
-* **Returns:** None.
+### `EntityScript:RemoveInherentAction(act)`
+* **Description:** Removes an action from inherentactions table, cleans up if empty, and serializes to network replica.
+* **Parameters:** `act` -- Action table to remove from inherentactions.
+* **Returns:** `nil`
+* **Error states:** None
 
 ### `EntityScript:GetTimeAlive()`
-* **Description:** Returns time since spawn: `GetTime() - self.spawntime`.
-* **Parameters:** None.
-* **Returns:** Float.
+* **Description:** Returns the time in seconds since this entity was spawned.
+* **Parameters:** None
+* **Returns:** number (seconds)
+* **Error states:** Errors if GetTime() global is unavailable.
 
 ### `EntityScript:StartUpdatingComponent(cmp, do_static_update)`
-* **Description:** Registers component for dynamic or static update; populates `NewUpdatingEnts`/`NewStaticUpdatingEnts` on first registration.
-* **Parameters:** `cmp` — component instance; `do_static_update` — boolean.
-* **Returns:** None.
+* **Description:** Registers a component for per-frame OnUpdate calls, adding entity to updating ents tables if not already updating.
+* **Parameters:**
+  - `cmp` -- Component instance to start updating.
+  - `do_static_update` -- Boolean to also add to static update list.
+* **Returns:** `nil`
+* **Error states:** Returns early if entity is not valid; errors if global updating ents tables are unavailable.
 
-### `EntityScript:StopUpdatingComponent(cmp)`, `EntityScript:StopUpdatingComponent_Deferred(cmp)`
-* **Description:** Marks component for deferred update removal or removes immediately.
-* **Parameters:** `cmp`.
-* **Returns:** None.
+### `EntityScript:StopUpdatingComponent(cmp)`
+* **Description:** Marks a component for deferred removal from update lists via StopUpdatingComponents table.
+* **Parameters:** `cmp` -- Component instance to stop updating.
+* **Returns:** `nil`
+* **Error states:** None
+
+### `EntityScript:StopUpdatingComponent_Deferred(cmp)`
+* **Description:** Actually removes component from update lists and cleans up entity from updating ents tables if no components remain.
+* **Parameters:** `cmp` -- Component instance to remove from update lists.
+* **Returns:** `nil`
+* **Error states:** Errors if global updating ents tables are unavailable when cleanup is needed.
+
+### `EntityScript:StartWallUpdatingComponent(cmp)`
+* **Description:** Registers a component for wall-specific update calls, adding entity to wall updating ents tables.
+* **Parameters:** `cmp` -- Component instance to start wall updating.
+* **Returns:** `nil`
+* **Error states:** Returns early if entity is not valid; errors if global wall updating ents tables are unavailable.
+
+### `EntityScript:StopWallUpdatingComponent(cmp)`
+* **Description:** Removes component from wall update list and cleans up entity from wall updating ents tables if empty.
+* **Parameters:** `cmp` -- Component instance to stop wall updating.
+* **Returns:** `nil`
+* **Error states:** Errors if global wall updating ents tables are unavailable when cleanup is needed.
 
 ### `EntityScript:GetComponentName(cmp)`
-* **Description:** Reverse lookup of component instance in `self.components`.
-* **Parameters:** `cmp` — component instance.
-* **Returns:** String key or `"component"`.
+* **Description:** Returns the component name string for a given component instance by searching self.components.
+* **Parameters:** `cmp` -- Component instance to find name for.
+* **Returns:** string (component name) or 'component' if not found
+* **Error states:** None
 
-### `EntityScript:AddTag(tag)`, `EntityScript:RemoveTag(tag)`, `EntityScript:AddOrRemoveTag(tag, condition)`, `EntityScript:HasTag(tag)`
-* **Description:** Delegates to `self.entity` equivalents.
-* **Parameters:** `tag`, `condition`.
-* **Returns:** `HasTag` returns Boolean.
+### `EntityScript:AddTag(tag)`
+* **Description:** Adds a tag to the underlying entity via self.entity:AddTag.
+* **Parameters:** `tag` -- Tag string to add to entity.
+* **Returns:** `nil`
+* **Error states:** Errors if self.entity:AddTag is unavailable.
 
-### `EntityScript:HasTags(...)`, `EntityScript:HasOneOfTags(...)`
-* **Description:** Wraps `HasAllTags`/`HasAnyTag`; supports table or variadic input.
-* **Parameters:** `...` — one or more tags or a table.
-* **Returns:** Boolean.
+### `EntityScript:RemoveTag(tag)`
+* **Description:** Removes a tag from the underlying entity via self.entity:RemoveTag.
+* **Parameters:** `tag` -- Tag string to remove from entity.
+* **Returns:** `nil`
+* **Error states:** Errors if self.entity:RemoveTag is unavailable.
+
+### `EntityScript:AddOrRemoveTag(tag, condition)`
+* **Description:** Conditionally adds or removes a tag based on boolean condition.
+* **Parameters:**
+  - `tag` -- Tag string to add or remove.
+  - `condition` -- Boolean - if true adds tag, if false removes tag.
+* **Returns:** `nil`
+* **Error states:** Errors if self.entity:AddTag or self.entity:RemoveTag is unavailable.
+
+### `EntityScript:HasTag(tag)`
+* **Description:** Checks if entity has a specific tag via self.entity:HasTag.
+* **Parameters:** `tag` -- Tag string to check for.
+* **Returns:** boolean
+* **Error states:** Errors if self.entity:HasTag is unavailable.
+
+### `EntityScript:HasTags(...)`
+* **Description:** Checks if entity has all specified tags, accepting either a table or varargs.
+* **Parameters:** `...` -- Variable arguments - either a table of tags or multiple tag strings.
+* **Returns:** boolean
+* **Error states:** Errors if self.entity:HasAllTags is unavailable.
+
+### `EntityScript:HasOneOfTags(...)`
+* **Description:** Checks if entity has any of the specified tags, accepting either a table or varargs.
+* **Parameters:** `...` -- Variable arguments - either a table of tags or multiple tag strings.
+* **Returns:** boolean
+* **Error states:** Errors if self.entity:HasAnyTag is unavailable.
 
 ### `EntityScript:AddComponent(name)`
-* **Description:** Loads and instantiates component, runs `ComponentPostInit`, registers and replicates it.
-* **Parameters:** `name` — component name.
-* **Returns:** Loaded component instance.
-* **Error states:** Logs and returns existing component if already added; errors if not found.
+* **Description:** Loads component module, instantiates it with self, stores in components table, registers actions, and runs mod post-init functions.
+* **Parameters:** `name` -- Component name string to add to this entity.
+* **Returns:** Component instance
+* **Error states:** Errors if component does not exist or LoadComponent returns nil; may error if ReplicateComponent or RegisterComponentActions unavailable.
 
 ### `EntityScript:RemoveComponent(name)`
-* **Description:** Removes component, stops updates, calls `OnRemoveFromEntity`, unreplicates and unregisters actions.
-* **Parameters:** `name`.
-* **Returns:** None.
+* **Description:** Stops updating, removes from components table, calls OnRemoveFromEntity if present, and unregisters replication and actions.
+* **Parameters:** `name` -- Component name string to remove from this entity.
+* **Returns:** `nil`
+* **Error states:** None - silently returns if component does not exist.
 
-### `EntityScript:SetClientSideInventoryImageOverride(flagname, srcinventoryimage, destinventoryimage, destatlas)`
-* **Description:** Registers client-side remapping of inventory images for a given flag.
-* **Parameters:**  
-  `flagname` — string identifier for flag,  
-  `srcinventoryimage` — original image name (string/hash),  
-  `destinventoryimage` — replacement image name,  
-  `destatlas` — optional replacement atlas name.
-* **Returns:** None.
+### `EntityScript:GetBasicDisplayName()`
+* **Description:** Returns the base display name from displaynamefn, nameoverride, filtered name, or self.name in priority order.
+* **Parameters:** None
+* **Returns:** string or nil
+* **Error states:** Errors if STRINGS.NAMES or ApplyLocalWordFilter is unavailable when needed.
 
-### `EntityScript:HasClientSideInventoryImageOverrides()`
-* **Description:** Checks if any image override mappings exist.
-* **Parameters:** None.
-* **Returns:** Boolean.
+### `EntityScript:GetAdjectivedName()`
+* **Description:** Returns display name with adjective prefixes based on entity tags (smolder, diseased, rotten, withered, wet, broken, deadcreature, etc.).
+* **Parameters:** None
+* **Returns:** string
+* **Error states:** Errors if STRINGS tables, ConstructAdjectivedName, FOODTYPE, FUELTYPE, or EQUIPSLOTS are unavailable.
 
-### `EntityScript:GetClientSideInventoryImageOverride(imagenamehash)`
-* **Description:** Returns override mapping for a specific image hash if enabled.
-* **Parameters:** `imagenamehash` — hash of source image name.
-* **Returns:** `{image = ..., atlas = ...}` or `nil`.
+### `EntityScript:GetDisplayName()`
+* **Description:** Returns full display name with optional prefab-specific detail extension from STRINGS.NAME_DETAIL_EXTENTION.
+* **Parameters:** None
+* **Returns:** string
+* **Error states:** Errors if STRINGS.NAME_DETAIL_EXTENTION is unavailable when prefab has extension.
 
-### `EntityScript:SetClientSideInventoryImageOverrideFlag(name, value)`
-* **Description:** Toggles a client-side image override flag; updates global `ClientSideInventoryImageFlags`.
-* **Parameters:**  
-  `name` — flag name (string),  
-  `value` — boolean; normalized to `true`/`nil`.
-* **Returns:** None.
+### `EntityScript:GetWetMultiplier()`
+* **Description:** Returns moisture multiplier (0-1) based on wet tags, moistureimmunity, inventoryitem wetness, or world rain state.
+* **Parameters:** None
+* **Returns:** number (0 or 1) or nil
+* **Error states:** Errors if TheWorld.state, components.inventoryitem/temp_moisture/moisture, or tag checks are unavailable.
 
-### `EntityScript:IsInLight()`
-* **Description:** Checks if entity is in a lit area using `LightWatcher` if present, otherwise `TheSim:GetLightAtPoint`.
-* **Parameters:** None.
-* **Returns:** Boolean. Uses thresholds: `lightThresh = 0.1`, `darkThresh = 0.05`.
+### `EntityScript:GetIsWet()`
+* **Description:** Returns boolean indicating if entity is wet, checking tags, replica components, or world rain state (client-safe).
+* **Parameters:** None
+* **Returns:** boolean
+* **Error states:** Errors if replica.inventoryitem/moisture or TheWorld.state is unavailable when needed.
 
-### `EntityScript:IsLightGreaterThan(lightThresh)`
-* **Description:** Checks if current light level exceeds threshold.
-* **Parameters:** `lightThresh` — float.
-* **Returns:** Boolean.
+### `EntityScript:IsAcidSizzling()`
+* **Description:** Returns boolean indicating if entity is affected by acid rain, checking immunity tag, replica, or player_classified (client-safe).
+* **Parameters:** None
+* **Returns:** boolean
+* **Error states:** Errors if replica.inventoryitem or player_classified.isacidsizzling is unavailable when needed.
 
-### `EntityScript:DebuffsEnabled()`
-* **Description:** Returns true if `debuffable` component missing or enabled.
-* **Parameters:** None.
-* **Returns:** Boolean.
+### `EntityScript:GetSkinBuild()`
+* **Description:** Returns cached skin build name, computing via GetBuildForItem if not already cached.
+* **Parameters:** None
+* **Returns:** string
+* **Error states:** Errors if GetBuildForItem is unavailable and skin_build_name is nil.
 
-### `EntityScript:HasDebuff(name)`
-* **Description:** Checks if entity has a specific debuff.
-* **Parameters:** `name` — debuff name string.
-* **Returns:** Boolean.
+### `EntityScript:GetSkinName()`
+* **Description:** Returns override_skinname if set, otherwise returns skinname.
+* **Parameters:** None
+* **Returns:** string or nil
+* **Error states:** None
 
-### `EntityScript:GetDebuff(name)`
-* **Description:** Retrieves debuff data for a specific name.
-* **Parameters:** `name` — debuff name string.
-* **Returns:** Debuff data table or `nil`.
+### `EntityScript:SetPrefabName(name)`
+* **Description:** Sets the prefab name on both EntityScript and underlying entity, updating self.name from STRINGS.NAMES if not already set.
+* **Parameters:** `name` -- New prefab name string to set.
+* **Returns:** `nil`
+* **Error states:** Errors if self.entity:SetPrefabName or STRINGS.NAMES is unavailable.
 
-### `EntityScript:AddDebuff(name, prefab, data, skip_test, pre_buff_fn, buffer)`
-* **Description:** Adds a debuff, auto-adding `debuffable` component if needed. Respects state and optional hooks.
-* **Parameters:**  
-  `name` — debuff name string,  
-  `prefab` — prefab string or entity reference,  
-  `data` — optional parameters table,  
-  `skip_test` — boolean to bypass state checks,  
-  `pre_buff_fn` — optional callback before applying,  
-  `buffer` — optional buffer data.
-* **Returns:** Boolean (`true` if applied).
+### `EntityScript:SetPrefabNameOverride(nameoverride)`
+* **Description:** Sets nameoverride to change display name/description without changing actual prefab (e.g., spiderhole_rock uses spiderhole strings).
+* **Parameters:** `nameoverride` -- Prefab name to use for display name and description lookup.
+* **Returns:** `nil`
+* **Error states:** None
 
-### `EntityScript:RemoveDebuff(name)`
-* **Description:** Removes a debuff if `debuffable` component exists.
-* **Parameters:** `name` — debuff name.
-* **Returns:** None.
+### `EntityScript:SetDeployExtraSpacing(spacing)`
+* **Description:** Sets deploy_extra_spacing and registers with TheWorld.Map if spacing is not nil.
+* **Parameters:** `spacing` -- Extra spacing value for deployment, or nil to clear.
+* **Returns:** `nil`
+* **Error states:** Errors if TheWorld.Map:RegisterDeployExtraSpacing is unavailable when spacing is not nil.
 
-### `EntityScript:SetDeathLootLevel(num)`
-* **Description:** Sets loot level for death loot; creates `deathloothandler` if missing.
-* **Parameters:** `num` — integer loot level.
-* **Returns:** None.
+### `EntityScript:SetDeploySmartRadius(radius)`
+* **Description:** Sets the smart radius for deploy spacing and registers it with TheWorld.Map if radius is provided.
+* **Parameters:** `radius` -- number -- smart radius value for deploy spacing calculation
+* **Returns:** None
+* **Error states:** None
 
-### `EntityScript:GetDeathLootLevel()`
-* **Description:** Returns current death loot level.
-* **Parameters:** None.
-* **Returns:** Integer or `0` if no handler.
+### `EntityScript:SetTerraformExtraSpacing(spacing)`
+* **Description:** Sets extra terraform spacing and adds or removes the terraformblocker tag accordingly. Registers spacing with TheWorld.Map.
+* **Parameters:** `spacing` -- number or nil -- extra spacing around entity that cannot be terraformed
+* **Returns:** None
+* **Error states:** None
 
-### `EntityScript:DropDeathLoot()`
-* **Description:** Drops loot upon death; stores in corpse if `is_corpsing`, otherwise to ground.
-* **Parameters:** None.
-* **Returns:** None.
+### `EntityScript:SetGroundTargetBlockerRadius(radius)`
+* **Description:** Sets ground target blocker radius and adds or removes the groundtargetblocker tag. Registers with TheWorld.Map.
+* **Parameters:** `radius` -- number or nil -- radius for ground target blocking
+* **Returns:** None
+* **Error states:** None
 
-### `EntityScript:GetDeathLoot()`
-* **Description:** Retrieves stored death loot (e.g., from a corpse).
-* **Parameters:** None.
-* **Returns:** Loot table (list of items) or `nil`.
+### `EntityScript:SpawnChild(name)`
+* **Description:** Spawns a child entity either from registered prefabs table or directly by prefab name, then adds it as a child.
+* **Parameters:** `name` -- string -- prefab name or registered child key to spawn
+* **Returns:** Entity instance of spawned child
+* **Error states:** Asserts if prefabs table exists but name not found, or if SpawnPrefab fails
 
-### `EntityScript:LongUpdate(dt)`
-* **Description:** Periodically called for long-interval updates. Invokes `OnLongUpdate` on entity and components.
-* **Parameters:** `dt` — delta time float.
-* **Returns:** None.
+### `EntityScript:RemoveChild(child)`
+* **Description:** Removes a child entity by clearing parent reference and removing from children table.
+* **Parameters:** `child` -- Entity -- child entity to remove
+* **Returns:** None
+* **Error states:** None
 
-### `EntityScript:GetAdjective()`
-* **Description:** Returns adjective for HUD, based on custom function, critter traits, livestock status, or state tags (`stale`, `spoiled`, `frozen`, `sickness`).
-* **Parameters:** None.
-* **Returns:** String or `nil`.
+### `EntityScript:AddChild(child)`
+* **Description:** Adds an entity as a child, removing it from any existing parent first.
+* **Parameters:** `child` -- Entity -- entity to add as child
+* **Returns:** None
+* **Error states:** None
 
-### `EntityScript:SetInherentSceneAction(action)`
-* **Description:** Sets inherent scene action and syncs to replica.
-* **Parameters:** `action` — action table.
-* **Returns:** None.
+### `EntityScript:RemovePlatformFollower(child)`
+* **Description:** Removes a platform follower if it belongs to this entity, clears platform reference, and calls OnRemovePlatformFollower callback if defined.
+* **Parameters:** `child` -- Entity -- platform follower to remove
+* **Returns:** None
+* **Error states:** None
 
-### `EntityScript:SetInherentSceneAltAction(action)`
-* **Description:** Sets inherent alternate scene action and syncs to replica.
-* **Parameters:** `action` — action table.
-* **Returns:** None.
+### `EntityScript:AddPlatformFollower(child)`
+* **Description:** Adds an entity as a platform follower, removing it from any existing platform first, and calls OnAddPlatformFollower callback if defined.
+* **Parameters:** `child` -- Entity -- entity to add as platform follower
+* **Returns:** None
+* **Error states:** None
 
-### `EntityScript:StartWallUpdatingComponent(cmp)`, `EntityScript:StopWallUpdatingComponent(cmp)`
-* **Description:** Manages wall update registrations via `wallupdatecomponents` tables.
-* **Parameters:** `cmp` — component instance.
-* **Returns:** None.
+### `EntityScript:GetPlatformFollowers()`
+* **Description:** Returns the table of platform followers. Only works on master sim.
+* **Parameters:** None
+* **Returns:** table of platform follower entities or nil
+* **Error states:** None
 
-### `EntityScript:StartUpdatingComponent(cmp, do_static_update)`, `EntityScript:StopUpdatingComponent(cmp)`
-* **Description:** Registers/stops component for dynamic/static update.
-* **Parameters:** `cmp`, `do_static_update`.
-* **Returns:** None.
+### `EntityScript:GetBrainString()`
+* **Description:** Returns a debug string representation of the entity's brain if one exists.
+* **Parameters:** None
+* **Returns:** string -- brain debug info or empty string
+* **Error states:** None
 
-### `EntityScript:GetBrainString()`, `EntityScript:GetDebugString()`
-* **Description:** Builds debug strings for brain, components, events, and tasks.
-* **Parameters:** None.
-* **Returns:** String.
+### `EntityScript:GetDebugString()`
+* **Description:** Returns comprehensive debug information including entity validity, age, buffered action, stategraph, and component debug strings.
+* **Parameters:** None
+* **Returns:** string -- debug information
+* **Error states:** None
 
-### `EntityScript:KillTasks()`, `EntityScript:StartThread(fn)`
-* **Description:** Helper wrappers for thread/task management using `self.GUID` as ID.
-* **Parameters:** `fn` — function.
-* **Returns:** `StartThread` returns thread.
+### `EntityScript:KillTasks()`
+* **Description:** Kills all threads associated with this entity's GUID.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:StartThread(fn)`
+* **Description:** Starts a new thread/coroutine associated with this entity's GUID.
+* **Parameters:** `fn` -- function -- coroutine function to start
+* **Returns:** thread reference
+* **Error states:** None
 
 ### `EntityScript:RunScript(name)`
-* **Description:** Loads and executes a script via `LoadScript`.
-* **Parameters:** `name` — script path string.
-* **Returns:** None.
+* **Description:** Loads and executes a script file, passing self as parameter.
+* **Parameters:** `name` -- string -- script file name to load and run
+* **Returns:** None
+* **Error states:** Errors if LoadScript fails to return a valid function
 
-### `EntityScript:RestartBrain(reason)`, `EntityScript:StopBrain(reason)`
-* **Description:** Controls brain state via `self._brainstopped` map.
-* **Parameters:** `reason` — string.
-* **Returns:** None.
+### `EntityScript:RestartBrain(reason)`
+* **Description:** Restarts the brain if it was stopped for the given reason and no other stop reasons remain.
+* **Parameters:** `reason` -- string or nil -- reason identifier for brain restart
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:StopBrain(reason)`
+* **Description:** Stops the brain with a reason identifier. Brain can be restarted when all reasons are cleared.
+* **Parameters:** `reason` -- string or nil -- reason identifier for stopping brain
+* **Returns:** None
+* **Error states:** None
 
 ### `EntityScript:SetBrain(brainfn)`
-* **Description:** Sets brain function and instantiates brain if not disabled (limbo/asleep).
-* **Parameters:** `brainfn` — function returning brain table.
-* **Returns:** None.
+* **Description:** Sets the brain function and initializes the brain if not disabled due to sleep, limbo, or construction state.
+* **Parameters:** `brainfn` -- function or nil -- brain constructor function
+* **Returns:** None
+* **Error states:** None
 
-### `EntityScript:_DisableBrain_Internal()`, `EntityScript:_EnableBrain_Internal()`
-* **Description:** Internal brain disable/enable for scene transitions.
-* **Parameters:** None.
-* **Returns:** None.
+### `EntityScript:_DisableBrain_Internal()`
+* **Description:** Internal function to disable brain when entity sleeps or is removed from scene. Should only be called from OnEntitySleep or RemoveFromScene.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `EntityScript:SetStateGraph(name)`, `EntityScript:ClearStateGraph()`
-* **Description:** Instantiates and starts/stop a StateGraph.
-* **Parameters:** `name` — stategraph name string.
-* **Returns:** `SetStateGraph` returns SG instance.
+### `EntityScript:_EnableBrain_Internal()`
+* **Description:** Internal function to re-enable brain when entity wakes or returns to scene. Should only be called from OnEntityWake or ReturnToScene.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:SetStateGraph(name)`
+* **Description:** Loads and sets a stategraph for this entity, removing any existing stategraph first.
+* **Parameters:**
+  - `name` -- string -- stategraph name to load
+* **Returns:** StateGraphInstance or nil
+* **Error states:** Asserts if LoadStateGraph returns nil
+
+### `EntityScript:ClearStateGraph()`
+* **Description:** Removes and clears the current stategraph from this entity.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `EntityScript:ListenForEvent(event, fn, source)`
-* **Description:** Registers bidirectional event listener.
-* **Parameters:** `event`, `fn`, `source` (defaults to `self`).
-* **Returns:** None.
+* **Description:** Registers an event listener on source entity, storing bidirectional references for cleanup.
+* **Parameters:**
+  - `event` -- string -- event name to listen for
+  - `fn` -- function -- callback function when event fires
+  - `source` -- Entity or nil -- source entity to listen on (defaults to self)
+* **Returns:** None
+* **Error states:** None
 
 ### `EntityScript:RemoveEventCallback(event, fn, source)`
-* **Description:** Removes a specific event listener.
-* **Parameters:** As above.
-* **Returns:** None.
+* **Description:** Removes a specific event callback from the listener tables.
+* **Parameters:**
+  - `event` -- string -- event name
+  - `fn` -- function -- callback function to remove
+  - `source` -- Entity or nil -- source entity (defaults to self)
+* **Returns:** None
+* **Error states:** Asserts if fn is not a function type
 
 ### `EntityScript:RemoveAllEventCallbacks()`
-* **Description:** Clears all event listener registrations.
-* **Parameters:** None.
-* **Returns:** None.
+* **Description:** Removes all event callbacks, cleaning up both listening and broadcast references.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `EntityScript:WatchWorldState(var, fn)`, `EntityScript:StopWatchingWorldState(var, fn)`, `EntityScript:StopAllWatchingWorldStates()`
-* **Description:** Wrapper around entity-level watcher + `worldstate:AddWatcher`.
-* **Parameters:** `var`, `fn`.
-* **Returns:** None.
+### `EntityScript:WatchWorldState(var, fn)`
+* **Description:** Registers a watcher on a world state variable through TheWorld.components.worldstate.
+* **Parameters:**
+  - `var` -- string -- world state variable name
+  - `fn` -- function -- callback when variable changes
+* **Returns:** None
+* **Error states:** None
 
-### `EntityScript:PushEvent_Internal(event, data, immediate)`, `EntityScript:PushEvent(event, data)`, `EntityScript:PushEventImmediate(event, data)`
-* **Description:** Invokes listeners, stategraph, brain. Immediate mode triggers SG handling directly.
-* **Parameters:** `event`, `data`, `immediate`.
-* **Returns:** None.
+### `EntityScript:StopWatchingWorldState(var, fn)`
+* **Description:** Removes a specific world state watcher.
+* **Parameters:**
+  - `var` -- string -- world state variable name
+  - `fn` -- function -- callback to remove
+* **Returns:** None
+* **Error states:** None
 
-### `EntityScript:SetPhysicsRadiusOverride(radius)`, `EntityScript:GetPhysicsRadius(default)`
-* **Description:** Overrides or reads physics radius (fallback to `Physics:GetRadius()`).
-* **Parameters:** `radius`, `default`.
-* **Returns:** Float.
+### `EntityScript:StopAllWatchingWorldStates()`
+* **Description:** Removes all world state watchers for this entity.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:PushEvent_Internal(event, data, immediate)`
+* **Description:** Internal event pushing that notifies listeners, stategraph, and brain.
+* **Parameters:**
+  - `event` -- string -- event name to push
+  - `data` -- table or nil -- event data
+  - `immediate` -- boolean -- whether to handle immediately
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:PushEvent(event, data)`
+* **Description:** Pushes an event to all listeners with normal timing.
+* **Parameters:**
+  - `event` -- string -- event name
+  - `data` -- table or nil -- event data
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:PushEventImmediate(event, data)`
+* **Description:** Pushes an event to all listeners with immediate handling.
+* **Parameters:**
+  - `event` -- string -- event name
+  - `data` -- table or nil -- event data
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:SetPhysicsRadiusOverride(radius)`
+* **Description:** Sets an override value for the entity's physics radius.
+* **Parameters:**
+  - `radius` -- number -- physics radius override value
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:GetPhysicsRadius(default)`
+* **Description:** Returns physics radius from override, Physics component, or default value.
+* **Parameters:**
+  - `default` -- number -- default radius if no override or Physics component
+* **Returns:** number -- physics radius
+* **Error states:** None
 
 ### `EntityScript:GetBoatIntersectingPhysics()`
-* **Description:** Checks for boat collisions within combined physics radius.
-* **Parameters:** None.
-* **Returns:** Boat entity or `nil`.
+* **Description:** Finds and returns a boat entity that intersects with this entity's physics radius.
+* **Parameters:** None
+* **Returns:** Entity boat instance or nil
+* **Error states:** None
 
-### `EntityScript:GetPosition()`, `EntityScript:GetRotation()`
-* **Description:** Returns world position (as `Point`) and rotation.
-* **Parameters:** None.
-* **Returns:** Point, number.
+### `EntityScript:GetPosition()`
+* **Description:** Returns the entity's world position as a Point.
+* **Parameters:** None
+* **Returns:** Point -- entity position
+* **Error states:** None
+
+### `EntityScript:GetRotation()`
+* **Description:** Returns the entity's current rotation angle.
+* **Parameters:** None
+* **Returns:** number -- rotation angle
+* **Error states:** None
 
 ### `EntityScript:GetAngleToPoint(x, y, z)`
-* **Description:** Computes angle to point or Vector3 in degrees.
-* **Parameters:** Coordinates or single Vector3/Point.
-* **Returns:** Angle in degrees.
+* **Description:** Calculates the angle from entity position to a target point.
+* **Parameters:**
+  - `x` -- number or Point/Vector3 -- x coordinate or position object
+  - `y` -- number or nil -- y coordinate
+  - `z` -- number or nil -- z coordinate
+* **Returns:** number -- angle in radians
+* **Error states:** None
 
 ### `EntityScript:GetPositionAdjacentTo(target, distance)`
-* **Description:** Returns point at `distance` from `target` along line from self to target.
-* **Parameters:** `target`, `distance`.
-* **Returns:** Vector3 or `nil`.
+* **Description:** Returns a position adjacent to target entity at specified distance.
+* **Parameters:**
+  - `target` -- Entity -- target entity
+  - `distance` -- number -- distance from target
+* **Returns:** Vector3 -- adjacent position or nil if target is nil
+* **Error states:** None
 
-### `EntityScript:ForceFacePoint(x, y, z)`, `EntityScript:FacePoint(x, y, z)`
-* **Description:** Sets rotation to face point; `ForceFacePoint` ignores state tags, `FacePoint` does not.
-* **Parameters:** Coordinates.
-* **Returns:** None.
+### `EntityScript:ForceFacePoint(x, y, z)`
+* **Description:** Forces the entity to face a point immediately.
+* **Parameters:**
+  - `x` -- number -- x coordinate
+  - `y` -- number -- y coordinate
+  - `z` -- number -- z coordinate
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:FacePoint(x, y, z)`
+* **Description:** Makes entity face a point unless stategraph has busy tag.
+* **Parameters:**
+  - `x` -- number -- x coordinate
+  - `y` -- number -- y coordinate
+  - `z` -- number -- z coordinate
+* **Returns:** None
+* **Error states:** None
 
 ### `EntityScript:GetDistanceSqToInst(inst)`
-* **Description:** Returns horizontal squared distance to another entity.
-* **Parameters:** `inst`.
-* **Returns:** Float.
+* **Description:** Returns squared horizontal distance to another entity.
+* **Parameters:**
+  - `inst` -- Entity -- target entity
+* **Returns:** number -- squared distance
+* **Error states:** Asserts if self or inst is not valid
 
 ### `EntityScript:IsNear(otherinst, dist)`
-* **Description:** `GetDistanceSqToInst < dist²`.
-* **Parameters:** `otherinst`, `dist`.
-* **Returns:** Boolean.
+* **Description:** Checks if another entity is within specified distance.
+* **Parameters:**
+  - `otherinst` -- Entity -- other entity to check
+  - `dist` -- number -- distance threshold
+* **Returns:** boolean -- true if within distance
+* **Error states:** None
 
 ### `EntityScript:GetDistanceSqToPoint(x, y, z)`
-* **Description:** Horizontal squared distance to point.
-* **Parameters:** Coordinates.
-* **Returns:** Float.
+* **Description:** Returns squared horizontal distance to a point.
+* **Parameters:**
+  - `x` -- number or Point/Vector3 -- x coordinate or position object
+  - `y` -- number or nil -- y coordinate
+  - `z` -- number or nil -- z coordinate
+* **Returns:** number -- squared distance
+* **Error states:** None
 
-### `EntityScript:IsNearPlayer(range, isalive)`, `EntityScript:GetNearestPlayer(isalive)`, `EntityScript:GetDistanceSqToClosestPlayer(isalive)`
-* **Description:** Helpers for player proximity checks.
-* **Parameters:** `range`, `isalive`.
-* **Returns:** Boolean, entity, or distance.
+### `EntityScript:IsNearPlayer(range, isalive)`
+* **Description:** Checks if any player is within range of this entity.
+* **Parameters:**
+  - `range` -- number -- range to check
+  - `isalive` -- boolean or nil -- whether to check only alive players
+* **Returns:** boolean -- true if player in range
+* **Error states:** None
+
+### `EntityScript:GetNearestPlayer(isalive)`
+* **Description:** Finds the closest player to this entity.
+* **Parameters:**
+  - `isalive` -- boolean or nil -- whether to find only alive players
+* **Returns:** Entity player or nil
+* **Error states:** None
+
+### `EntityScript:GetDistanceSqToClosestPlayer(isalive)`
+* **Description:** Returns squared distance to the closest player.
+* **Parameters:**
+  - `isalive` -- boolean or nil -- whether to check only alive players
+* **Returns:** number -- squared distance or math.huge
+* **Error states:** None
 
 ### `EntityScript:FaceAwayFromPoint(dest, force)`
-* **Description:** Rotates entity away from point, respects state tags.
-* **Parameters:** `dest` — vector; `force`.
-* **Returns:** None.
+* **Description:** Makes entity face away from a destination point.
+* **Parameters:**
+  - `dest` -- table with x/z -- destination point
+  - `force` -- boolean -- whether to ignore busy state
+* **Returns:** None
+* **Error states:** None
 
 ### `EntityScript:IsEntityInFrontConeSlice(otherinst, wholearcangle_degrees, max_dist, circle_dist)`
-* **Description:** Checks if `otherinst` lies within horizontal cone and optional distance constraints.
-* **Parameters:** As listed.
-* **Returns:** Boolean.
+* **Description:** Checks if an entity is within a front-facing cone slice.
+* **Parameters:**
+  - `otherinst` -- Entity -- entity to check
+  - `wholearcangle_degrees` -- number -- cone angle in degrees
+  - `max_dist` -- number or nil -- maximum distance
+  - `circle_dist` -- number or nil -- circle distance for close range
+* **Returns:** boolean -- true if within cone
+* **Error states:** None
 
 ### `EntityScript:IsAsleep()`
-* **Description:** `not self.entity:IsAwake()`.
-* **Parameters:** None.
-* **Returns:** Boolean.
+* **Description:** Checks if the entity is currently asleep.
+* **Parameters:** None
+* **Returns:** boolean -- true if asleep
+* **Error states:** None
 
 ### `EntityScript:CancelAllPendingTasks()`
-* **Description:** Cancels all pending scheduler tasks.
-* **Parameters:** None.
-* **Returns:** None.
+* **Description:** Cancels all pending scheduled tasks for this entity.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `EntityScript:DoStaticPeriodicTask(...)`, `EntityScript:DoStaticTaskInTime(...)`, `EntityScript:DoPeriodicTask(...)`, `EntityScript:DoTaskInTime(...)`, `EntityScript:PushEventInTime(...)`
-* **Description:** Scheduler helpers that register tasks in `self.pendingtasks` and attach `onfinish`.
-* **Parameters:** `time`, `fn`, `initialdelay`, `...`.
-* **Returns:** Task reference.
+### `EntityScript:DoStaticPeriodicTask(time, fn, initialdelay, ...)`
+* **Description:** Schedules a periodic task using staticScheduler.
+* **Parameters:**
+  - `time` -- number -- period in seconds
+  - `fn` -- function -- callback function
+  - `initialdelay` -- number or nil -- initial delay before first execution
+  - `...` -- varargs -- additional arguments passed to fn
+* **Returns:** task reference
+* **Error states:** None
 
-### `EntityScript:GetTaskInfo(time)`, `EntityScript:TimeRemainingInTask(taskinfo)`
-* **Description:** Utility for timing; `TimeRemainingInTask` returns float ≥ 1.
-* **Parameters:** `time`, `taskinfo`.
-* **Returns:** Float.
+### `EntityScript:DoStaticTaskInTime(time, fn, ...)`
+* **Description:** Schedules a one-time task using staticScheduler.
+* **Parameters:**
+  - `time` -- number -- delay in seconds
+  - `fn` -- function -- callback function
+  - `...` -- varargs -- additional arguments passed to fn
+* **Returns:** task reference
+* **Error states:** None
+
+### `EntityScript:DoPeriodicTask(time, fn, initialdelay, ...)`
+* **Description:** Schedules a periodic task using scheduler.
+* **Parameters:**
+  - `time` -- number -- period in seconds
+  - `fn` -- function -- callback function
+  - `initialdelay` -- number or nil -- initial delay
+  - `...` -- varargs -- additional arguments passed to fn
+* **Returns:** task reference
+* **Error states:** None
+
+### `EntityScript:DoTaskInTime(time, fn, ...)`
+* **Description:** Schedules a one-time task using scheduler.
+* **Parameters:**
+  - `time` -- number -- delay in seconds
+  - `fn` -- function -- callback function
+  - `...` -- varargs -- additional arguments passed to fn
+* **Returns:** task reference
+* **Error states:** None
+
+### `EntityScript:PushEventInTime(time, eventname, data)`
+* **Description:** Schedules an event to be pushed after a delay.
+* **Parameters:**
+  - `time` -- number -- delay in seconds
+  - `eventname` -- string -- event name to push
+  - `data` -- table or nil -- event data
+* **Returns:** task reference
+* **Error states:** None
+
+### `EntityScript:GetTaskInfo(time)`
+* **Description:** Creates task info object with start time and duration.
+* **Parameters:**
+  - `time` -- number -- task duration
+* **Returns:** table -- taskinfo with start and time fields
+* **Error states:** None
+
+### `EntityScript:TimeRemainingInTask(taskinfo)`
+* **Description:** Calculates remaining time in a task.
+* **Parameters:**
+  - `taskinfo` -- table -- task info from GetTaskInfo
+* **Returns:** number -- time remaining (minimum 1)
+* **Error states:** None
 
 ### `EntityScript:ResumeTask(time, fn, ...)`
-* **Description:** Shorthand for `DoTaskInTime` + `GetTaskInfo`.
-* **Parameters:** As above.
-* **Returns:** `task`, `taskinfo`.
+* **Description:** Creates a task and returns both task reference and task info.
+* **Parameters:**
+  - `time` -- number -- delay in seconds
+  - `fn` -- function -- callback function
+  - `...` -- varargs -- additional arguments
+* **Returns:** task reference, taskinfo table
+* **Error states:** None
 
-### `EntityScript:ClearBufferedAction()`, `EntityScript:PreviewBufferedAction(bufferedaction)`, `EntityScript:PerformPreviewBufferedAction()`
-* **Description:** Manages buffered action preview.
-* **Parameters:** `bufferedaction`.
-* **Returns:** None.
+### `EntityScript:ClearBufferedAction()`
+* **Description:** Clears the current buffered action by failing it.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:PreviewBufferedAction(bufferedaction)`
+* **Description:** Previews a buffered action, checking for duplicates and stategraph compatibility.
+* **Parameters:**
+  - `bufferedaction` -- BufferedAction -- action to preview
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:PerformPreviewBufferedAction()`
+* **Description:** Performs the preview of a buffered action via playercontroller if available.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `EntityScript:PushBufferedAction(bufferedaction)`
-* **Description:** Tests and starts a buffered action; manages stategraph/SG interaction.
-* **Parameters:** `bufferedaction`.
-* **Returns:** None.
+* **Description:** Pushes a buffered action for execution, handling walkto, instant, and normal actions differently.
+* **Parameters:**
+  - `bufferedaction` -- BufferedAction -- action to push
+* **Returns:** None
+* **Error states:** None
 
 ### `EntityScript:PerformBufferedAction()`
-* **Description:** Executes buffered action; calls theme music event, handles success/fail.
-* **Parameters:** None.
-* **Returns:** Boolean (success) or `nil`.
+* **Description:** Executes the buffered action on the entity. Faces the action target if valid, pushes performaction event, optionally plays theme music, and handles success/failure states.
+* **Parameters:** None
+* **Returns:** true if action succeeded, nil otherwise
+* **Error states:** None
 
 ### `EntityScript:GetBufferedAction()`
-* **Description:** Returns `self.bufferedaction` or `locomotor.bufferedaction`.
-* **Parameters:** None.
-* **Returns:** Buffered action or `nil`.
+* **Description:** Returns the entity's buffered action, or falls back to locomotor component's bufferedaction if available.
+* **Parameters:** None
+* **Returns:** BufferedAction instance or nil
+* **Error states:** None
 
 ### `EntityScript:OnBuilt(builder)`
-* **Description:** Calls `OnBuilt(builder)` on all components and `self.OnBuiltFn`.
-* **Parameters:** `builder`.
-* **Returns:** None.
+* **Description:** Called when the entity is built. Iterates all components and calls their OnBuilt method, then calls custom OnBuiltFn if defined.
+* **Parameters:**
+  - `builder` -- Entity instance that built this entity
+* **Returns:** None
+* **Error states:** None
 
 ### `EntityScript:Remove()`
-* **Description:** Full entity teardown: hierarchy, updates, listeners, tasks, components, replica.
-* **Parameters:** None.
-* **Returns:** None.
-* **Pushes:** `"onremove"`.
+* **Description:** Removes the entity from the world. Cleans up parent/platform relationships, pushes onremove event, stops all watchers and tasks, calls OnRemoveEntity on all components and replicas, clears updating entity registries, removes children and platform followers, and retires the entity.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `EntityScript:IsValid()`
-* **Description:** Returns `self.entity:IsValid()`.
-* **Parameters:** None.
-* **Returns:** Boolean.
+* **Description:** Checks if the underlying entity is still valid in the simulation.
+* **Parameters:** None
+* **Returns:** boolean - true if entity is valid
+* **Error states:** None
 
 ### `EntityScript:CanInteractWith(inst)`
-* **Description:** Returns true if `inst` has no parent or its parent is `self`.
-* **Parameters:** `inst`.
-* **Returns:** Boolean.
+* **Description:** Determines if this entity can interact with another entity. Returns false if inst is invalid, true if inst has no parent or if this entity is inst's parent.
+* **Parameters:**
+  - `inst` -- Entity instance to check interaction validity with
+* **Returns:** boolean
+* **Error states:** None
 
 ### `EntityScript:OnUsedAsItem(action, doer, target)`
-* **Description:** Delegates to component `OnUsedAsItem` handlers.
-* **Parameters:** As listed.
-* **Returns:** None.
+* **Description:** Called when this entity is used as an item. Iterates all components and calls their OnUsedAsItem method.
+* **Parameters:**
+  - `action` -- The action being performed
+  - `doer` -- Entity performing the action
+  - `target` -- Target entity of the action
+* **Returns:** None
+* **Error states:** None
 
 ### `EntityScript:CanDoAction(action)`
-* **Description:** Checks inherent actions, tag-based tools (`<actionid>_tool`), and inventory items.
-* **Parameters:** `action`.
-* **Returns:** Boolean.
+* **Description:** Checks if the entity can perform the given action. Checks inherentactions table, action-specific tool tags, and active/equipped inventory items.
+* **Parameters:**
+  - `action` -- Action to check capability for
+* **Returns:** boolean - true if action can be performed
+* **Error states:** None
 
 ### `EntityScript:IsOnValidGround()`
-* **Description:** `TheWorld.Map:IsVisualGroundAtPoint(...)`.
-* **Parameters:** None.
-* **Returns:** Boolean.
+* **Description:** Checks if the entity is on valid ground using TheWorld.Map:IsVisualGroundAtPoint. Does not support boats.
+* **Parameters:** None
+* **Returns:** boolean
+* **Error states:** None
 
 ### `EntityScript:IsOnPassablePoint(include_water, floating_platforms_are_not_passable)`
-* **Description:** `TheWorld.Map:IsPassableAtPoint(...)`.
-* **Parameters:** Booleans.
-* **Returns:** Boolean.
+* **Description:** Checks if the entity's position is on a passable point using TheWorld.Map:IsPassableAtPoint.
+* **Parameters:**
+  - `include_water` -- boolean - whether to consider water as passable (default false)
+  - `floating_platforms_are_not_passable` -- boolean - whether floating platforms should be considered not passable (default false)
+* **Returns:** boolean
+* **Error states:** None
 
 ### `EntityScript:IsOnOcean(allow_boats)`
-* **Description:** `TheWorld.Map:IsOceanAtPoint(...)`.
-* **Parameters:** `allow_boats`.
-* **Returns:** Boolean.
+* **Description:** Checks if the entity is on ocean using TheWorld.Map:IsOceanAtPoint.
+* **Parameters:**
+  - `allow_boats` -- boolean - whether boat entities should be considered on ocean
+* **Returns:** boolean
+* **Error states:** None
 
 ### `EntityScript:GetCurrentPlatform()`
-* **Description:** Returns `self.platform` or parent's platform.
-* **Parameters:** None.
-* **Returns:** Platform entity or `nil`.
+* **Description:** Returns the current platform the entity is on. On server, checks parent platform or self.platform. On client, checks entity parent or entity platform.
+* **Parameters:** None
+* **Returns:** Platform entity or nil
+* **Error states:** None
 
 ### `EntityScript:GetCurrentTileType()`
-* **Description:** Approximate tile type resolution considering tile overlap (including ocean tiles).
-* **Parameters:** None.
-* **Returns:** Tile ID and info table.
+* **Description:** Returns the current tile type and tile info at the entity's position. Approximates tile by checking neighboring tiles if not on land tile.
+* **Parameters:** None
+* **Returns:** tile_id, tile_info_table or nil
+* **Error states:** None
+
+### `EntityScript:PutBackOnGround(radius)`
+* **Description:** Attempts to relocate the entity to valid ground. Returns true if already on passable point or successfully teleported, false if no suitable location found.
+* **Parameters:**
+  - `radius` -- number - search radius for valid ground (default 8)
+* **Returns:** boolean
+* **Error states:** None
+
+### `EntityScript:GetPersistData()`
+* **Description:** Collects persistence data from all components with OnSave method and custom OnSave function. Returns data table and references array.
+* **Parameters:** None
+* **Returns:** data_table, references_array or nil if empty
+* **Error states:** None
+
+### `EntityScript:LoadPostPass(newents, savedata)`
+* **Description:** Loads post-pass data for components with LoadPostPass method, then calls custom OnLoadPostPass if defined.
+* **Parameters:**
+  - `newents` -- Table mapping old entity references to new entities
+  - `savedata` -- Saved data table from GetPersistData
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:SetPersistData(data, newents)`
+* **Description:** Restores entity state from saved data. Adds missing components if flagged, calls OnPreLoad, then loads component data via OnLoad, and calls custom OnLoad.
+* **Parameters:**
+  - `data` -- Saved data table containing component data
+  - `newents` -- Table mapping old entity references to new entities
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:GetAdjective()`
+* **Description:** Returns a descriptive adjective string for the entity based on tags (critter traits, livestock status, stale/spoiled/frozen states) or custom displayadjectivefn.
+* **Parameters:** None
+* **Returns:** string or nil
+* **Error states:** None
+
+### `EntityScript:SetInherentSceneAction(action)`
+* **Description:** Sets the inherent scene action and replicates it via actionreplica if available.
+* **Parameters:**
+  - `action` -- Action table to set as inherent scene action
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:SetInherentSceneAltAction(action)`
+* **Description:** Sets the alternative inherent scene action and replicates it via actionreplica if available.
+* **Parameters:**
+  - `action` -- Action table to set as alternative inherent scene action
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:LongUpdate(dt)`
+* **Description:** Called periodically for long-running updates. Calls custom OnLongUpdate then iterates all components calling their LongUpdate method.
+* **Parameters:**
+  - `dt` -- number - delta time since last long update
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:SetClientSideInventoryImageOverride(flagname, srcinventoryimage, destinventoryimage, destatlas)`
+* **Description:** Sets up client-side inventory image remapping. Pushes clientsideinventoryflagschanged event to ThePlayer if flag is active.
+* **Parameters:**
+  - `flagname` -- string - name of the override flag
+  - `srcinventoryimage` -- string - source inventory image name
+  - `destinventoryimage` -- string - destination inventory image name
+  - `destatlas` -- string - destination atlas name (optional)
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:HasClientSideInventoryImageOverrides()`
+* **Description:** Checks if the entity has any client-side inventory image overrides configured.
+* **Parameters:** None
+* **Returns:** boolean
+* **Error states:** None
+
+### `EntityScript:GetClientSideInventoryImageOverride(imagenamehash)`
+* **Description:** Returns the image override data for a given image hash if the corresponding flag is active.
+* **Parameters:**
+  - `imagenamehash` -- number - hashed inventory image name to look up
+* **Returns:** table with image and atlas fields, or nil
+* **Error states:** None
+
+### `EntityScript:SetClientSideInventoryImageOverrideFlag(name, value)`
+* **Description:** Sets a client-side inventory image override flag. Pushes clientsideinventoryflagschanged event to ThePlayer if value changed.
+* **Parameters:**
+  - `name` -- string - flag name
+  - `value` -- boolean - flag value (nil treated as false)
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:IsInLight()`
+* **Description:** Checks if the entity is in light. Uses LightWatcher component if available, otherwise uses TheSim:GetLightAtPoint with cached thresholds.
+* **Parameters:** None
+* **Returns:** boolean
+* **Error states:** Errors if self.Transform is nil and LightWatcher is absent (nil dereference on self.Transform:GetWorldPosition() — no guard present in source).
+
+### `EntityScript:IsLightGreaterThan(lightThresh)`
+* **Description:** Checks if light level at entity position exceeds the given threshold. Uses LightWatcher if available, otherwise TheSim:GetLightAtPoint.
+* **Parameters:**
+  - `lightThresh` -- number - light threshold to compare against
+* **Returns:** boolean
+* **Error states:** Errors if `self.Transform` is nil when LightWatcher is absent (nil dereference on `self.Transform:GetWorldPosition()` — no guard in else branch).
+
+### `EntityScript:DebuffsEnabled()`
+* **Description:** Checks if debuffs are enabled for this entity. Returns true if debuffable component is missing or enabled.
+* **Parameters:** None
+* **Returns:** boolean
+* **Error states:** None
+
+### `EntityScript:HasDebuff(name)`
+* **Description:** Checks if the entity has a specific debuff via the debuffable component.
+* **Parameters:**
+  - `name` -- string - debuff name to check
+* **Returns:** boolean
+* **Error states:** None
+
+### `EntityScript:GetDebuff(name)`
+* **Description:** Returns the debuff data for a specific debuff name via the debuffable component.
+* **Parameters:**
+  - `name` -- string - debuff name to retrieve
+* **Returns:** debuff data table or nil
+* **Error states:** None
+
+### `EntityScript:AddDebuff(name, prefab, data, skip_test, pre_buff_fn, buffer)`
+* **Description:** Adds a debuff to the entity. Adds debuffable component if missing. Only applies if debuffs enabled and entity not dead/ghost (unless skip_test).
+* **Parameters:**
+  - `name` -- string - debuff name
+  - `prefab` -- string - prefab name for the debuff
+  - `data` -- table - debuff data
+  - `skip_test` -- boolean - whether to skip enable/dead checks
+  - `pre_buff_fn` -- function - callback before applying buff
+  - `buffer` -- table - buffer data
+* **Returns:** boolean - true if debuff was added
+* **Error states:** None
+
+### `EntityScript:RemoveDebuff(name)`
+* **Description:** Removes a debuff from the entity via the debuffable component.
+* **Parameters:**
+  - `name` -- string - debuff name to remove
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:SetDeathLootLevel(num)`
+* **Description:** Sets the death loot level. Adds deathloothandler component if missing.
+* **Parameters:**
+  - `num` -- number - death loot level to set
+* **Returns:** None
+* **Error states:** None
+
+### `EntityScript:GetDeathLootLevel()`
+* **Description:** Returns the current death loot level from the deathloothandler component.
+* **Parameters:** None
+* **Returns:** number (default 0 if no handler)
+* **Error states:** None
+
+### `EntityScript:DropDeathLoot()`
+* **Description:** Drops death loot. Sets loot level to 1, then either stores loot in deathloothandler if corpsing or drops via lootdropper.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Crashes if `health` component is missing (accesses `self.components.health.is_corpsing` without nil check). Crashes if `Transform` component is missing (`self:GetPosition()`).
+
+### `EntityScript:GetDeathLoot()`
+* **Description:** Returns the death loot from the deathloothandler component.
+* **Parameters:** None
+* **Returns:** loot table or nil
+* **Error states:** None
 
 ## Events & listeners
-**Listens to:**  
-`actioncomponentsdirty`, `inherentactionsdirty`, `inherentsceneactiondirty`, `inherentscenealtactiondirty`, `modactioncomponentsdirty<modname>` — sync network action data on non-mastersim.
+**Listens to:**
+- `actioncomponentsdirty` -- Fired when actioncomponents netvar changes on client, triggers deserialization.
+- `inherentactionsdirty` -- Fired when inherentactions netvar changes on client, triggers deserialization.
+- `inherentsceneactiondirty` -- Fired when inherentsceneaction netvar changes on client, triggers deserialization.
+- `inherentscenealtactiondirty` -- Fired when inherentscenealtaction netvar changes on client, triggers deserialization.
+- `modactioncomponentsdirty{modname}` -- Fired when mod-specific actioncomponents netvar changes on client, triggers deserialization per mod.
 
-**Pushes:**  
-`enterlimbo`, `exitlimbo`, `onremove`, `actionfailed`, `performaction`, `startaction`, `play_theme_music` — internal lifecycle and action events;  
-`clientsideinventoryflagschanged` — pushed when an inventory image override flag is updated and `ThePlayer` exists.
+**Pushes:**
+- `enterlimbo` -- Pushed when entity is removed from scene via RemoveFromScene.
+- `exitlimbo` -- Pushed when entity returns to scene via ReturnToScene.
+- `actionfailed` -- Pushed when buffered action fails TestForStart
+- `performaction` -- Pushed when action is performed immediately or via stategraph
+- `startaction` -- Pushed when action starts without stategraph
+- `play_theme_music` -- Pushed when action has theme music, includes theme data
+- `onremove` -- Pushed when entity is being removed from the world
+- `clientsideinventoryflagschanged` -- Pushed to ThePlayer when inventory image override flags change

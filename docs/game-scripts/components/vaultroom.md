@@ -1,91 +1,139 @@
 ---
 id: vaultroom
 title: Vaultroom
-description: Manages loading, saving, unloading, and layout of procedural vault rooms in the world map.
-tags: [world, map, room, save]
+description: Manages virtual room instantiation, persistence, and entity cleanup for vault-style dungeon rooms.
+tags: [dungeon, persistence, worldgen]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
-category_type: map
-source_hash: d49ea297
-system_scope: world
+category_type: components
+source_hash: a49052c6
+system_scope: environment
 ---
 
 # Vaultroom
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-`Vaultroom` is a map-level component responsible for managing the lifecycle of procedural vault rooms—specifically handling room layout, entity unloading/saving during departure, and reloading when revisiting. It is attached to the room's anchor entity and coordinates with the global `defs` table (`prefabs/vaultroom_defs.lua`) to apply room-specific geometry, terrain, and entity populations. The component integrates with the game’s save system by serializing and restoring entities within a defined radius and respects ownership and tag-based logic to determine whether entities should be skipped, saved, or retained.
+`Vaultroom` manages the lifecycle of virtual dungeon rooms that can be dynamically created, saved, and loaded. It handles terraforming at the room location, spawning room-specific entities from definitions, and cleaning up entities when the room is unloaded. This component is essential for instanced dungeon areas where entities need to persist across player visits without cluttering the global entity space.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
 inst:AddComponent("vaultroom")
-inst.components.vaultroom:LayoutNewRoom("my_room_id")
--- ... game world proceeds ...
-local saved_data, remaining_entities = inst.components.vaultroom:UnloadRoom(true)
--- Later, when returning:
-inst.components.vaultroom:LoadRoom("my_room_id", saved_data)
+
+-- Create a new room from definition
+inst.components.vaultroom:LayoutNewRoom("vault_room_01")
+
+-- Save and unload the room (returns save data)
+local save_data, remaining_ents = inst.components.vaultroom:UnloadRoom(true)
+
+-- Later, load the room from saved data
+inst.components.vaultroom:LoadRoom("vault_room_01", save_data)
+
+-- Get current room ID
+local roomid = inst.components.vaultroom:GetCurrentRoomId()
 ```
 
 ## Dependencies & tags
-**Components used:** `spawner`, `inventory`, `container` (accessed locally via entity component checks), `spell`, `formationleader`, `follower`, `inventoryitem`, `Transform`, `entity`, `persist`, `prefab` (via `v.` fields).
-**Tags:** Uses `INLIMBO`, `_inventory`, `_container`, `staysthroughvirtualrooms`, `irreplaceable` for filtering and logic.
+**External dependencies:**
+- `prefabs/vaultroom_defs` -- room definition table containing layout and terraform functions
+
+**Components used:**
+- `spell` -- checks `target` to trace entity ownership chain during unload
+- `formationleader` -- checks `target` to trace entity ownership chain during unload
+- `follower` -- calls `GetLeader()` to trace entity ownership chain during unload
+- `inventoryitem` -- checks `owner` to trace entity ownership chain during unload
+- `inventory` -- calls `DropEverythingWithTag()` during unload cleanup
+- `container` -- calls `DropEverythingWithTag()` during unload cleanup
+
+**Tags:**
+- `INLIMBO` -- excluded from entity search during unload
+- `staysthroughvirtualrooms` -- entities with this tag are skipped during unload
+- `irreplaceable` -- entities with this tag are kept, not saved or removed
+- `followsthroughvirtualrooms` -- entities with this tag are kept during unload
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `GEntity` | `nil` | The entity instance the component is attached to (set in constructor). |
-| `roomid` | `string` or `nil` | `nil` | The identifier of the currently active vault room definition. `nil` when no room is loaded. |
+| `inst` | entity | --- | The entity instance that owns this component. |
+| `roomid` | string | `nil` | Current room definition ID. Set when room is layouted or loaded. |
+| `SAVE_RADIUS` | constant (local) | `28` | Search radius for finding entities to save/remove during unload. |
+| `SAVE_NO_TAGS` | constant (local) | `{ "INLIMBO" }` | Tags to exclude when searching for entities during unload. |
+| `SAVE_CONTAINER_TAGS` | constant (local) | `{ "_inventory", "_container" }` | Tags used to find container entities for dropping irreplaceable items. |
+| `_SKIP` | constant (local) | `1` | Action code for entities to ignore during unload (invalid, parented, or staysthroughvirtualrooms). |
+| `_SAVE` | constant (local) | `2` | Action code for entities to save/remove during unload. |
+| `_KEEP` | constant (local) | `3` | Action code for entities to retain during unload (players, irreplaceable, followsthroughvirtualrooms). |
 
 ## Main functions
 ### `GetCurrentRoomId()`
-* **Description:** Returns the ID of the currently loaded vault room.
-* **Parameters:** None.
-* **Returns:** `string?` — The current `roomid`, or `nil` if no room is loaded.
+* **Description:** Returns the current room definition ID. Returns `nil` if no room is active.
+* **Parameters:** None
+* **Returns:** string room ID or `nil`
+* **Error states:** None
 
 ### `LayoutNewRoom(id)`
-* **Description:** Initializes and populates a new vault room using the provided room ID from `vaultroom_defs.lua`. Terraforms the terrain and calls layout callbacks at the room’s world position.
-* **Parameters:**  
-  - `id` (`string`) — The key in `defs` table used to load the room definition.
-* **Returns:** Nothing.
-* **Error states:** Asserts if `roomid` is already set or if `defs[id]` is missing.
+* **Description:** Creates a new room from the given definition ID. Calls terraform and layout functions from `vaultroom_defs`. Behavior depends on definition flags: if `def.TerraformRoomAtXZ` exists, calls custom terraform; otherwise calls `ResetTerraformRoomAtXZ`. If `def.LayoutNewRoomAtXZ` exists, calls custom layout logic; otherwise skips layout phase. Sets `POPULATING = true` during processing.
+* **Parameters:**
+  - `id` -- string room definition key from `vaultroom_defs`
+* **Returns:** nil
+* **Error states:** Errors via `assert()` if `self.roomid` is already set (room already exists). Errors via `assert(false)` if `defs[id]` is nil (invalid room ID).
 
 ### `UnloadRoom(save)`
-* **Description:** Unloads all entities in the room within a radius of 28 tiles. Optionally saves entities to a data structure if `save` is `true`. Entities are selectively skipped, saved, or kept based on ownership and tag logic. Removes remaining entities from the world.
-* **Parameters:**  
-  - `save` (`boolean`) — Whether to serialize and return entity data.
-* **Returns:**  
-  - `save?` — A table of saved entities (prefab → records) and metadata (e.g., `world_time`), or `nil` if `save=false` or no entities were saved.  
-  - `ents` (`table`) — List of entity instances that were *not* saved or removed (kept in the room).
-* **Error states:** Returns early with no action if `self.roomid` is `nil` or invalid (assertions commented out).
+* **Description:** Unloads all entities in the room. If `save` is true, collects save records for persisting entities and returns save data. Entities are categorized as `_SKIP` (ignore), `_SAVE` (save/remove), or `_KEEP` (retain). Drops irreplaceable items from containers before removal. Sets `POPULATING = true` during processing.
+* **Parameters:**
+  - `save` -- boolean; if true, generates save data instead of just removing entities
+* **Returns:** Table with save data (if `save` is true), or `nil`; plus table of remaining entities that weren't saved/removed
+* **Error states:** None. Returns early if `defs[self.roomid]` is nil.
 
 ### `ResetRoom()`
-* **Description:** Unloads the current room (without saving) and resets the terrain layout at the anchor’s position.
-* **Parameters:** None.
-* **Returns:** Nothing.
+* **Description:** Resets the room to its initial state. Calls `UnloadRoom()` to clear existing entities, then calls `ResetTerraformRoomAtXZ` to restore terrain.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None. Silently returns if `self.roomid` is nil.
 
 ### `LoadRoom(id, data)`
-* **Description:** Loads a vault room. If `data` is provided, restores entities from a prior `UnloadRoom` call; otherwise, creates a fresh layout using `LayoutNewRoom`.
-* **Parameters:**  
-  - `id` (`string`) — The room definition ID.  
-  - `data?` (`table`) — Optional saved room data containing entity records.
-* **Returns:** Nothing.
-* **Error states:** Asserts if `roomid` is already set or `defs[id]` is missing.
+* **Description:** Loads a room from save data. If `data` is nil, calls `LayoutNewRoom()` for fresh generation. Otherwise spawns saved entities via `SpawnSaveRecord()`, hooks up references via `LoadPostPass()`, and applies time delta via `LongUpdate()` if `world_time` is present. Sets `POPULATING = true` during spawn.
+* **Parameters:**
+  - `id` -- string room definition key from `vaultroom_defs`
+  - `data` -- save data table from `UnloadRoom()` or `nil` for fresh layout
+* **Returns:** nil
+* **Error states:** Errors via `assert()` if `self.roomid` is already set. Errors via `assert(false)` if `defs[id]` is nil.
 
 ### `OnSave()`
-* **Description:** Serializes the room state for world save. Called by the save system.
-* **Parameters:** None.
-* **Returns:** `table?` — `{ room = roomid }` if a room is active; otherwise `nil`.
+* **Description:** Save lifecycle hook. Returns a table containing the current `roomid` if set, or `nil` if no room is active.
+* **Parameters:** None
+* **Returns:** Table `{ room = roomid }` or `nil`
+* **Error states:** None
 
 ### `OnLoad(data)`
-* **Description:** Restores the room state from a saved world. Called by the load system.
-* **Parameters:**  
-  - `data` (`table?`) — The saved room record (may be `nil`).
-* **Returns:** Nothing. Updates `self.roomid` based on `data.room`.
+* **Description:** Load lifecycle hook. Restores `roomid` from saved data. Does not automatically spawn entities — call `LoadRoom()` separately after this.
+* **Parameters:**
+  - `data` -- save data table from `OnSave()`
+* **Returns:** nil
+* **Error states:** None. Handles `data` being nil gracefully.
+
+### `_inroom(ent, map, tile_x, tile_y)` (local)
+* **Description:** Checks if an entity is within the room bounds. Returns true if entity is within 5 tiles of the center OR if the tile is `VAULT` or `IMPASSABLE` with visual ground.
+* **Parameters:**
+  - `ent` -- entity to check
+  - `map` -- world map instance
+  - `tile_x` -- center tile X coordinate
+  - `tile_y` -- center tile Y coordinate
+* **Returns:** boolean
+* **Error states:** None
+
+### `_getunloadaction(ent, map, tile_x, tile_y)` (local)
+* **Description:** Determines what action to take on an entity during unload. Traces ownership chain through `spell.target`, `formationleader.target`, `follower:GetLeader()`, and `inventoryitem.owner`. Returns `_SKIP` for invalid/parented entities or those with `staysthroughvirtualrooms`. Returns `_KEEP` for players or entities with `irreplaceable`/`followsthroughvirtualrooms` tags. Returns `_SAVE` for normal room entities.
+* **Parameters:**
+  - `ent` -- entity to evaluate
+  - `map` -- world map instance
+  - `tile_x` -- center tile X coordinate
+  - `tile_y` -- center tile Y coordinate
+* **Returns:** Number: `_SKIP` (1), `_SAVE` (2), or `_KEEP` (3)
+* **Error states:** None
 
 ## Events & listeners
-None identified.
+None identified. This component does not register any event listeners, push any events, or watch world state variables.

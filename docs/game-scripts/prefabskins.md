@@ -1,39 +1,33 @@
 ---
 id: prefabskins
 title: Prefabskins
-description: Defines global tables mapping prefab names to skin identifiers, listing non-selectable skins, and creating an inverted lookup table for skin data in Don't Starve Together.
-tags: [data, config, skins, prefabs]
+description: This file defines the PREFAB_SKINS configuration table mapping prefabs to skin IDs, along with exclusion lists and reverse lookup mappings.
+tags: [config, data, skins, prefabs]
 sidebar_position: 10
 
-last_updated: 2026-04-11
-build_version: 719586
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
 category_type: root
-source_hash: bb25d4ff
+source_hash: 76628d7c
 system_scope: entity
 ---
 
 # Prefabskins
 
-> Based on game build **719586** | Last updated: 2026-04-11
+> Based on game build **722832** | Last updated: 2026-04-17
 
 ## Overview
-`prefabskins.lua` is a data configuration file that defines global lookup tables for character, item, structure, and decoration skins. It maps prefab names to arrays of available skin identifiers via `PREFAB_SKINS`, lists non-selectable skin prefabs in `PREFAB_SKINS_SHOULD_NOT_SELECT`, and generates an inverted `PREFAB_SKINS_IDS` table for reverse lookups. This file is required by systems that need to resolve skin ownership or validate skin availability without attaching to specific entity instances.
+`prefabskins.lua` is a data configuration file that defines the global `PREFAB_SKINS` table mapping prefab names to arrays of available skin identifiers. It also defines the `PREFAB_SKINS_SHOULD_NOT_SELECT` exclusion table and generates the `PREFAB_SKINS_IDS` reverse lookup mapping from the main configuration. This file is required by systems that need to resolve skin identifiers to prefabs or validate skin availability without attaching to entities.
 
 ## Usage example
 ```lua
 local PrefabSkins = require "prefabskins"
-
--- Check available skins for a specific prefab
-local skins = PrefabSkins.PREFAB_SKINS["wilson"]
-if skins then
-    print("Wilson has " .. #skins .. " available skins")
-end
-
--- Verify if a skin is selectable
-local is_selectable = not PrefabSkins.PREFAB_SKINS_SHOULD_NOT_SELECT["skin_name"]
-
--- Lookup prefab by skin ID
+-- Access the main skin mapping table
+local skins = PrefabSkins.PREFAB_SKINS
+-- Check exclusion list for selection logic
+local exclude = PrefabSkins.PREFAB_SKINS_SHOULD_NOT_SELECT
+-- Lookup prefab name by skin ID
 local prefab = PrefabSkins.PREFAB_SKINS_IDS["skin_id"]
 ```
 
@@ -47,9 +41,10 @@ local prefab = PrefabSkins.PREFAB_SKINS_IDS["skin_id"]
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
+| None | | | No properties are defined. |
 
 ## Main functions
-None.
+None identified.
 
 ## Events & listeners
 This file is not event-driven.

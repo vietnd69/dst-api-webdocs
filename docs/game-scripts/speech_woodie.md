@@ -5,11 +5,11 @@ description: Provides speech functionality specific to the Woodie character, han
 tags: [speech, character, werewolf]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-21
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: 1d1b4d8a
+source_hash: 1bf7dd37
 system_scope: player
 ---
 

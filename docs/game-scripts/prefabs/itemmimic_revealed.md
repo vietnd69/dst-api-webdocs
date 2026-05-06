@@ -1,98 +1,154 @@
 ---
 id: itemmimic_revealed
 title: Itemmimic Revealed
-description: Manages the revealed form of an item mimic, handling state transitions, player interaction, and shadow VFX synchronization during combat.
-tags: [combat, ai, boss, fx, ambient]
+description: Defines the revealed form of the Item Mimic enemy with combat, loot, and shadow VFX components.
+tags: [enemy, shadow, mimic, combat, vfx]
 sidebar_position: 10
-
-last_updated: 2026-03-05
-build_version: 714014
+last_updated: 2026-04-18
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: d12e48ec
+source_hash: bf721f70
 system_scope: entity
 ---
 
 # Itemmimic Revealed
 
-> Based on game build **714014** | Last updated: 2026-03-05
+> Based on game build **722832** | Last updated: 2026-04-18
 
 ## Overview
-The `itemmimic_revealed` prefab defines the combat-active form of an item mimic after it has been exposed. It operates as a hostile shadow creature with specific behaviors: it spawns a companion shadow entity for visual effects, monitors player proximity to trigger a lethaldispersion effect, and coordinates animations and sound cues (e.g., eye appearance/disappearance) via state graph events. It is tightly integrated with the `itemmimic_revealedbrain` AI and uses several core components (`health`, `playerprox`, `timer`) to manage its lifecycle and interactions.
+`itemmimic_revealed` is a prefab that spawns the revealed combat form of the Item Mimic enemy. It includes health, locomotion, loot dropping, player proximity detection, sanity aura, and timer components. The prefab also spawns a shadow VFX child entity (`itemmimic_revealed_shadow`) that renders particle effects. This prefab is server-authoritative for combat logic while the shadow effect is client-side only.
 
 ## Usage example
 ```lua
--- This prefab is instantiated internally by the game when an item mimic is triggered.
--- Custom usage is not recommended; it is intended to be created via the state graph
--- and brain logic of the parent item mimic prefab.
-local inst = require("prefabs/itemmimic_revealed")()
-inst.components.health:SetHealth(100)
+-- Spawn the revealed mimic
+local inst = SpawnPrefab("itemmimic_revealed")
+
+-- Configure loot behavior
+inst.SetNoLoot(inst, true)  -- Disable loot drop
+local hasNoLoot = inst.GetNoLoot(inst)
+
+-- Save/Load support
+local saveData = {}
+inst.OnSave(inst, saveData)
+inst.OnLoad(inst, saveData)
 ```
 
 ## Dependencies & tags
-**Components used:** `health`, `locomotor`, `lootdropper`, `playerprox`, `sanityaura`, `timer`  
-**Tags added:** `shadowcreature`, `monster`, `hostile`, `shadow`, `notraptrigger`, `shadow_aligned`
+**External dependencies:**
+- `brains/itemmimic_revealedbrain` -- AI behavior tree attached to the entity
+
+**Components used:**
+- `health` -- manages entity health and death state
+- `locomotor` -- controls movement speed and creep behavior
+- `lootdropper` -- manages loot table on death
+- `playerprox` -- detects nearby players for step-on dispersal
+- `sanityaura` -- applies sanity drain to nearby players
+- `timer` -- manages mimic blocker and stepping delay timers
+- `knownlocations` -- tracks entity location knowledge
+
+**Tags:**
+- `shadowcreature` -- added on creation
+- `monster` -- added on creation
+- `hostile` -- added on creation
+- `shadow` -- added on creation
+- `notraptrigger` -- added on creation
+- `shadow_aligned` -- added on creation
+- `itemmimic_revealed` -- added on creation
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `scrapbook_anim` | string | `"eye_idle"` | Animation used when the creature is viewed in the scrapbook. |
-| `scrapbook_hidehealth` | boolean | `true` | Hides health in scrapbook UI. |
-| `anim_bank` | string | `"item_mimic_reveal"` | Animation bank for the entity. |
-| `anim_build` | string | `"item_mimic_reveal"` | Build used for the animation state. |
-| `_shadow_tail` | Entity or `nil` | `nil` | Reference to the associated shadow FX entity (client-only). |
-| `_toggle_tail_event` | NetEvent | `nil` | Network event used to synchronize tail animation toggle. |
+| `noloot` | boolean | `nil` | Whether the entity drops loot on death. |
+| `_shadow_tail` | entity | `nil` | Reference to the shadow VFX child entity (client-only). |
+| `_toggle_tail_event` | net_event | `nil` | Network event for toggling shadow tail visibility. |
+| `scrapbook_anim` | string | `"eye_idle"` | Animation name for scrapbook display. |
+| `scrapbook_hidehealth` | boolean | `true` | Whether to hide health in scrapbook UI. |
 
 ## Main functions
+### `SetNoLoot(inst, noloot)`
+* **Description:** Configures whether the entity drops loot on death. Sets the loot table to empty or default based on the flag.
+* **Parameters:**
+  - `inst` -- entity instance
+  - `noloot` -- boolean to enable/disable loot dropping
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `lootdropper` component (nil dereference on `inst.components.lootdropper` -- no guard present).
+
+### `GetNoLoot(inst)`
+* **Description:** Returns the current loot drop configuration state.
+* **Parameters:** `inst` -- entity instance
+* **Returns:** Boolean value of `inst.noloot`
+* **Error states:** None
+
+### `OnLoad(inst, data)`
+* **Description:** Restores saved state when the entity is loaded from a save file. Applies the `noloot` setting if present in save data.
+* **Parameters:**
+  - `inst` -- entity instance
+  - `data` -- table containing saved state
+* **Returns:** None
+* **Error states:** None (handles nil `data` gracefully)
+
+### `OnSave(inst, data)`
+* **Description:** Saves current state to a table for persistence. Stores the `noloot` flag.
+* **Parameters:**
+  - `inst` -- entity instance
+  - `data` -- table to populate with save data
+* **Returns:** None
+* **Error states:** None
+
 ### `on_eye_up(inst)`
-* **Description:** Handles the `eye_up` event by playing the eye appearance animation and emitting a sound, but only if the entity is not dead.
-* **Parameters:** `inst` (Entity) — the item mimic revealed instance.
-* **Returns:** Nothing.
-* **Error states:** Early exit if `inst.components.health:IsDead()` returns `true`.
+* **Description:** Plays eye appearance animation and sound when the `eye_up` event fires. Only activates if the entity is not dead.
+* **Parameters:** `inst` -- entity instance
+* **Returns:** None
+* **Error states:** None (checks `IsDead()` before playing animation)
 
 ### `on_eye_down(inst)`
-* **Description:** Plays the eye disappearance animation and switches to the `"empty"` idle animation.
-* **Parameters:** `inst` (Entity) — the item mimic revealed instance.
-* **Returns:** Nothing.
+* **Description:** Plays eye disappearance animation when the `eye_down` event fires.
+* **Parameters:** `inst` -- entity instance
+* **Returns:** None
+* **Error states:** None
 
 ### `DisperseFromBeingSteppedOn(inst, player)`
-* **Description:** Kills the entity and notifies the player if they stepped on it.
-* **Parameters:**  
-  - `inst` (Entity) — the item mimic revealed instance.  
-  - `player` (Entity or `nil`) — the player who triggered the effect.
-* **Returns:** Nothing.
+* **Description:** Kills the entity when a player steps on it. Pushes a `killed` event to the player if present.
+* **Parameters:**
+  - `inst` -- entity instance
+  - `player` -- player entity that stepped on it (can be nil)
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `health` component (nil dereference on `inst.components.health:Kill()` -- no guard present).
 
 ### `toggle_tail(inst)`
-* **Description:** Toggles the `_disabled` state of the shadow tail FX entity, enabling/disabling its particle emission.
-* **Parameters:** `inst` (Entity) — the item mimic revealed instance.
-* **Returns:** Nothing.
+* **Description:** Toggles the disabled state of the shadow tail VFX entity.
+* **Parameters:** `inst` -- entity instance
+* **Returns:** None
+* **Error states:** None (checks `inst._shadow_tail` before accessing)
 
 ### `on_death(inst, data)`
-* **Description:** Fires the `itemmimic_revealed.toggle_tail_event` net event upon death to signal the shadow tail should disappear.
-* **Parameters:**  
-  - `inst` (Entity) — the item mimic revealed instance.  
-  - `data` (table) — event payload (unused).
-* **Returns:** Nothing.
+* **Description:** Pushes the toggle tail event when the entity dies.
+* **Parameters:**
+  - `inst` -- entity instance
+  - `data` -- event data (unused)
+* **Returns:** None
+* **Error states:** None
 
 ### `on_jump_spawn(inst)`
-* **Description:** Ensures a `"recently_spawned"` timer is running (5s) after a jump behavior occurs, likely to prevent immediate aggro.
-* **Parameters:** `inst` (Entity) — the item mimic revealed instance.
-* **Returns:** Nothing.
+* **Description:** Starts the `recently_spawned` timer if it does not already exist when the `jump` event fires.
+* **Parameters:** `inst` -- entity instance
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `timer` component (nil dereference on `inst.components.timer` -- no guard present).
 
 ### `on_timer_done(inst, data)`
-* **Description:** Handles timer completion for `"stepping_delay"`; activates player proximity detection after the delay.
-* **Parameters:**  
-  - `inst` (Entity) — the item mimic revealed instance.  
-  - `data` (table) — timer completion data; expects `name` field.
-* **Returns:** Nothing.
+* **Description:** Sets up player proximity detection when the `stepping_delay` timer completes.
+* **Parameters:**
+  - `inst` -- entity instance
+  - `data` -- table containing `name` field with timer name
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `playerprox` component (nil dereference on `inst.components.playerprox` -- no guard present).
 
 ## Events & listeners
-- **Listens to:**  
-  - `eye_up` — triggers eye appearance animation and sound.  
-  - `eye_down` — triggers eye disappearance animation.  
-  - `death` — fires `toggle_tail_event` net event.  
-  - `timerdone` — triggers post-delay player proximity activation.  
-  - `jump` — ensures `"recently_spawned"` timer is started.  
-  - `itemmimic_revealed.toggle_tail_event` — calls `toggle_tail` (client-only).
-- **Pushes:**  
-  - `itemmimic_revealed.toggle_tail_event` — via `net_event` (server → client sync for shadow tail toggle).
+- **Listens to:** `eye_up` -- triggers eye appearance animation
+- **Listens to:** `eye_down` -- triggers eye disappearance animation
+- **Listens to:** `death` -- triggers shadow tail event push
+- **Listens to:** `timerdone` -- sets up player proximity detection on stepping_delay completion
+- **Listens to:** `jump` -- starts recently_spawned timer
+- **Listens to:** `itemmimic_revealed.toggle_tail_event` -- toggles shadow tail visibility (client-only)
+- **Pushes:** `killed` -- pushed to player entity when stepped on (via `player:PushEvent`)

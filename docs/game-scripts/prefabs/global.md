@@ -1,45 +1,65 @@
 ---
 id: global
 title: Global
-description: Defines global assets required for the game's frontend, UI, animations, shaders, fonts, and sound packages—serving as a shared dependency container for the entire game and modding system.
-tags: [asset, frontend, ui, sound, animation]
+description: Defines the global asset prefab that preloads all core game resources including sounds, images, shaders, animations, and fonts on game initialization.
+tags: [assets, prefab, resources]
 sidebar_position: 10
 
-last_updated: 2026-03-05
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 8a7e84a5
-system_scope: world
+source_hash: da466e92
+system_scope: environment
 ---
 
 # Global
 
-> Based on game build **714014** | Last updated: 2026-03-05
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`global.lua` defines the `global` prefab, a shared asset container used across the game's frontend (FE), in-game UI, character systems, and runtime rendering. It does *not* define an entity component—it is a *prefab factory* used exclusively to preload and register a massive list of assets (images, animations, shaders, fonts, sound packages, dynamic atlases, etc.). These assets are referenced by nearly all UI widgets, screens, prefabs, and rendering systems. The prefab itself has no constructor logic or functionality beyond asset registration and returns a minimal `Prefab` instance.
+`global` is a special prefab that does not spawn an entity but instead registers all core game assets for preloading during initialization. It ensures sounds, images, shaders, animations, fonts, and character portraits are available before gameplay begins. This prefab is referenced by the engine's asset loading system and should not be spawned at runtime. Modders can reference its asset patterns when defining custom prefab dependencies.
 
 ## Usage example
-This prefab is not instantiated or used directly in gameplay logic. Instead, it is loaded at startup by the engine to populate the global asset pool. Modders may reference its assets by name (e.g., `"images/global.xml"`) but should avoid redefining it.
-
 ```lua
--- Not intended for direct use. Example of asset referencing in a mod:
-local mywidget = Widget("my_custom_image")
-mywidget.texture = "images/global.tex"
-mywidget.atlas = "images/global.xml"
+-- This prefab is not spawned directly; it is registered for asset preloading.
+-- To reference similar asset patterns in your mod:
+
+local assets = {
+    Asset("ATLAS", "images/your_mod.xml"),
+    Asset("IMAGE", "images/your_mod.tex"),
+    Asset("ANIM", "anim/your_anim.zip"),
+    Asset("SOUNDPACKAGE", "sound/your_mod.fev"),
+    Asset("FILE", "sound/your_mod.fsb"),
+    Asset("SHADER", "shaders/your_shader.ksh"),
+}
+
+return Prefab("your_prefab", function(inst)
+    -- Your prefab logic here
+end, assets)
 ```
 
 ## Dependencies & tags
-**Components used:** None  
-**Tags:** None  
+**External dependencies:**
+- `fonts` -- loads `FONTS` table for font asset registration
+- `skin_assets` -- returns table of skin-related asset definitions
+- `cooking` -- provides `cookbook_recipes` for recipe image assets
+- `klump_files` -- provides Quagmire event recipe images (conditional on `QUAGMIRE_USE_KLUMP`)
+
+**Components used:**
+- None -- this prefab does not attach components to any entity
+
+**Tags:**
+- None -- this prefab does not add, remove, or check entity tags
 
 ## Properties
-No public properties exist. This is not a component or entity—it is a static asset manifest.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| None | | | No properties are defined. This is a prefab registration file with no Class() constructor or instance properties. |
 
 ## Main functions
-This file defines only a single top-level expression and no functions accessible to modders.
+None identified. This is a prefab registration file that only contains a local assets table and a return statement; no local functions are defined.
 
 ## Events & listeners
-No events or listeners.
-
+- **Listens to:** None identified. This file does not subscribe to any entity or world events.
+- **Pushes:** None identified. This file does not fire any events during execution.

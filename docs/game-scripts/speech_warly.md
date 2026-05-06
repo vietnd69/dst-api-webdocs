@@ -5,11 +5,11 @@ description: Handles Warly's unique speech dialogue system, managing line select
 tags: [speech, character, warly, audio, dialogue]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-22
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: 3f132e5b
+source_hash: 9c057388
 system_scope: player
 ---
 

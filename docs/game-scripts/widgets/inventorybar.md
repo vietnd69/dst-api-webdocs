@@ -1,295 +1,418 @@
 ---
 id: inventorybar
 title: Inventorybar
-description: Manages the player's inventory HUD bar, including slot layout, cursor navigation, item display, and controller mouse/focus integration.
-tags: [ui, inventory, player]
+description: Manages the player's inventory bar widget, handling item display, controller navigation, equip slots, and inventory interactions.
+tags: [ui, inventory, widget, controller]
 sidebar_position: 10
-
-last_updated: 2026-03-08
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: widgets
-source_hash: c797ad3c
-system_scope: player
+source_hash: 10fc013c
+system_scope: ui
 ---
 
 # Inventorybar
 
-> Based on game build **714014** | Last updated: 2026-03-08
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-The `Inventorybar` widget is the core UI component responsible for rendering and interacting with the player's inventory in Don't Starve Together. It displays inventory slots, equipment slots, integrated backpack contents, and the active item cursor — adapting its layout and behavior based on game mode (e.g., Quagmire, Lava Arena), controller/mouse input, and profile settings. It synchronizes with the `inventory` replica component, handles cursor navigation (including pin-based and directional), manages auto-pause during controller interaction, and coordinates with `PlayerController` for item actions like equipping, dropping, and using items on targets.
+`Inventorybar` is the primary UI widget responsible for rendering and managing the player's inventory interface. It handles inventory slot display, equipment slots, backpack overflow containers, controller-based navigation, and item interaction hints. The widget listens to inventory events from the owner entity and updates its visual state accordingly. It supports different game modes (lavaarena, quagmire, standard) with customized layouts and scales.
 
 ## Usage example
 ```lua
--- Example: Initializing and managing inventory bar in a custom HUD
-local hud = Create Widget("hud")
-local inventorybar = hud:AddChild("Inventorybar")
-inventorybar:SetOwner(ThePlayer)
-inventorybar:AddEquipSlot(EQUIPSLOTS.HANDS, "images/hud.xml", "hands.tex", 1)
-inventorybar:Rebuild() -- Layout initial setup
-inventorybar:OpenControllerInventory() -- Show when controller opens menu
-inventorybar:CloseControllerInventory() -- Hide and return focus
+local owner = ThePlayer
+local inv = owner.HUD.controls.inv
+
+-- Open controller inventory
+inv:OpenControllerInventory()
+
+-- Refresh inventory display
+inv:Refresh()
+
+-- Navigate cursor
+inv:CursorRight()
+inv:SelectDefaultSlot()
+
+-- Close inventory
+inv:CloseControllerInventory()
 ```
 
 ## Dependencies & tags
-**Components used:**
-- `components/playercontroller`
-- `components/inventory`
-- `components/replica/inventory` (via `self.inst.replica.inventory`)
-- `components/replica/rider` (via `self.inst.replica.rider`)
+**External dependencies:**
+- `widgets/invslot` -- InvSlot widget for inventory slots
+- `widgets/tilebg` -- TileBG widget for slot backgrounds
+- `widgets/image` -- Image widget for textures
+- `widgets/widget` -- Base Widget class
+- `widgets/equipslot` -- EquipSlot widget for equipment
+- `widgets/itemtile` -- ItemTile widget for item display
+- `widgets/text` -- Text widget for UI strings
+- `widgets/hudcompass` -- HudCompass widget for compass display
+- `widgets/templates` -- UI template utilities
+- `util/sourcemodifierlist` -- SourceModifierList for visibility modifiers
 
-**Tags:** None (no tags defined or used in either chunk)
+**Components used:**
+- `playercontroller` -- accessed via `owner.components.playercontroller` for action retrieval and deploy mode
+- `replica.inventory` -- accessed via `owner.replica.inventory` for inventory state and item data
+- `replica.equippable` -- accessed on items for equip slot validation
+
+**Tags:**
+- None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `owner` | Entity | — | The player entity the inventory belongs to. |
-| `out_pos`, `in_pos` | Vector3 | — | Target positions for cursor movement (hover in/out). |
-| `base_scale`, `selected_scale` | number | `0.6`, `0.8` | Scale multipliers for normal vs. selected slots. |
-| `inv`, `backpackinv`, `equip`, `equipslotinfo` | table | — | Internal storage for inventory, backpack, equipment slots, and equipment metadata. |
-| `root`, `toprow`, `bottomrow` | Widget | — | Layout hierarchy root widgets. |
-| `hudcompass`, `hand_inv` | Widget | — | Compass and hand-inv positioning widgets. |
-| `bg`, `bgcover`, `bgcover2` | Widget | — | Background and cover widgets for inventory mode (e.g., Quagmire, default). |
-| `hovertile`, `cursortile` | Widget | — | Hover and active cursor tile widgets (controller mode). |
-| `actionstring`, `actionstringtitle`, `actionstringbody` | Widget | — | Tooltip widgets for item action descriptions. |
-| `repeat_time`, `reps` | number | — | Controller repeat input timing and counter. |
-| `actionstringtime` | number | `10` | Delay (frames) before auto-hiding action string. |
-| `openhint`, `hint_update_check` | Widget, timer | — | Hint text and timer for periodic hint updates. |
-| `controller_build`, `integrated_backpack`, `force_single_drop`, `autopaused`, `autopause_delay` | boolean/number | — | State flags for controller mode, backpack integration, drop behavior, and auto-pause behavior. |
-| `rebuild_pending`, `rebuild_snapping` | boolean | — | Flags indicating layout needs rebuild or snap repositioning. |
-| `active_slot` | Widget (slot) | — | Currently selected slot widget. |
-| `current_list` | table | — | List (e.g., `self.inv`, `self.equip`) containing `active_slot`. |
+| `owner` | entity | `nil` | The player entity that owns this inventory widget. |
+| `out_pos` | Vector3 | `Vector3(0,W,0)` | Target position when inventory is closed/hidden. |
+| `in_pos` | Vector3 | `Vector3(0,W*1.5,0)` | Target position when inventory is open/visible. |
+| `base_scale` | number | `0.6` | Base scale for inventory widgets. |
+| `selected_scale` | number | `0.8` | Scale when a slot is selected. |
+| `inv` | table | `{}` | Array of inventory slot widgets. |
+| `backpackinv` | table | `{}` | Array of backpack overflow slot widgets. |
+| `equip` | table | `{}` | Table of equipment slot widgets keyed by slot type. |
+| `equipslotinfo` | table | `{}` | Array of equipment slot configuration data. |
+| `root` | Widget | `nil` | Root widget container for all inventory children. |
+| `hudcompass` | HudCompass | `nil` | Compass widget displayed near hand slot. |
+| `hand_inv` | Widget | `nil` | Widget container for hand inventory display. |
+| `bg` | Image | `nil` | Background image widget. |
+| `bgcover` | Image/Widget | `nil` | Background cover image or dummy widget. |
+| `hovertile` | ItemTile | `nil` | Hover tile for mouse-based item preview. |
+| `cursortile` | ItemTile | `nil` | Cursor tile for controller-based item display. |
+| `actionstring` | Widget | `nil` | Container for action hint text. |
+| `actionstringtitle` | Text | `nil` | Title text showing item name. |
+| `actionstringbody` | Text | `nil` | Body text showing available actions. |
+| `repeat_time` | number | `0.2` | Time between controller input repeats. |
+| `reps` | number | `0` | Repeat counter for controller input. |
+| `open` | boolean | `false` | Whether the controller inventory is currently open. |
+| `active_slot` | InvSlot/EquipSlot | `nil` | Currently selected/highlighted slot widget. |
+| `current_list` | table | `nil` | Current inventory list being navigated. |
+| `pin_nav` | boolean | `false` | Whether navigating the crafting pin bar. |
+| `controller_build` | boolean | `nil` | Whether controller is attached during build. |
+| `integrated_backpack` | boolean | `nil` | Whether integrated backpack is enabled. |
+| `force_single_drop` | boolean | `false` | Force single item drop instead of stack. |
+| `autopaused` | boolean | `false` | Whether the game is autopaused due to inventory. |
+| `autopause_delay` | number | `0` | Delay timer before autopause activates. |
+| `openhint` | Text | `nil` | Hint text showing how to open inventory. |
+| `hint_update_check` | number | `2.0` | Timer for updating controller hint. |
+| `hover_tile_visibility` | boolean | `true` | Whether hover tiles should be visible. |
+| `hovertile_hide_sources` | SourceModifierList | `nil` | Modifier list controlling hover tile visibility. |
+| `rebuild_pending` | boolean | `nil` | Flag indicating rebuild is needed. |
+| `rebuild_snapping` | boolean | `nil` | Flag for snapping animation during rebuild. |
+| `toprow` | Widget | `nil` | Widget container for top row slots. |
+| `bottomrow` | Widget | `nil` | Widget container for bottom row (backpack) slots. |
+| `inspectcontrol` | Widget | `nil` | Self-inspect button widget. |
+| `backpack` | entity | `nil` | Backpack entity for event listeners. |
+| `integrated_arrow` | Image | `nil` | Arrow image pointing to integrated backpack. |
 
 ## Main functions
-### `Inv:AddEquipSlot(slot, atlas, image, sortkey)`
-* **Description:** Registers an equipment slot for display in the inventory bar. Stores metadata, sorts by `sortkey`, and marks layout for rebuild.
-* **Parameters:**  
-  - `slot` — equipment slot identifier (e.g., `EQUIPSLOTS.HANDS`)
-  - `atlas` — texture atlas path (e.g., `"images/hud.xml"`)
-  - `image` — image filename within atlas (e.g., `"hands.tex"`)
-  - `sortkey` — optional integer for ordering; defaults to `#self.equipslotinfo`
-* **Returns:** `nil`
+### `AddEquipSlot(slot, atlas, image, sortkey)`
+* **Description:** Adds an equipment slot configuration to the inventory. Called during initialization to define which equip slots are displayed.
+* **Parameters:**
+  - `slot` -- EQUIPSLOTS constant (e.g., EQUIPSLOTS.HANDS)
+  - `atlas` -- string path to texture atlas
+  - `image` -- string name of texture within atlas
+  - `sortkey` -- number for sorting order (optional, defaults to array length)
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:Rebuild()`
-* **Description:** Fully reconstructs the inventory bar UI from scratch. Determines layout based on game mode (default vs. Quagmire), presence of integrated backpack, and profile/controller settings.
-* **Parameters:** None  
-* **Returns:** `nil`
+### `Rebuild()`
+* **Description:** Reconstructs the entire inventory layout, clearing and recreating all slot widgets. Called when inventory structure changes or after player swap.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:RefreshRepeatDelay(control)`
-* **Description:** Adjusts input repeat timing for smooth controller navigation based on repeat count and analog stick depth.
-* **Parameters:**  
-  - `control` — input control identifier (e.g., `CONTROL_MOVE_LEFT`)
-* **Returns:** `nil`
+### `Refresh(skipbackpack)`
+* **Description:** Updates all inventory slot tiles with current item data from the owner's inventory replica.
+* **Parameters:** `skipbackpack` -- boolean to skip backpack overflow refresh (optional)
+* **Returns:** None
+* **Error states:** Errors if `self.owner.replica.inventory` is nil when calling GetItems() or GetEquips().
 
-### `Inv:OnUpdate(dt)`
-* **Description:** Frame update handler for UI state: cursor positioning, input repeat handling, hint refresh, auto-pause toggling, and deferred layout rebuilding.
-* **Parameters:**  
-  - `dt` — delta time in seconds
-* **Returns:** `nil`
+### `RefreshIntegratedContainer()`
+* **Description:** Refreshes the integrated backpack overflow container slots with current items.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if `self.owner.replica.inventory` is nil when calling GetOverflowContainer().
 
-### `Inv:OffsetCursor(offset, val, minval, maxval, slot_is_valid_fn)`
-* **Description:** Wraps a numeric cursor index across a range, skipping invalid slots via predicate.
-* **Parameters:**  
-  - `offset` — step direction (+1 or -1)
-  - `val` — current index (can be `nil`)
-  - `minval`, `maxval` — inclusive bounds
-  - `slot_is_valid_fn` — function `(idx) -> boolean` to validate slots
-* **Returns:** Valid index (number), or `nil` if none found after full wrap
+### `SetHoverTileHideModifier(source, hidden, key)`
+* **Description:** Sets a visibility modifier for hover tiles from a specific source.
+* **Parameters:**
+  - `source` -- string identifier for the modifier source
+  - `hidden` -- boolean whether to hide hover tiles
+  - `key` -- string key for the modifier (optional, defaults to source)
+* **Returns:** None
+* **Error states:** Errors if `self.hovertile_hide_sources` is nil when calling SetModifier().
 
-### `Inv:PinBarNav(select_pin)`
-* **Description:** Immediately navigates to a pin (e.g., crafting button) in pin-based navigation mode.
-* **Parameters:**  
-  - `select_pin` — pin slot widget or identifier
+### `EnableHoverTileVisibility(enable)`
+* **Description:** Enables or disables hover tile image visibility.
+* **Parameters:** `enable` -- boolean to show or hide hover tile images
+* **Returns:** None
+* **Error states:** None
+
+### `OnUpdate(dt)`
+* **Description:** Called every frame while the widget is updating. Handles controller input, autopause logic, cursor updates, and hint text refresh.
+* **Parameters:** `dt` -- number delta time since last frame
+* **Returns:** None
+* **Error states:** Errors if `self.owner.components.playercontroller` is nil when accessing player controller methods.
+
+### `OnControl(control, down)`
+* **Description:** Handles controller input events for inventory interaction including item selection, dropping, and using items.
+* **Parameters:**
+  - `control` -- CONTROL_ constant for the input
+  - `down` -- boolean whether the control is pressed or released
+* **Returns:** `true` if control was handled, `nil` otherwise
+* **Error states:** Errors if `self.owner.replica.inventory` is nil when accessing inventory methods.
+
+### `OpenControllerInventory()`
+* **Description:** Opens the controller-based inventory interface, locks focus, and scales widgets to selected scale.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if `self.owner.HUD.controls` is nil when calling SetDark().
+
+### `CloseControllerInventory()`
+* **Description:** Closes the controller inventory, returns active item to slot, unlocks focus, and scales widgets back to base scale.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if `self.owner.HUD.controls` is nil when calling SetDark().
+
+### `SelectSlot(slot)`
+* **Description:** Selects a specific inventory slot, dehighlighting the previous active slot and highlighting the new one.
+* **Parameters:** `slot` -- InvSlot or EquipSlot widget to select
+* **Returns:** `true` if slot was changed, `nil` otherwise
+* **Error states:** None
+
+### `SelectDefaultSlot()`
+* **Description:** Selects the first available inventory slot or first equipment slot as default.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `UpdateCursor()`
+* **Description:** Updates the cursor widget position and visibility based on active slot and controller state. Creates or kills cursor and cursortile as needed.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if `self.active_slot` is invalid when calling GetWorldPosition().
+
+### `UpdateCursorText()`
+* **Description:** Updates the action hint text based on the currently selected item and available actions. Shows controller button prompts for examine, drop, use, equip, etc.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `CursorNav(dir, same_container_only)`
+* **Description:** Navigates the cursor in a direction to the closest valid slot widget.
+* **Parameters:**
+  - `dir` -- Vector3 direction for navigation
+  - `same_container_only` -- boolean to restrict navigation to current container
 * **Returns:** `true` if navigation succeeded, `nil` otherwise
+* **Error states:** Errors if `self.owner.components.playercontroller` is nil when calling CancelDeployPlacement().
 
-### `Inv:GetInventoryLists(same_container_only)`
-* **Description:** Returns lists of inventory slots to search during cursor navigation (e.g., `self.inv`, `self.equip`, `self.backpackinv`).
-* **Parameters:**  
-  - `same_container_only` — boolean; restrict scope to current container and equipped slots if `true`
-* **Returns:** Table of slot lists (e.g., `{self.inv, self.equip, self.backpackinv}`)
+### `CursorLeft()`
+* **Description:** Handles left navigation input, including pin bar transitions and container switching.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:CursorNav(dir, same_container_only)`
-* **Description:** Performs directional cursor navigation to the nearest valid slot in `dir`, updating `active_slot` and `current_list`.
-* **Parameters:**  
-  - `dir` — `Vector3` direction (e.g., `Vector3(-1,0,0)`)
-  - `same_container_only` — boolean; restrict navigation scope
-* **Returns:** `true` if a valid slot was selected, `nil` otherwise
+### `CursorRight()`
+* **Description:** Handles right navigation input, including pin bar transitions and default slot selection.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:CursorLeft()`, `Inv:CursorRight()`, `Inv:CursorUp()`, `Inv:CursorDown()`
-* **Description:** Directional navigation handlers; calls `CursorNav` internally, plays click sound, and handles repeat resets or pin fallbacks.
-* **Parameters:** None  
-* **Returns:** `nil`
+### `CursorUp()`
+* **Description:** Handles up navigation input, including pin bar navigation.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:GetClosestWidget(lists, pos, dir)`
-* **Description:** Finds the closest widget to `pos` in direction `dir` from `lists`, filtering to the forward half-plane.
-* **Parameters:**  
-  - `lists` — table of slot lists
-  - `pos` — `Vector3` current position
-  - `dir` — `Vector3` direction vector
-* **Returns:** `slot` (widget) and `list`, or `nil, nil`
+### `CursorDown()`
+* **Description:** Handles down navigation input, including pin bar navigation and container switching.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:GetCursorItem()`, `Inv:GetCursorSlot()`
-* **Description:**  
-  - `GetCursorItem()` — returns the item in the active slot  
-  - `GetCursorSlot()` — returns `(slot_num, container)` for the active slot  
-* **Parameters:** None  
-* **Returns:**  
-  - `GetCursorItem()` — item instance or `nil`  
-  - `GetCursorSlot()` — `{slot_num}, {container}` or `nil, nil`
+### `GetInventoryLists(same_container_only)`
+* **Description:** Returns array of inventory lists for navigation. Includes inv, equip, backpackinv, and open containers.
+* **Parameters:** `same_container_only` -- boolean to return only current container lists
+* **Returns:** table of inventory list arrays
+* **Error states:** None
 
-### `Inv:OnControl(control, down)`
-* **Description:** Handles controller button inputs for inventory actions: accept, drop stack, drop item, swap. Respects read-only containers and special conditions.
-* **Parameters:**  
-  - `control` — control identifier (e.g., `CONTROL_ACCEPT`)
-  - `down` — must be `false` to trigger action
-* **Returns:** `true` if input handled, otherwise `nil`
+### `GetClosestWidget(lists, pos, dir)`
+* **Description:** Finds the closest widget in the given direction from a position.
+* **Parameters:**
+  - `lists` -- table of widget lists to search
+  - `pos` -- Vector3 starting position
+  - `dir` -- Vector3 direction to search
+* **Returns:** `closest` (widget), `closest_list` (table) or `nil` if no widget found
+* **Error states:** None
 
-### `Inv:SetAutopausedInternal(pause)`
-* **Description:** Sets global auto-pause state only when changed, preventing redundant toggling.
-* **Parameters:**  
-  - `pause` — boolean target state
-* **Returns:** `nil`
+### `GetCursorItem()`
+* **Description:** Returns the item entity currently under the cursor.
+* **Parameters:** None
+* **Returns:** Entity instance or `nil` if no item
+* **Error states:** None
 
-### `Inv:OpenControllerInventory()`, `Inv:CloseControllerInventory()`
-* **Description:**  
-  - `OpenControllerInventory()` — opens inventory with animation, locks focus, starts auto-pause  
-  - `CloseControllerInventory()` — closes inventory, returns active item, resets focus/scale  
-* **Parameters:** None  
-* **Returns:** `nil`
+### `GetCursorSlot()`
+* **Description:** Returns the slot number and container for the active slot.
+* **Parameters:** None
+* **Returns:** `slot_num`, `container` or `nil` if no active slot
+* **Error states:** None
 
-### `Inv:GetDescriptionString(item)`
-* **Description:** Formats item description as `"adjective name"` or just `"name"`.
-* **Parameters:**  
-  - `item` — item instance
-* **Returns:** `string` description
+### `OnItemGet(item, slot, source_pos, ignore_stacksize_anim)`
+* **Description:** Called when an item is added to inventory. Creates item tile and optionally animates from source position.
+* **Parameters:**
+  - `item` -- entity instance of the item
+  - `slot` -- InvSlot widget receiving the item
+  - `source_pos` -- Vector3 position for animation origin (optional)
+  - `ignore_stacksize_anim` -- boolean to skip stack size animation
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:SetTooltipColour(r, g, b, a)`
-* **Description:** Sets color of `actionstringtitle`.
-* **Parameters:**  
-  - `r, g, b, a` — color components (0–1)
-* **Returns:** `nil`
+### `OnItemEquip(item, slot)`
+* **Description:** Called when an item is equipped. Updates the equipment slot tile.
+* **Parameters:**
+  - `item` -- entity instance of the equipped item
+  - `slot` -- EQUIPSLOTS constant for the slot
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:UpdateCursorText()`
-* **Description:** Populates action string UI (`actionstringtitle/body`) with localized action keys and text, based on active item, inventory item, and slot context.
-* **Parameters:** None  
-* **Returns:** `nil`
+### `OnItemUnequip(item, slot)`
+* **Description:** Called when an item is unequipped. Clears the equipment slot tile.
+* **Parameters:**
+  - `item` -- entity instance of the unequipped item
+  - `slot` -- EQUIPSLOTS constant for the slot
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:OnEnable()`, `Inv:OnDisable()`, `Inv:OnNewContainerWidget(containerwidg)`
-* **Description:**  
-  - `OnEnable()` — shows cursor  
-  - `OnDisable()` — hides action string  
-  - `OnNewContainerWidget()` — applies `selected_scale` to late-adding containers if inventory open  
-* **Parameters:**  
-  - `containerwidg` — new container widget instance  
-* **Returns:** `nil`
+### `OnItemLose(slot)`
+* **Description:** Called when an item is removed from inventory. Clears the slot tile.
+* **Parameters:** `slot` -- InvSlot widget that lost the item
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:SelectSlot(slot)`
-* **Description:** Selects a given slot, deselecting the current one. Updates pin navigation mode if needed.
-* **Parameters:**  
-  - `slot` — slot widget to select
-* **Returns:** `true` if different and valid slot selected, `nil` otherwise
+### `OnNewActiveItem(item)`
+* **Description:** Called when the player's active/held item changes. Updates hover tile or cursor tile accordingly.
+* **Parameters:** `item` -- entity instance of the new active item or `nil`
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:SelectDefaultSlot()`
-* **Description:** Selects the first available slot in `self.inv`, or if empty, in `self.equip`.
-* **Parameters:** None  
-* **Returns:** `nil`
+### `OnBuild()`
+* **Description:** Called when builditem event fires. Scales hover tile if present.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:UpdateCursor()`
-* **Description:** Updates cursor visuals and action string in controller mode; hides cursor for mouse mode.
-* **Parameters:** None  
-* **Returns:** `nil`
+### `Cancel()`
+* **Description:** Cancels the current active item, returning it to inventory.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if `self.owner.replica.inventory` is nil when calling ReturnActiveItem().
 
-### `Inv:Refresh(skipbackpack)`
-* **Description:** Syncs all inventory, equipment, and (optionally) backpack tile widgets with the replica state.
-* **Parameters:**  
-  - `skipbackpack` — boolean to skip integrated backpack refresh
-* **Returns:** `nil`
+### `SetTooltipColour(r, g, b, a)`
+* **Description:** Sets the colour of the action string title text.
+* **Parameters:**
+  - `r` -- number red channel (0-1)
+  - `g` -- number green channel (0-1)
+  - `b` -- number blue channel (0-1)
+  - `a` -- number alpha channel (0-1)
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:RefreshIntegratedContainer()`
-* **Description:** Updates integrated backpack (overflow container) slots when items change.
-* **Parameters:** None  
-* **Returns:** `nil`
+### `GetDescriptionString(item)`
+* **Description:** Returns the display name for an item, including adjective prefix if present.
+* **Parameters:** `item` -- entity instance or `nil`
+* **Returns:** string display name or empty string if item is nil
+* **Error states:** None
 
-### `Inv:OnPlacerChanged(placer_shown)`
-* **Description:** Shows/hides hovertile and backgrounds during placement (e.g., deploy mode).
-* **Parameters:**  
-  - `placer_shown` — boolean; `true` when placer is active
-* **Returns:** `nil`
+### `PinBarNav(select_pin)`
+* **Description:** Navigates to a crafting pin bar slot.
+* **Parameters:** `select_pin` -- pin slot widget to select or `nil`
+* **Returns:** `true` if navigation succeeded, `nil` otherwise
+* **Error states:** None
 
-### `Inv:Cancel()`
-* **Description:** Returns active item to inventory via replica.
-* **Parameters:** None  
-* **Returns:** `nil`
+### `OffsetCursor(offset, val, minval, maxval, slot_is_valid_fn)`
+* **Description:** Calculates the next valid cursor position with wrapping.
+* **Parameters:**
+  - `offset` -- number direction offset (+1 or -1)
+  - `val` -- number current position (optional)
+  - `minval` -- number minimum valid index
+  - `maxval` -- number maximum valid index
+  - `slot_is_valid_fn` -- function to validate slot at index
+* **Returns:** number next valid index
+* **Error states:** None
 
-### `Inv:OnItemLose(slot)`
-* **Description:** Clears a slot when its item is lost or unequipped.
-* **Parameters:**  
-  - `slot` — slot widget to clear
-* **Returns:** `nil`
+### `RefreshRepeatDelay(control)`
+* **Description:** Adjusts the controller input repeat delay based on repetition count and analog value.
+* **Parameters:** `control` -- CONTROL_ constant being held
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:OnBuild()`
-* **Description:** Triggers hovertile scale animation on build action (e.g., drag build UI).
-* **Parameters:** None  
-* **Returns:** `nil`
+### `SetAutopausedInternal(pause)`
+* **Description:** Sets the internal autopause state and calls SetAutopaused global function.
+* **Parameters:** `pause` -- boolean whether to autopause
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:OnNewActiveItem(item)`
-* **Description:** Updates cursor visuals (hovertile/cursortile) and action string to reflect the new active item.
-* **Parameters:**  
-  - `item` — new active item (or `nil`)
-* **Returns:** `nil`
+### `OnNewContainerWidget(containerwidg)`
+* **Description:** Called when a new container widget is created. Scales it to match inventory state.
+* **Parameters:** `containerwidg` -- container widget instance
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:OnItemGet(item, slot, source_pos, ignore_stacksize_anim)`
-* **Description:** Spawns and positions an `ItemTile` for a newly added item, optionally animating from `source_pos`.
-* **Parameters:**  
-  - `item` — item to add
-  - `slot` — target slot
-  - `source_pos` — optional origin `Vector3` for animation
-  - `ignore_stacksize_anim` — skip stack-size animation
-* **Returns:** `nil`
+### `OnEnable()`
+* **Description:** Called when the widget is enabled. Updates cursor state.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:OnItemEquip(item, slot)`
-* **Description:** Updates an equipment slot with a new `ItemTile`.
-* **Parameters:**  
-  - `item` — equipped item
-  - `slot` — equipment slot index/key
-* **Returns:** `nil`
+### `OnDisable()`
+* **Description:** Called when the widget is disabled. Hides action string.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:OnItemUnequip(item, slot)`
-* **Description:** Clears an equipment slot when item is unequipped.
-* **Parameters:**  
-  - `item` — unequipped item
-  - `slot` — equipment slot
-* **Returns:** `nil`
+### `OnShow()`
+* **Description:** Called when the widget becomes visible. Updates position and shows hover tile.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:UpdatePosition()`
-* **Description:** Adjusts HUD autoanchor to maintain alignment when inventory is toggled.
-* **Parameters:** None  
-* **Returns:** `nil`
+### `OnHide()`
+* **Description:** Called when the widget becomes hidden. Updates position and hides hover tile.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `Inv:OnShow()`, `Inv:OnHide()`, `Inv:OnCraftingHidden()`
-* **Description:**  
-  - `OnShow()` — update position, show hovertile  
-  - `OnHide()` — update position, hide hovertile  
-  - `OnCraftingHidden()` — reset pin navigation and default selection  
-* **Parameters:** None  
-* **Returns:** `nil`
+### `OnCraftingHidden()`
+* **Description:** Called when crafting menu is hidden. Resets pin navigation if applicable.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `UpdatePosition()`
+* **Description:** Updates the autoanchor position based on visibility and root position.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if `self.autoanchor` is nil (not initialized in constructor, no nil guard before SetPosition call).
+
+### `OnPlacerChanged(placer_shown)`
+* **Description:** Called when deploy placer visibility changes. Sets hover tile hide modifier.
+* **Parameters:** `placer_shown` -- boolean whether placer is shown
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-* **Listens to (`self.inst`):**  
-  - `"builditem"` — triggers `self:OnBuild()`  
-  - `"itemget"` — triggers `self:OnItemGet(item, slot, src_pos, ignore_stacksize_anim)`  
-  - `"equip"` / `"unequip"` — triggers `self:OnItemEquip(item, slot)` / `self:OnItemUnequip(item, slot)`  
-  - `"newactiveitem"` — triggers `self:OnNewActiveItem(item)`  
-  - `"itemlose"` — triggers `self:OnItemLose(slot)`  
-  - `"refreshinventory"` — triggers `self:Refresh(true)`  
-  - `"onplacershown"` / `"onplacerhidden"` — triggers `self:OnPlacerChanged(placer_shown)`  
-  - `"seamlessplayerswap"` — triggers `self:StopUpdating()` (on source player only)  
-  - `"finishseamlessplayerswap"` — triggers `self:Rebuild()` and `self:Refresh(true)` on target player if pending  
-
-* **Listens to (`self.backpack`):**  
-  - `"itemget"` — delegates to `Inv:OnItemGet` (via `BackpackGet`)  
-  - `"itemlose"` — delegates to `self:OnItemLose` (via `BackpackLose`)  
-  - `"refresh"` — triggers `self:RefreshIntegratedContainer()` (via `BackpackRefresh`)  
-
-* **Pushes:** None
+- **Listens to:** `builditem` - calls OnBuild()
+- **Listens to:** `itemget` - calls OnItemGet() with item data
+- **Listens to:** `equip` - calls OnItemEquip() with equip data
+- **Listens to:** `unequip` - calls OnItemUnequip() with unequip data
+- **Listens to:** `newactiveitem` - calls OnNewActiveItem() with active item
+- **Listens to:** `itemlose` - calls OnItemLose() with slot data
+- **Listens to:** `refreshinventory` - calls Refresh() to update all slots
+- **Listens to:** `onplacershown` - calls OnPlacerChanged(true)
+- **Listens to:** `onplacerhidden` - calls OnPlacerChanged(false)
+- **Listens to:** `sethovertilehidemodifier` - calls SetHoverTileHideModifier()
+- **Listens to:** `seamlessplayerswap` - calls StopUpdating()
+- **Listens to:** `finishseamlessplayerswap` - calls Rebuild() and Refresh()
+- **Listens to:** `itemget` (backpack) - calls BackpackGet() for overflow container
+- **Listens to:** `itemlose` (backpack) - calls BackpackLose() for overflow container
+- **Listens to:** `refresh` (backpack) - calls BackpackRefresh() for overflow container

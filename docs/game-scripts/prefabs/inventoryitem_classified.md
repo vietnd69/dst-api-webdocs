@@ -1,132 +1,154 @@
 ---
 id: inventoryitem_classified
 title: Inventoryitem Classified
-description: Manages networked classification and serialization of inventory item properties such as spoilage, charge state, and deployment metadata in a dedicated Classified entity.
-tags: [network, inventory, serialization]
+description: Manages networked state replication for inventory items using a classified entity structure to optimize bandwidth.
+tags: [network, inventory, replication]
 sidebar_position: 10
-
-last_updated: 2026-03-05
-build_version: 714014
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 90479663
-system_scope: network
+source_hash: 2fd99e10
+system_scope: inventory
 ---
 
 # Inventoryitem Classified
 
-> Based on game build **714014** | Last updated: 2026-03-05
+> Based on game build **722832** | Last updated: 2026-04-17
 
 ## Overview
-`inventoryitem_classified` is a lightweight, dedicated Classified entity that holds and synchronizes server-authoritative metadata for inventory items. It is not a component but a separate prefab (`inventoryitem_classified`) instantiated to represent the classification data of an inventory item. It handles serialization/deserialization of properties like spoilage (`percentused`, `perish`), charge state (`recharge`, `rechargetime`), and deployment/equipment constraints (`deploymode`, `deployrestrictedtag`, `equiprestrictedtag`). The classified entity is attached to a parent inventory item entity via `_parent` reference and exposes methods for syncing state across the client-server boundary using DST's replication primitives (`net_hash`, `net_byte`, etc.). It plays a crucial role in ensuring accurate display of item state (e.g., food spoilage percentage, tool charge level) on all clients.
+`inventoryitem_classified` is a hidden prefab entity used to store and replicate network state for inventory items without requiring full entity synchronization. It attaches to a parent inventory item entity and synchronizes properties like image, perishability, recharge, and deploy data via net variables. This structure is primarily internal to the game's networking system but exposes serialization and deserialization methods on the entity instance for state management.
 
 ## Usage example
 ```lua
--- On the server, when creating a classified entity for an inventory item:
-local classified = Prefab("inventoryitem_classified", fn)()
-classified._parent = my_item_inst
-classified:OnEntityReplicated()
+-- Typically spawned internally by the inventoryitem component during replication
+local classified = SpawnPrefab("inventoryitem_classified")
+classified.entity:SetParent(parent_inst.entity)
 
--- Later, to update and sync spoilage:
-classified:SerializePercentUsed(0.75) -- 75% used
-classified:PushEvent("percentuseddirty")
+-- Server-side: Update percent used state
+classified:SerializePercentUsed(0.5)
 
--- Or to update recharge time:
-classified:SerializeRechargeTime(300) -- 300 seconds
-classified:PushEvent("rechargetimedirty")
+-- Client-side: Access replicated data via parent replica
+local parent = classified.entity:GetParent()
+if parent and parent.replica.inventoryitem then
+    local data = parent.replica.inventoryitem.classified
+    -- Data is synchronized via net variables on the classified entity
+end
 ```
 
 ## Dependencies & tags
-**Components used:** None identified.  
-**Tags:** Adds `CLASSIFIED` tag.
+**External dependencies:**
+- `TheWorld` -- checks `ismastersim` to determine server/client logic branch
+- `FRAMES` -- global constant used for recharge tick timing
+- `DEPLOYMODE` / `DEPLOYSPACING` -- enums for deployable state defaults
+- `net_hash`, `net_bool`, `net_float`, `net_byte`, `net_smallbyte`, `net_tinybyte` -- network variable constructors
+- `Prefab`, `CreateEntity` -- prefab registration and entity creation
+
+**Components used:**
+- `inventoryitem` (replica) -- accessed via `parent.replica.inventoryitem` to check wetness and acid sizzling state
+
+**Tags:**
+- `CLASSIFIED` -- added to the entity to mark it as a classified data container
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `image` | `net_hash` | `0` | Networked hash for the item's image/tile index. |
-| `atlas` | `net_hash` | `0` | Networked hash for the item's atlas name. |
-| `cangoincontainer` | `net_bool` | `true` | Whether the item can be placed in a container. |
-| `canonlygoinpocket` | `net_bool` | `false` | Restricts placement to pockets only. |
-| `canonlygoinpocketorpocketcontainers` | `net_bool` | `false` | Restricts placement to pockets or pocket containers. |
-| `src_pos` | `table` | `{ isvalid = false, x = 0, z = 0 }` | Networked source placement coordinates (grid position). |
-| `percentused` | `net_byte` | `255` | Replicated percentage (0–100) of item usage; `255` means invalid/unset. |
-| `perish` | `net_smallbyte` | `63` | Replicated spoilage percentage (0–62); `63` means invalid/unset. |
-| `recharge` | `net_byte` | `255` | Replicated charge level (0–180); `255` means invalid/unset. |
-| `rechargetime` | `net_float` | `-2` | Replicated recharge time in seconds; `-2` invalid, `-1` infinite, `>= 0` actual time. |
-| `_parent` | `Entity?` | `nil` | Reference to the parent inventory item entity; set during `OnEntityReplicated`. |
+| `image` | net_hash | `0` | Hash of the inventory item image asset. |
+| `atlas` | net_hash | `0` | Hash of the inventory item atlas asset. |
+| `cangoincontainer` | net_bool | `true` | Whether the item can be placed in containers. |
+| `canonlygoinpocket` | net_bool | `false` | Whether the item can only be placed in player pockets. |
+| `canonlygoinpocketorpocketcontainers` | net_bool | `false` | Whether the item is restricted to pockets or pocket containers. |
+| `src_pos.isvalid` | net_bool | `false` | Indicates if the source position coordinates are valid. |
+| `src_pos.x` | net_float | `0` | X coordinate of the source position. |
+| `src_pos.z` | net_float | `0` | Z coordinate of the source position. |
+| `percentused` | net_byte | `255` | Encoded percentage of item durability or charge used. |
+| `perish` | net_smallbyte | `63` | Encoded perishability state. |
+| `recharge` | net_byte | `255` | Encoded recharge state. |
+| `rechargetime` | net_float | `-2` | Time required to recharge; -2 indicates nil/default. |
+| `deploymode` | net_tinybyte | `DEPLOYMODE.NONE` | Deployment mode enum value. |
+| `deployspacing` | net_tinybyte | `DEPLOYSPACING.DEFAULT` | Deployment spacing enum value. |
+| `deployrestrictedtag` | net_hash | `0` | Tag required for deployment target. |
+| `usegridplacer` | net_bool | `false` | Whether to use grid placement logic. |
+| `attackrange` | net_float | `-99` | Weapon attack range override. |
+| `walkspeedmult` | net_byte | `1` | Equippable walk speed multiplier. |
+| `equiprestrictedtag` | net_hash | `0` | Tag required for equipping. |
+| `moisture` | net_float | `0` | Current moisture level of the item. |
+| `islockedinslot` | net_bool | `false` | Whether the item is locked in its inventory slot. |
 
 ## Main functions
-### `SerializePercentUsed(inst, percent)`
-* **Description:** Serializes the item’s usage percentage (`percent`) into the `percentused` network variable. Handles special values: `nil` → `255`, `<= 0` → `0`, and clamped `1–100`.
-* **Parameters:** `percent` (number?) - Usage percentage (0.0–1.0) or `nil`.
-* **Returns:** Nothing.
+### `OnEntityReplicated()`
+*   **Description:** Initializes the parent link and attaches classified data to the parent's replica component. Assigns `OnRemoveEntity` handler. **Client-side only** — only assigned when `!TheWorld.ismastersim`.
+*   **Parameters:** `inst` -- entity instance being replicated
+*   **Returns:** None
+*   **Error states:** None
 
-### `DeserializePercentUsed(inst)`
-* **Description:** Reads the server-valued `percentused` and pushes `percentusedchange` event to parent with `percent = value / 100`. Skips if value is `255`.
-* **Parameters:** None.
-* **Returns:** Nothing.
+### `OnRemoveEntity()`
+*   **Description:** Cleans up the parent reference when the classified entity is removed. **Client-side only** — assigned as a handler within `OnEntityReplicated` on client.
+*   **Parameters:** `inst` -- entity instance being removed
+*   **Returns:** None
+*   **Error states:** None
 
-### `SerializePerish(inst, percent)`
-* **Description:** Serializes spoilage percentage (`percent`) into `perish` using range `0–62`. Maps `percent * 62`, clamped, and sets `63` for invalid/unset.
-* **Parameters:** `percent` (number) - Spoilage percentage (0.0–1.0).
-* **Returns:** Nothing.
+### `SerializePercentUsed(percent)`
+*   **Description:** Encodes and sets the `percentused` net variable. Clamps values between 0 and 100. **Server-side only** — only assigned when `TheWorld.ismastersim`.
+*   **Parameters:** `percent` -- number representing usage (0 to 1).
+*   **Returns:** None
+*   **Error states:** None
 
-### `ForcePerishDirty(inst)`
-* **Description:** Forces a client-side refresh of the `perish` value (used when spoilage crosses ~20%/~50% thresholds).
-* **Parameters:** None.
-* **Returns:** Nothing.
+### `DeserializePercentUsed()`
+*   **Description:** Decodes the `percentused` net variable and pushes a change event to the parent. **Client-side only** — only assigned when `!TheWorld.ismastersim`.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** None
 
-### `DeserializePerish(inst)`
-* **Description:** Reads `perish`, converts to percentage (`value / 62`), and pushes `perishchange` event if `perish ≠ 63`.
-* **Parameters:** None.
-* **Returns:** Nothing.
+### `SerializePerish(percent)`
+*   **Description:** Encodes and sets the `perish` net variable. Clamps values between 0 and 62. **Server-side only** — only assigned when `TheWorld.ismastersim`.
+*   **Parameters:** `percent` -- number representing perish progress (0 to 1).
+*   **Returns:** None
+*   **Error states:** None
 
-### `SerializeRecharge(inst, percent, overtime)`
-* **Description:** Serializes charge state (`percent`) into `recharge`. Maps `percent * 180`, clamped `0–179`, or special values: `nil` → `255`, `<= 0` → `0`, `>= 1` → `180`. Uses `set_local` for `overtime` states.
-* **Parameters:** `percent` (number?) - Charge level (0.0–1.0); `overtime` (boolean) - Whether charging beyond full capacity.
-* **Returns:** Nothing.
+### `ForcePerishDirty()`
+*   **Description:** Forces a local and network dirty update on the perish variable to trigger refreshes. **Server-side only** — only assigned when `TheWorld.ismastersim`.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** None
 
-### `DeserializeRecharge(inst)`
-* **Description:** Reads `recharge`, triggers `OnRechargeDirty` (starts recharge tick if needed), and pushes `rechargechange` event with `percent = value / 180`.
-* **Parameters:** None.
-* **Returns:** Nothing.
+### `DeserializePerish()`
+*   **Description:** Decodes the `perish` net variable and pushes a change event to the parent. **Client-side only** — only assigned when `!TheWorld.ismastersim`.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** None
 
-### `SerializeRechargeTime(inst, t)`
-* **Description:** Serializes recharge time (`t`) to `rechargetime`. Maps `t = nil` → `-2`, `t = math.huge` → `-1`, else `t`.
-* **Parameters:** `t` (number?) - Recharge time in seconds or special value.
-* **Returns:** Nothing.
+### `SerializeRecharge(percent, overtime)`
+*   **Description:** Encodes and sets the `recharge` net variable. Handles overtime flag for clamping. **Server-side only** — only assigned when `TheWorld.ismastersim`.
+*   **Parameters:**
+    - `percent` -- number representing charge (0 to 1)
+    - `overtime` -- boolean indicating if overtime logic applies
+*   **Returns:** None
+*   **Error states:** None
 
-### `DeserializeRechargeTime(inst)`
-* **Description:** Reads `rechargetime`, triggers `OnRechargeDirty`, and pushes `rechargetimechange` event with `t` (converted `-2/-1` → `nil/math.huge`).
-* **Parameters:** None.
-* **Returns:** Nothing.
 
-### `OnEntityReplicated(inst)`
-* **Description:** Initializes `_parent` from `entity:GetParent()`, registers `OnRemoveEntity`, and attempts to attach this classified entity to the parent’s replica via `TryAttachClassifiedToReplicaComponent`. If attachment fails, sets `_parent.inventoryitem_classified = inst`.
-* **Parameters:** None.
-* **Returns:** Nothing.
-* **Error states:** Prints warning to console if `_parent` is `nil`.
 
-### `OnImageDirty(inst)`
-* **Description:** Pushes `imagechange` event to parent when `imagedirty` occurs (e.g., item texture/icon updated).
-* **Parameters:** None.
-* **Returns:** Nothing.
+
+### `DeserializeRecharge()`
+*   **Description:** Decodes the `recharge` net variable, triggers dirty check, and pushes a change event to the parent. **Client-side only** — only assigned when `!TheWorld.ismastersim`.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** None
+
+### `SerializeRechargeTime(t)`
+*   **Description:** Encodes and sets the `rechargetime` net variable. Handles nil and infinite values. **Server-side only** — only assigned when `TheWorld.ismastersim`.
+*   **Parameters:** `t` -- number representing time in seconds.
+*   **Returns:** None
+*   **Error states:** None
+
+### `DeserializeRechargeTime()`
+*   **Description:** Decodes the `rechargetime` net variable, triggers dirty check, and pushes a change event to the parent. **Client-side only** — only assigned when `!TheWorld.ismastersim`.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** None
 
 ## Events & listeners
-- **Listens to:**  
-  - `imagedirty` → `OnImageDirty`  
-  - `percentuseddirty` → `DeserializePercentUsed`  
-  - `perishdirty` → `DeserializePerish`  
-  - `rechargedirty` → `DeserializeRecharge`  
-  - `rechargetimedirty` → `DeserializeRechargeTime`  
-  - `inventoryitem_stacksizedirty` → `OnStackSizeDirty` (with `inst._parent` as listener context)  
-  - `iswetdirty` → `OnIsWetDirty` (with `inst._parent` as listener context)  
-  - `isacidsizzlingdirty` → `OnIsAcidSizzlingDirty` (with `inst._parent` as listener context)  
-- **Pushes:**  
-  - `percentusedchange` with `{ percent = ... }`  
-  - `perishchange` with `{ percent = ... }`  
-  - `rechargechange` with `{ percent = ..., overtime = ...? }`  
-  - `rechargetimechange` with `{ t = ... }`  
-  - `imagechange`  
-  - `wetnesschange`  
-  - `acidsizzlingchange`  
+- **Listens to (on classified entity):** `imagedirty`, `percentuseddirty`, `perishdirty`, `rechargedirty`, `rechargetimedirty`
+- **Listens to (on parent entity):** `inventoryitem_stacksizedirty`, `iswetdirty`, `isacidsizzlingdirty`
+- **Pushes (to parent entity):** `imagechange`, `percentusedchange`, `perishchange`, `rechargechange`, `rechargetimechange`, `wetnesschange`, `acidsizzlingchange`
+- **Pushes (to TheWorld):** `stackitemdirty`

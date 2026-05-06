@@ -1,70 +1,100 @@
 ---
 id: wagpunk_workstation
 title: Wagpunk Workstation
-description: A crafting station prefab that integrates with the prototyper system to provide workstation-specific recipe blueprints and behavior, including sound and animation management.
-tags: [crafting, world, entity]
+description: A crafting and prototyping station prefab for the Wagpunk event that provides access to specialized blueprints and toggles arena manager state.
+tags: [crafting, event, wagpunk, station, prototype]
 sidebar_position: 10
-
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-18
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: e2d0f4b6
+source_hash: 956cf88a
 system_scope: crafting
 ---
 
 # Wagpunk Workstation
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-18
 
 ## Overview
-The `wagpunk_workstation` is a server-side prefab that implements a specialized crafting station with a fixed set of blueprints and dynamic activation logic. It relies on the `craftingstation` and `prototyper` components to expose recipes and handle user interaction (e.g., toggle on/off, activation). When toggled, it notifies the `wagpunk_arena_manager` component of its state changes. It also registers `OnLoad` logic to retroactively learn certain blueprints during map load, which is a one-time migration.
+`wagpunk_workstation` is a stationary crafting structure used during the Wagpunk event. It functions as both a `prototyper` and `craftingstation`, allowing players to unlock and craft event-specific items. The workstation communicates with the `wagpunk_arena_manager` world component to track activation state. When activated, it plays looping animations and proximity sounds; when deactivated, it returns to idle state.
 
 ## Usage example
-This prefab is instantiated automatically by the world system and not typically added manually. However, a modder may reference it to interact with its components:
 ```lua
+-- Spawn the workstation in the world
 local workstation = SpawnPrefab("wagpunk_workstation")
-if workstation ~= nil and workstation:IsValid() then
-    workstation.components.prototyper:SetTechTree(TUNING.PROTOTYPER_TREES.WAGPUNK_WORKSTATION)
-    workstation.components.prototyper:Toggle()
+
+-- Access components after spawning
+-- Note: Setting .on directly bypasses onturnon callback (animations/sounds won't play)
+-- Activation is handled by player interaction with the workstation
+if workstation.components.prototyper then
+    -- workstation.components.prototyper.on is managed by player interaction
+end
+
+-- Check tags for identification
+if workstation:HasTag("wagpunk_workstation") then
+    -- Workstation is valid
 end
 ```
 
 ## Dependencies & tags
-**Components used:** `inspectable`, `craftingstation`, `prototyper`, `soundemitter`, `animstate`, `transform`, `minimapentity`, `network`  
-**Tags:** Adds `prototyper`
+**External dependencies:**
+- `TUNING.PROTOTYPER_TREES.WAGPUNK_WORKSTATION` -- prototype tree configuration for available recipes
+
+**Components used:**
+- `inspectable` -- allows players to examine the workstation
+- `craftingstation` -- stores and provides access to learned blueprints
+- `prototyper` -- enables recipe prototyping; callbacks wired to local handlers
+- `wagpunk_arena_manager` (world component) -- notified on toggle state changes
+
+**Tags:**
+- `prototyper` -- added on creation; marks entity as a prototype source
+- `wagpunk_workstation` -- added on creation; identifies this specific station type
 
 ## Properties
-No public properties are declared or initialized in the constructor. It depends entirely on properties of the attached components (e.g., `inst.components.prototyper.on`).
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| None | | | No public properties are defined. This is a prefab factory, not a class. |
 
-## Main functions
+## Internal Callbacks
 ### `OnTurnOn(inst)`
-*   **Description:** Enables the workstation’s active state: starts proximity loop animation, plays idle sound, and notifies the arena manager. Does nothing if `prototyper_activatedtask` is already set (prevents re-trigger during activation).
-*   **Parameters:** `inst` (Entity) — The workstation instance.
-*   **Returns:** Nothing.
+* **Description:** Called when the prototyper component is activated. Plays looping proximity animation and sound, then notifies the arena manager.
+* **Parameters:** `inst` -- the workstation entity instance
+* **Returns:** None
+* **Error states:** None
 
 ### `OnTurnOff(inst)`
-*   **Description:** Disables the workstation’s active state: resets to idle animation, stops idle sound, and notifies the arena manager. Does nothing if `prototyper_activatedtask` is set.
-*   **Parameters:** `inst` (Entity) — The workstation instance.
-*   **Returns:** Nothing.
+* **Description:** Called when the prototyper component is deactivated. Stops idle sound, plays idle animation, and notifies the arena manager.
+* **Parameters:** `inst` -- the workstation entity instance
+* **Returns:** None
+* **Error states:** None
 
 ### `FinishUseAnim(inst)`
-*   **Description:** Cleanup handler after the activation animation completes. Restores correct idle/loop animation and sound based on the current `prototyper.on` state.
-*   **Parameters:** `inst` (Entity) — The workstation instance.
-*   **Returns:** Nothing.
+* **Description:** Completes the activation animation sequence. Resets the activated task and restores either looping or idle state based on prototyper status.
+* **Parameters:** `inst` -- the workstation entity instance
+* **Returns:** None
+* **Error states:** None
 
 ### `OnActivate(inst)`
-*   **Description:** Handles user interaction with the workstation (e.g., crafting or toggle click). Plays use sound and animation, cancels any pending activation task, and schedules `FinishUseAnim`.
-*   **Parameters:** `inst` (Entity) — The workstation instance.
-*   **Returns:** Nothing.
+* **Description:** Called when a player activates the prototyper. Plays use animation and sound, cancels any pending activation task, and schedules `FinishUseAnim`.
+* **Parameters:** `inst` -- the workstation entity instance
+* **Returns:** None
+* **Error states:** None
 
 ### `OnLoad(inst, data)`
-*   **Description:** Legacy migration hook used to ensure specific blueprints are learned if the prefab loads from older save data. Not required for normal operation.
-*   **Parameters:**  
-    `inst` (Entity) — The workstation instance.  
-    `data` (table) — Optional saved state (unused here).  
-*   **Returns:** Nothing.
+* **Description:** Called when the entity loads from save. Re-learns baseline recipes for moonstorm goggles and moon device construction.
+* **Parameters:**
+  - `inst` -- the workstation entity instance
+  - `data` -- saved data table (unused in current implementation)
+* **Returns:** None
+* **Error states:** Errors if `inst.components.craftingstation` is nil when `OnLoad` is called.
+
+### `fn()`
+* **Description:** Prefab factory function. Creates the entity, adds base components and tags, configures prototyper callbacks, and returns the instance.
+* **Parameters:** None
+* **Returns:** Entity instance
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:** None (no explicit `inst:ListenForEvent` calls).
-- **Pushes:** None (no explicit `inst:PushEvent` calls).
+- **Listens to:** None directly. Prototyper component callbacks (`onturnon`, `onturnoff`, `onactivate`) are wired to local functions.
+- **Pushes:** None directly. The `wagpunk_arena_manager:WorkstationToggled()` is called but not via `PushEvent`.

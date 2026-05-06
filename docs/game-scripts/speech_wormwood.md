@@ -5,11 +5,11 @@ description: Provides localization and speech-related functionality specific to 
 tags: [speech, localization, character]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-21
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: 6056238d
+source_hash: be9f38b1
 system_scope: player
 ---
 

@@ -1,71 +1,127 @@
 ---
 id: wormwood_lightflier
 title: Wormwood Lightflier
-description: A flying pet entity summoned by Wormwood that orbits the player in a rotating formation, emits light, and transforms into a lightbulb upon death or timer expiration.
-tags: [pet, flying, light, formation, boss]
+description: Prefab definition for Wormwood's Lightflier pet entity with formation movement and transformation mechanics.
+tags: [prefab, pet, wormwood, lunar]
 sidebar_position: 10
-
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 08aaabaf
+source_hash: 24f3b04a
 system_scope: entity
 ---
 
 # Wormwood Lightflier
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`wormwood_lightflier` is a prefab used to create the Lightflier pet entity in *Don't Starve Together*. This entity serves as a mobile light source and companion for the Wormwood character. It follows a circular formation around its leader (typically Wormwood) using the `follower` and `locomotor` components, emits dynamic light via the `light` component, and automatically transforms into a `lightbulb` upon timer expiration or when killed by its own leader during combat. It integrates with the stategraph `SGwormwood_lightflier` and a dedicated brain `wormwood_lightflierbrain`.
+`wormwood_lightflier` is a prefab for Wormwood's lunar-aligned pet entity that orbits its owner in a formation pattern. The Lightflier provides light, follows formation movement logic around its leader, and transforms into a lightbulb item upon death or timer expiration. It integrates with the follower, locomotor, combat, and timer components to manage pet behavior, movement, and lifecycle events.
 
 ## Usage example
 ```lua
--- Typical usage occurs internally via the game's prefabs system
-local flier = SpawnPrefab("wormwood_lightflier")
-flier.Transform:SetPosition(x, y, z)
+-- Spawn the Lightflier prefab
+local lightflier = SpawnPrefab("wormwood_lightflier")
 
--- Manually trigger transformation before timer
-if flier.components.follower:GetLeader() == player then
-    flier.RemoveWormwoodPet(flier)
-end
+-- Enable or disable buzzing sound
+lightflier:EnableBuzz(true)
+
+-- Manually trigger transformation (removes pet, spawns lightbulb)
+lightflier:RemoveWormwoodPet()
 ```
 
 ## Dependencies & tags
-**Components used:** `locomotor`, `combat`, `health`, `lootdropper`, `follower`, `inspectable`, `knownlocations`, `homeseeker`, `timer`, `updatelooper`, `soundemitter`, `animstate`, `dynamicshadow`, `light`, `transform`, `network`
+**External dependencies:**
+- `brains/wormwood_lightflierbrain` -- AI behavior tree for Lightflier
 
-**Tags:** Adds `lightflier`, `flying`, `ignorewalkableplatformdrowning`, `insect`, `smallcreature`, `lightbattery`, `lunar_aligned`, `NOBLOCK`, `notraptrigger`, `wormwood_pet`, `noauradamage`, `soulless`
+**Components used:**
+- `locomotor` -- movement control with formation speed scaling and ocean pathing
+- `combat` -- hit effect symbol configuration and attack event listening
+- `health` -- max health setting from TUNING
+- `lootdropper` -- flings lightbulb item on transformation
+- `follower` -- leader tracking and pet leash integration
+- `timer` -- manages transformation lifecycle timer
+- `inspectable` -- allows player inspection
+- `knownlocations` -- location memory for navigation
+- `homeseeker` -- homing behavior support
+- `updatelooper` -- periodic update function for formation movement
+
+**Tags:**
+- `lightflier` -- entity identification
+- `flying` -- movement type classification
+- `ignorewalkableplatformdrowning` -- prevents drowning on platforms
+- `insect` -- creature type classification
+- `smallcreature` -- size classification
+- `lightbattery` -- light source classification
+- `lunar_aligned` -- lunar faction alignment
+- `NOBLOCK` -- collision exclusion
+- `notraptrigger` -- trap immunity
+- `wormwood_pet` -- pet ownership marker
+- `noauradamage` -- aura damage immunity
+- `soulless` -- soul-related mechanic exclusion
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `buzzing` | boolean | `false` | Tracks whether the flight loop sound is playing. |
-| `RemoveWormwoodPet` | function | `finish_transformed_life` | Reference to the function that terminates and transforms the lightflier. |
-| `EnableBuzz` | function | `EnableBuzz` | Public function to toggle flight sound. |
+| `inst._time_since_formation_attacked` | number | `-TUNING.LIGHTFLIER.ON_ATTACKED_ALERT_DURATION` | Cooldown timer for formation attack alerts. |
+| `inst.no_spawn_fx` | boolean | `true` | Disables spawn effects for this prefab. |
+| `inst.scrapbook_deps` | table | `{"lightbulb"}` | Dependencies for scrapbook tracking. |
+| `inst.EnableBuzz` | function | `EnableBuzz` | Method to toggle buzzing sound effect. |
+| `inst.RemoveWormwoodPet` | function | `finish_transformed_life` | Method to trigger pet transformation/removal. |
 
 ## Main functions
-### `EnableBuzz(enable)`
-*   **Description:** Toggles the flight loop sound (`grotto/creatures/light_bug/fly_LP`). Activated automatically upon spawn.
-*   **Parameters:** `enable` (boolean) — if `true`, starts the sound; if `false`, stops it.
-*   **Returns:** Nothing.
+### `EnableBuzz(inst, enable)`
+* **Description:** Toggles the Lightflier's buzzing sound loop. Plays the sound if enabled and not already playing; kills the sound if disabled.
+* **Parameters:**
+  - `inst` -- the Lightflier entity instance
+  - `enable` -- boolean to enable or disable buzzing
+* **Returns:** None
+* **Error states:** None
 
 ### `finish_transformed_life(inst)`
-*   **Description:** Terminates the lightflier by spawning a `lightbulb` at its position (via `lootdropper:FlingItem`) and a transformation FX prefab (`wormwood_lunar_transformation_finish`), then removes the entity.
-*   **Parameters:** `inst` (Entity) — the lightflier instance.
-*   **Returns:** Nothing.
+* **Description:** Spawns a lightbulb item and transformation FX at the Lightflier's position, then removes the Lightflier entity. Called on timer expiration or when attacked by owner's pet.
+* **Parameters:** `inst` -- the Lightflier entity instance
+* **Returns:** None
+* **Error states:** Errors if `inst.Transform` is nil when calling `GetWorldPosition()` — no nil guard present.
+
+### `OnTimerDone(inst, data)`
+* **Description:** Event handler for timer completion. Triggers transformation when the `finish_transformed_life` timer expires.
+* **Parameters:**
+  - `inst` -- the Lightflier entity instance
+  - `data` -- timer event data table containing `name` field
+* **Returns:** None
+* **Error states:** None
 
 ### `OnUpdate(inst, dt)`
-*   **Description:** Called every frame via `updatelooper`. Computes and updates position to maintain a rotating circular formation around the leader. Adjusts speed and orientation using `locomotor:WalkForward`.
-*   **Parameters:** `inst` (Entity), `dt` (number) — time since last frame.
-*   **Returns:** Nothing.
+* **Description:** Updates formation movement logic. Calculates orbital position around leader based on pet index, rotates formation over time, and adjusts walk speed based on distance from target position.
+* **Parameters:**
+  - `inst` -- the Lightflier entity instance
+  - `dt` -- delta time since last update
+* **Returns:** None
+* **Error states:** Errors if `leader.Transform` is nil when leader exists but has no Transform component — no nil guard present. Errors if `inst.brain` is nil when leader has pattern defined.
 
 ### `OnAttacked(inst, data)`
-*   **Description:** Event handler for `attacked`. If the attacker is the leader and is recognized as a pet owner, immediately ends the lightflier's life and triggers transformation.
-*   **Parameters:** `inst` (Entity), `data` (table) — event data containing `attacker`.
-*   **Returns:** Nothing.
+* **Description:** Handles attack events. If attacked by a pet owned by the Lightflier's leader, stops the transformation timer and immediately triggers transformation.
+* **Parameters:**
+  - `inst` -- the Lightflier entity instance
+  - `data` -- attack event data table containing `attacker` field
+* **Returns:** None
+* **Error states:** None
+
+### `OnEntity_Init(inst)`
+* **Description:** Initialization function called on entity sleep and wake. Plays the buzzing sound loop and clears sleep/wake handlers to prevent re-registration.
+* **Parameters:** `inst` -- the Lightflier entity instance
+* **Returns:** None
+* **Error states:** Errors if `inst.SoundEmitter` is nil — no nil guard present.
+
+### `fn()`
+* **Description:** Main prefab constructor function. Creates the entity, attaches all components, configures visuals and lighting, sets up tags, and initializes behavior systems. Returns the configured entity instance.
+* **Parameters:** None
+* **Returns:** Entity instance with all components attached
+* **Error states:** Errors if `TheWorld` is nil when checking `ismastersim` — no nil guard present.
 
 ## Events & listeners
-- **Listens to:** `attacked` — triggers `OnAttacked` to detect leader-inflicted damage.
-- **Listens to:** `timerdone` — triggers `OnTimerDone` to detect timer expiration and call `finish_transformed_life`.
-- **Pushes:** None — the component itself does not fire custom events.
+- **Listens to:** `attacked` - triggers OnAttacked handler when entity is attacked
+- **Listens to:** `timerdone` - triggers OnTimerDone handler when transformation timer completes
+- **Pushes:** None identified

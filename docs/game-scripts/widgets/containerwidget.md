@@ -1,98 +1,117 @@
 ---
 id: containerwidget
 title: Containerwidget
-description: Renders and manages interactive UI widgets for containers, including slot layout, animations, and button handling.
-tags: [ui, container, inventory]
+description: UI widget that displays container inventory contents with slots, animations, and optional action buttons.
+tags: [ui, inventory, widget]
 sidebar_position: 10
-
-last_updated: 2026-03-08
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: widgets
-source_hash: 15de3afd
+source_hash: 60aa30d6
 system_scope: ui
 ---
 
 # Containerwidget
 
-> Based on game build **714014** | Last updated: 2026-03-08
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`ContainerWidget` is a UI component responsible for visually representing and interacting with in-game containers (e.g., chests, backpacks, construction sites). It dynamically constructs an inventory grid of `InvSlot` widgets, applies background animations and textures based on container configuration, and handles user-triggered actions via an optional button. It integrates with the `playeractionpicker` to register/unregister itself and respects control state via `playercontroller:IsEnabled()`.
+`ContainerWidget` is a UI widget that renders container inventory interfaces for players. It displays item slots, handles container open/close animations, and supports optional action buttons. The widget integrates with the container replica system to synchronize inventory state across the network and responds to item changes through event listeners.
 
 ## Usage example
 ```lua
-local containerwidget = ContainerWidget(owner)
--- Typically added to a parent widget or screen
-parent:AddChild(containerwidget)
+local ContainerWidget = require "widgets/containerwidget"
 
--- Open the widget for a specific container instance
-containerwidget:Open(container, doer)
--- Doer is the entity triggering the interaction (e.g., player)
-
--- Later, close it explicitly when done
-containerwidget:Close()
+local containerWidget = ContainerWidget(owner)
+containerWidget:Open(container, doer)
+containerWidget:Refresh()
+containerWidget:Close()
 ```
 
 ## Dependencies & tags
-**Components used:** `playeractionpicker`, `playercontroller`, `constructionbuilderuidata`
-**Tags:** None added or removed.
+**External dependencies:**
+- `class` -- base class system
+- `widgets/invslot` -- individual inventory slot widgets
+- `widgets/widget` -- base widget class this extends
+- `widgets/text` -- text rendering for button labels
+- `widgets/uianim` -- animated UI elements
+- `widgets/imagebutton` -- interactive button widget
+- `widgets/itemtile` -- item display tiles within slots
+
+**Components used:**
+- `playeractionpicker` -- registers/unregisters container for action picking
+- `playercontroller` -- checks if controls are enabled before button clicks
+- `constructionbuilderuidata` -- retrieves construction site and container for building UI
+- `container` (replica) -- accesses container items, widget config, and state
+
+**Tags:**
+- `busy` -- checked on doer to ignore button clicks when entity is busy
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `owner` | `TheSim` or `Entity` | `nil` | The entity that owns this widget instance (typically the player). |
-| `open` | boolean | `false` | Legacy flag; use `isopen` instead. |
-| `isopen` | boolean | `false` | Whether the widget is currently open and visible. |
-| `container` | `Entity` or `nil` | `nil` | The container instance currently displayed by the widget. |
-| `inv` | table | `{}` | Array of `InvSlot` widgets representing inventory slots. |
-| `bganim` | `UIAnim` | — | Background animation entity. |
-| `bgimage` | `Image` | — | Static background image entity. |
-| `button` | `ImageButton` or `nil` | `nil` | Optional action button for non-read-only, non-controller interactions. |
-| `slotsperrow` | number | `3` | Not actively used; retained for compatibility. |
-| `onitemlosefn` | function or `nil` | `nil` | Event callback for `itemlose` event. |
-| `onitemgetfn` | function or `nil` | `nil` | Event callback for `itemget` event. |
-| `onrefreshfn` | function or `nil` | `nil` | Event callback for `refresh` event. |
+| `open` | boolean | `false` | Set in constructor but unused; actual state tracking uses `isopen`. |
+| `inv` | table | `{}` | Array of InvSlot child widgets. |
+| `owner` | entity | `nil` | The player entity that owns this widget. |
+| `slotsperrow` | number | `3` | Number of slots per row in the grid. |
+| `bganim` | UIAnim | `nil` | Child widget for background animations. |
+| `bgimage` | Image | `nil` | Child widget for static background image. |
+| `isopen` | boolean | `false` | Whether the container is currently open. |
+| `button` | ImageButton | `nil` | Optional action button (created in Open). |
+| `container` | entity | `nil` | The container entity being displayed. |
+| `onitemlosefn` | function | `nil` | Callback for itemlose events. |
+| `onitemgetfn` | function | `nil` | Callback for itemget events. |
+| `onrefreshfn` | function | `nil` | Callback for refresh events. |
 
 ## Main functions
+### `ContainerWidget(owner)`
+* **Description:** Constructor that initializes the container widget with the owning player entity. Sets up background animation, image, and default scale.
+* **Parameters:** `owner` -- player entity that owns this widget.
+* **Returns:** ContainerWidget instance.
+* **Error states:** None
+
 ### `Open(container, doer)`
-*   **Description:** Opens and initializes the widget for a given container, setting up background visuals, inventory slots, and the optional action button.
-*   **Parameters:**
-    *   `container` (Entity) — the container instance to display. Must have a valid `replica.container`.
-    *   `doer` (Entity or `nil`) — the entity triggering the interaction; used to register/unregister with `playeractionpicker` and check control state.
-*   **Returns:** Nothing.
-*   **Error states:** Calls `Close()` at the start to ensure cleanup; silently handles missing `widget` configuration fields (e.g., `nil` `bgatlas`, `pos`, `buttoninfo`).
-
-### `Refresh()`
-*   **Description:** Updates all slot contents and visual state (e.g., read-only brightness) based on current container data.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
-*   **Error states:** Skips slot updates if `self.inv` entries are missing; handles read-only containers by dimming the background animation via `SetMultColour`.
-
-### `OnItemGet(data)`
-*   **Description:** Handles the `itemget` event, updating a specific slot with a new item and optionally animating the item’s appearance.
-*   **Parameters:**
-    *   `data` (table) — Event payload; must contain `slot` (index), `item` (entity), and optionally `src_pos` (start position for animation), `ignore_stacksize_anim`.
-*   **Returns:** Nothing.
-*   **Error states:** Does nothing if `self.inv[data.slot]` is missing; skips animation if `src_pos` is `nil`.
-
-### `OnItemLose(data)`
-*   **Description:** Handles the `itemlose` event, clearing the specified slot.
-*   **Parameters:**
-    *   `data` (table) — Event payload; must contain `slot` (index).
-*   **Returns:** Nothing.
-*   **Error states:** Does nothing if `self.inv[data.slot]` is missing.
+* **Description:** Opens the container widget, displaying inventory slots and optional action button. Configures background visuals from container widget data and registers event listeners.
+* **Parameters:**
+  - `container` -- container entity to display
+  - `doer` -- player entity interacting with the container
+* **Returns:** None
+* **Error states:** Errors if `container.replica.container` is nil when accessing widget data or items.
 
 ### `Close()`
-*   **Description:** Closes the widget, cleaning up event listeners, slots, button, and background animations; schedules the widget for removal after `.3s`.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
-*   **Error states:** Ensures idempotency via `self.isopen` check; safely calls `UnregisterContainer` only if `owner` and `playeractionpicker` exist.
+* **Description:** Closes the container widget, removes event listeners, kills child widgets, and unregisters from playeractionpicker. Plays close animation before hiding.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None (includes nil guards for button, container, and callback functions)
+
+### `Refresh()`
+* **Description:** Updates all inventory slots with current container items. Handles read-only container visuals and item tile creation or refresh.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if `self.container.replica.container` is nil when calling GetItems() or IsReadOnlyContainer().
+
+### `RefreshPosition()`
+* **Description:** Updates widget position based on container widget configuration. Only refreshes if widget has a posfn defined.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None (includes nil guards for container and widget)
+
+### `OnItemGet(data)`
+* **Description:** Handles itemget event by creating and animating item tile into the appropriate slot. Triggers button refresh if button exists.
+* **Parameters:** `data` -- table containing `slot`, `item`, `ignore_stacksize_anim`, and optional `src_pos`.
+* **Returns:** None
+* **Error states:** Errors if `self.container.replica.container` is nil when checking IsReadOnlyContainer().
+
+### `OnItemLose(data)`
+* **Description:** Handles itemlose event by clearing the tile from the affected slot. Triggers button refresh if button exists.
+* **Parameters:** `data` -- table containing `slot` index of the lost item.
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:**
-    *   `itemlose` — updates UI when an item is removed from the container.
-    *   `itemget` — updates UI when an item is added to the container.
-    *   `refresh` — triggers full UI refresh via `Refresh()`.
-    *   `continuefrompause` (on `TheWorld`) — toggles button visibility based on controller and read-only state.
-- **Pushes:** No events.
+- **Listens to:** `itemlose` (on container) - clears slot tile when item is removed.
+- **Listens to:** `itemget` (on container) - creates slot tile when item is added.
+- **Listens to:** `refresh` (on container) - triggers full widget refresh.
+- **Listens to:** `continuefrompause` (on TheWorld) - toggles button visibility based on controller attachment and read-only state.
+- **Pushes:** None

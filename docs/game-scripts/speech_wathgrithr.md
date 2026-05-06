@@ -5,11 +5,11 @@ description: Provides dialogue strings used by Wathgrithr’s speech system for 
 tags: [speech, dialogue, player, wathgrithr]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-22
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: addd5d54
+source_hash: b5d4ceae
 system_scope: player
 
 ---

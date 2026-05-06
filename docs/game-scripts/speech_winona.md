@@ -5,11 +5,11 @@ description: Manages speech-related state and logic for the Winona character in 
 tags: [speech, character, winona]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-28
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: 2b199011
+source_hash: 0ff451b3
 system_scope: player
 ---
 

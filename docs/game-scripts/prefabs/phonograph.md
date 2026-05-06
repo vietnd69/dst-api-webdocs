@@ -1,133 +1,146 @@
 ---
 id: phonograph
 title: Phonograph
-description: A furniture item that plays music and automatically tends nearby farm plants when active.
-tags: [furniture, audio, farm, crafting]
+description: Defines the Phonograph prefab, a decorative machine that plays music records and tends nearby farm plants.
+tags: [prefab, decor, music, farming]
 sidebar_position: 10
-
-last_updated: 2026-03-06
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 911e07cd
-system_scope: crafting
+source_hash: 217eb121
+system_scope: entity
 ---
 
 # Phonograph
 
-> Based on game build **714014** | Last updated: 2026-03-06
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-The `phonograph` prefab is a functional furniture item that serves as a record player. It accepts `phonograph_record` items via its `inventory` and `trader` components, plays music when turned on, and periodically tends to nearby tendable farm plants (those with the `tendable_farmplant` tag) within range. It integrates with multiple components including `machine`, `inventory`, `lootdropper`, and `workable` to handle state, item interactions, destruction, and save/load behavior.
+The `phonograph` prefab defines a decorative structure capable of playing music records. When active, it emits sound and periodically tends to nearby farm plants within a specific range. It functions as a trader accepting record items, and can be destroyed via hammering to drop loot and spawn collapse effects.
 
 ## Usage example
 ```lua
--- Create a phonograph entity and verify it accepts records
-local inst = SpawnPrefab("phonograph")
-inst.Transform:SetPosition(x, y, z)
+-- Spawn a phonograph in the world
+local phonograph = SpawnPrefab("phonograph")
 
--- Insert a record manually (e.g., via code)
-local record = SpawnPrefab("record")
-record.songToPlay = "dontstarve/music/gramaphone_loop"
-inst.components.inventory:GiveItem(record)
+-- Check if it is currently enabled
+local is_enabled = phonograph.components.machine.enabled
 
--- Phonograph auto-turns on when a record is placed and inventory is non-empty
--- To manually toggle:
-inst.components.machine:TurnOn()
-inst.components.machine:TurnOff()
+-- Manually trigger record playback logic if a record is inserted
+phonograph:TryToPlayRecord()
+
+-- Force stop playing and turn off machine
+phonograph:StopPlayingRecord()
 ```
 
 ## Dependencies & tags
-**Components used:** `furnituredecor`, `inspectable`, `inventory`, `inventoryitem`, `lootdropper`, `machine`, `trader`, `workable`  
-**Tags added:** `structure`, `trader`, `recordplayer`, `furnituredecor`  
-**Tags checked:** `phonograph_record`, `tendable_farmplant`
+**External dependencies:**
+- `TUNING` -- accesses `PHONOGRAPH_TEND_RANGE` and `PHONOGRAPH_PLAY_TIME`
+- `ACTIONS` -- references `HAMMER` action for workable component
+- `SpawnPrefab` -- spawns `collapse_small` fx on destruction
+
+**Components used:**
+- `inventory` -- manages inserted record items via `DropEverything`, `GiveItem`, `NumItems`, `GetItemsWithTag`
+- `inventoryitem` -- checks ownership via `IsHeld`, sets put/drop callbacks
+- `machine` -- controls power state via `TurnOn`, `TurnOff`, `IsOn`, `enabled`
+- `lootdropper` -- spawns loot via `DropLoot` on hammer
+- `trader` -- handles item acceptance via `SetAcceptTest`, `onaccept`
+- `workable` -- configures hammering via `SetWorkAction`, `SetOnFinishCallback`
+- `furnituredecor` -- marks entity as decorative furniture
+- `inspectable` -- allows player inspection
+- `hauntable` -- enables ghost haunting interactions
+
+**Tags:**
+- `structure` -- added on creation
+- `trader` -- added on creation
+- `recordplayer` -- added on creation
+- `furnituredecor` -- added on creation
+- `groundonlymachine` -- added on creation
+- `tendable_farmplant` -- checked via `FindEntities` for farming effect
+- `phonograph_record` -- checked via `HasTag`/`GetItemsWithTag` for record validation
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `DropRecord` | function | — | Callback used to drop all inventory items and turn off the machine. |
-| `OnHammered` | function | — | Handles destruction when hammered, dropping loot and spawning debris FX. |
-| `ShouldAcceptItem` | function | — | Validates whether an item (specifically records) can be inserted. |
-| `OnGetItemFromPlayer` | function | — | Called when a record is accepted; turns on the machine and plays animation. |
-| `GetRecordSong` | function | — | Retrieves the song filename from the first record in inventory. |
-| `TryToPlayRecord` | function | — | Attempts to play the record if one is present and the phonograph is not held. |
-| `StopPlayingRecord` | function | — | Stops playback, cancels tasks, and emits end sound. |
-| `TurnOffMachine` | function | — | Safely turns off the machine component. |
-| `OnPutInInventory` | function | — | Turns off machine when picked up. |
-| `OnDroppedFromInventory` | function | — | Enables machine if inventory contains items. |
-| `OnLoad` | function | — | Restores machine state on world load. |
-| `enabled` (machine) | boolean | `false` | Controls whether the phonograph may play music. |
+| `components.machine.enabled` | boolean | `false` | Determines if the machine is allowed to operate and play songs. |
+| `_play_song_task` | taskref | `nil` | Internal reference to the delayed task playing the song. |
+| `_stop_song_task` | taskref | `nil` | Internal reference to the task scheduled to stop the song. |
+| `_tend_update_task` | taskref | `nil` | Internal reference to the periodic task tending nearby plants. |
 
 ## Main functions
-### `DropRecord(inst)`
-*   **Description:** Dumps all items currently stored in the phonograph's inventory and disables the machine. Typically called before destruction or upon removal from inventory.
-*   **Parameters:** `inst` (Entity) — the phonograph instance.
-*   **Returns:** Nothing.
-*   **Error states:** None.
+### `DropRecord()`
+*   **Description:** Drops the current record item from inventory and disables the machine. Called when inserting a new record or removing the old one.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** Errors if `components.machine` or `components.inventory` is missing (no nil guard present).
 
-### `OnHammered(inst, worker)`
-*   **Description:** Destroys the phonograph when hammered, drops loot, creates collapse FX, and removes the entity.
-*   **Parameters:**  
-    - `inst` (Entity) — the phonograph instance.  
-    - `worker` (Entity) — the entity performing the hammering (unused internally).
-*   **Returns:** Nothing.
+### `OnHammered(worker)`
+*   **Description:** Callback executed when the phonograph is hammered. Drops loot, spawns collapse fx, and removes the entity.
+*   **Parameters:**
+    - `worker` -- The entity performing the hammer action.
+*   **Returns:** None
+*   **Error states:** Errors if `components.lootdropper` is missing (nil dereference). May crash if `collapse_small` prefab does not exist (fx would be nil before Transform access).
 
-### `ShouldAcceptItem(inst, item)`
-*   **Description:** Validates whether an item can be inserted. Only returns `true` for items tagged `phonograph_record`.
-*   **Parameters:**  
-    - `inst` (Entity) — the phonograph instance.  
-    - `item` (Entity) — the item being inserted.
-*   **Returns:** `true` if `item:HasTag("phonograph_record")`, otherwise `nil`.
+### `ShouldAcceptItem(item)`
+*   **Description:** Test function for the trader component to validate if an item can be inserted.
+*   **Parameters:**
+    - `item` -- The item entity being offered.
+*   **Returns:** `true` if item has `phonograph_record` tag, otherwise `nil`.
+*   **Error states:** None
 
-### `OnGetItemFromPlayer(inst, giver, item)`
-*   **Description:** Called when the trader component accepts an item (i.e., a record). Drops any existing record first, gives the new item, animates "open", and turns on the machine if not already on.
-*   **Parameters:**  
-    - `inst` (Entity) — the phonograph instance.  
-    - `giver` (Entity) — the player inserting the record.  
-    - `item` (Entity) — the record being inserted.
-*   **Returns:** Nothing.
+### `OnGetItemFromPlayer(giver, item)`
+*   **Description:** Callback when a player successfully trades a record to the phonograph. Drops existing record, accepts new one, and turns machine on.
+*   **Parameters:**
+    - `giver` -- The player entity giving the item.
+    - `item` -- The record item entity.
+*   **Returns:** None
+*   **Error states:** Errors if `components.inventory` or `components.machine` is missing.
 
-### `GetRecordSong(inst)`
-*   **Description:** Retrieves the song filename from the first `phonograph_record` in the inventory. Prefers `songToPlay_skin` if present, otherwise uses `songToPlay`.
-*   **Parameters:** `inst` (Entity) — the phonograph instance.
-*   **Returns:** `string` or `nil` — the song filename if a record is present, else `nil`.
+### `GetRecordSong()`
+*   **Description:** Retrieves the song identifier from the currently held record item.
+*   **Parameters:** None
+*   **Returns:** String song name or `nil` if no record is found.
+*   **Error states:** Errors if `components.inventory` is missing.
 
-### `TryToPlayRecord(inst)`
-*   **Description:** Attempts to start playback. Enables the machine if a valid record is present and the phonograph is not held. Cancels previous tasks and schedules playback after zero delay.
-*   **Parameters:** `inst` (Entity) — the phonograph instance.
-*   **Returns:** Nothing.
-*   **Error states:** Returns early and disables `machine.enabled` if no record is found or if `inventoryitem:IsHeld()` is true.
+### `TryToPlayRecord()`
+*   **Description:** Attempts to start playing the record. Checks if held and if a song exists. Enables machine and starts animation/tasks.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** Errors if `components.inventoryitem`, `components.machine`, or `AnimState` is missing.
 
-### `StopPlayingRecord(inst)`
-*   **Description:** Stops playback, cancels pending and periodic tasks, resets animation to idle, kills the playback sound, emits an end sound, and pushes `turnedoff` event.
-*   **Parameters:** `inst` (Entity) — the phonograph instance.
-*   **Returns:** Nothing.
+### `StopPlayingRecord()`
+*   **Description:** Stops the current song, cancels tasks, resets animation, and plays stop sound. Pushes `turnedoff` event.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** Errors if `SoundEmitter` or `AnimState` is missing.
 
-### `TurnOffMachine(inst)`
-*   **Description:** Calls `machine:TurnOff()` if the component exists.
-*   **Parameters:** `inst` (Entity) — the phonograph instance.
-*   **Returns:** Nothing.
+### `TurnOffMachine()`
+*   **Description:** Helper function to safely turn off the machine component.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** None
 
-### `OnPutInInventory(inst, owner)`
-*   **Description:** Ensures the phonograph is turned off when placed into a player's inventory.
-*   **Parameters:**  
-    - `inst` (Entity) — the phonograph instance.  
-    - `owner` (Entity) — the inventory owner.
-*   **Returns:** Nothing.
+### `OnPutInInventory(owner)`
+*   **Description:** Callback when the phonograph itself is picked up. Turns off the machine if it was playing.
+*   **Parameters:**
+    - `owner` -- The entity picking up the phonograph.
+*   **Returns:** None
+*   **Error states:** Errors if `components.machine` is missing.
 
-### `OnDroppedFromInventory(inst)`
-*   **Description:** Enables machine functionality when dropped from inventory *if* the phonograph contains at least one item.
-*   **Parameters:** `inst` (Entity) — the phonograph instance.
-*   **Returns:** Nothing.
+### `OnDroppedFromInventory()`
+*   **Description:** Callback when the phonograph is dropped from inventory. Re-enables machine if inventory has items.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** Errors if `components.inventory` or `components.machine` is missing.
 
-### `OnLoad(inst, data)`
-*   **Description:** Restores machine state on load: enables machine if inventory contains items (restore state after deserialization).
-*   **Parameters:**  
-    - `inst` (Entity) — the phonograph instance.  
-    - `data` (table) — save data (unused).
-*   **Returns:** Nothing.
+### `OnLoad(data)`
+*   **Description:** Load callback to restore machine enabled state based on inventory contents.
+*   **Parameters:**
+    - `data` -- Save data table (unused in logic but required signature).
+*   **Returns:** None
+*   **Error states:** Errors if `components.inventory` or `components.machine` is missing.
 
 ## Events & listeners
-- **Listens to:** —  
-- **Pushes:** `turnedoff` — fired by `StopPlayingRecord` when playback ends.  
-- **Triggers (via components):** `machineturnedon`, `machineturnedoff` (via `machine`), `entity_droploot` (via `lootdropper:DropLoot`).
+- **Listens to:** None directly via `ListenForEvent`. Relies on component callbacks (`inventoryitem`, `machine`, `workable`, `trader`).
+- **Pushes:** `turnedoff` - Fired when `StopPlayingRecord` completes the shutdown sequence.

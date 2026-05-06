@@ -1,223 +1,249 @@
 ---
 id: playervision
 title: Playervision
-description: Manages player visual modifiers (e.g., night vision, ghost vision, nightmare vision) by controlling colour cube overrides and related events.
-tags: [vision, player, lighting]
+description: Manages visual effects and colour cube overrides for player vision modes including ghost, nightmare, night vision, and various equipment-based vision types.
+tags: [vision, player, rendering, effects]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: ac22089d
+source_hash: d3fe759c
 system_scope: player
 ---
 
 # Playervision
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`Playervision` is a client-side component that manages visual states and colour-corrected lighting for the player entity. It dynamically switches between multiple vision modes (e.g., `ghostvision`, `nightvision`, `nightmarevision`, `gogglevision`) based on equipped items and world area tags, and pushes colour cube (`ccoverrides`) and phase function (`ccphasefn`) events for visual rendering.
+`PlayerVision` manages visual rendering overrides for player entities, controlling colour cube transitions for different vision modes such as ghost vision, nightmare vision, and equipment-based vision effects. It tracks multiple vision states and pushes events when vision modes change, allowing other systems to respond to visual state changes. This component is essential for player entities and integrates with the inventory system to detect equipped items that grant vision abilities.
 
 ## Usage example
 ```lua
-local inst = ThePlayer
+local inst = CreateEntity()
 inst:AddComponent("playervision")
 
--- Activate night vision temporarily via equipment
-inst:PushEvent("equip", { item = { prefabs = { "nightvision_goggles" } } })
+-- Enable ghost vision for a ghost player
+inst.components.playervision:SetGhostVision(true)
 
--- Manually force night vision (e.g., from an item buff)
+-- Force night vision regardless of equipment
 inst.components.playervision:ForceNightVision(true)
 
--- Trigger nightmare vision in ruins
-inst.components.playervision:SetNightmareVision(true)
-
--- Clean up forced states
-inst.components.playervision:ForceNightVision(false)
+-- Check current vision state
+if inst.components.playervision:HasNightmareVision() then
+    -- Apply nightmare-specific logic
+end
 ```
 
 ## Dependencies & tags
-**Components used:** `inventory` (via `inst.replica.inventory:EquipHasTag(...)`)
-**Tags:** Checks tags `nightvision`, `goggles`, `nutrientsvision`, `scrapmonolevision`, `inspectaclesvision`, `roseglassesvision`, and `Nightmare` (area tag).
+**External dependencies:**
+- `TheWorld` -- accesses `TheWorld.state.nightmarephase` and `TheWorld.ismastersim`
+- `ThePlayer` -- referenced for nutrients vision event pushing
+
+**Components used:**
+- `inventory` (replica) -- checks equipped item tags via `inst.replica.inventory:EquipHasTag()`
+
+**Tags:**
+- None identified (component checks equip tags but does not add/remove entity tags)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `ghostvision` | boolean | `false` | Whether ghost vision is active via equipped items. |
-| `nightmarevision` | boolean | `false` | Whether nightmare vision (ruins lighting) is active. |
-| `nightvision` | boolean | `false` | Whether standard night vision is active via equipped items. |
-| `forcenightvision` | boolean | `false` | Whether night vision is forced (e.g., via buffs). Takes precedence over `nightvision`. |
-| `gogglevision` | boolean | `false` | Whether goggle vision is active via equipped items. |
-| `forcegogglevision` | boolean | `false` | Whether goggle vision is forced. |
-| `nutrientsvision` | boolean | `false` | Whether nutrient vision is active (ThePlayer only). |
-| `forcenutrientsvision` | boolean | `false` | Whether nutrient vision is forced. |
-| `scrapmonolevision` | boolean | `false` | Whether scrap monole vision is active. |
-| `forcescrapmonolevision` | boolean | `false` | Whether scrap monole vision is forced. |
-| `inspectaclesvision` | boolean | `false` | Whether inspectacles vision is active. |
-| `forceinspectaclesvision` | boolean | `false` | Whether inspectacles vision is forced. |
-| `roseglassesvision` | boolean | `false` | Whether rose glasses vision is active. |
-| `forceroseglassesvision` | boolean | `false` | Whether rose glasses vision is forced. |
-| `overridecctable` | table or `nil` | `nil` | Custom colour cube overrides (e.g., from stacking vision sources). |
-| `currentcctable` | table or `nil` | `nil` | Current effective colour cube table (derived from active vision states). |
-| `currentccphasefn` | table or `nil` | `nil` | Current phase function used for dynamic colour transitions. |
-| `blendcctable` | boolean | `false` | Whether to apply blending transitions for the colour cubes. |
-| `forcednightvisionstack` | array of tables | `{}` | Stack of forced night vision sources with priorities. |
-| `forcednightvisionambienttable` | table or `nil` | `nil` | Ambient overrides for forced night vision (lighting adjustment). |
+| `ghostvision` | boolean | `false` | Whether ghost vision colour cubes are active. |
+| `nightmarevision` | boolean | `false` | Whether nightmare vision colour cubes are active. |
+| `nightvision` | boolean | `false` | Whether night vision is enabled via equipment. |
+| `forcenightvision` | boolean | `false` | Whether night vision is forcibly enabled regardless of equipment. |
+| `nonightvisioncc` | boolean | `false` | Whether to suppress night vision colour cube overrides. |
+| `gogglevision` | boolean | `false` | Whether goggle vision is enabled via equipment. |
+| `forcegogglevision` | boolean | `false` | Whether goggle vision is forcibly enabled. |
+| `nutrientsvision` | boolean | `false` | Whether nutrients vision is enabled via equipment. |
+| `forcenutrientsvision` | boolean | `false` | Whether nutrients vision is forcibly enabled. |
+| `scrapmonolevision` | boolean | `false` | Whether scrap monole vision is enabled via equipment. |
+| `forcescrapmonolevision` | boolean | `false` | Whether scrap monole vision is forcibly enabled. |
+| `inspectaclesvision` | boolean | `false` | whether inspectacles vision is enabled via equipment. |
+| `forceinspectaclesvision` | boolean | `false` | Whether inspectacles vision is forcibly enabled. |
+| `roseglassesvision` | boolean | `false` | Whether rose glasses vision is enabled via equipment. |
+| `forceroseglassesvision` | boolean | `false` | Whether rose glasses vision is forcibly enabled. |
+| `overridecctable` | table | `nil` | Custom colour cube table override. |
+| `currentcctable` | table | `nil` | Currently active colour cube table. |
+| `currentccphasefn` | function | `nil` | Current colour cube phase function. |
+| `blendcctable` | table | `nil` | Blend state for colour cube transitions. |
+| `forcednightvisionstack` | table | `{}` | Stack of forced night vision sources with priorities. |
+| `forcednightvisionambienttable` | table | `nil` | Ambient override table for forced night vision. |
 
 ## Main functions
 ### `HasGhostVision()`
-*   **Description:** Returns whether ghost vision is currently active (unforced).
-*   **Parameters:** None.
-*   **Returns:** `boolean` — `true` if ghost vision is active.
+* **Description:** Returns whether ghost vision is currently active.
+* **Parameters:** None
+* **Returns:** `boolean` -- true if ghost vision is enabled.
+* **Error states:** None
 
 ### `HasNightmareVision()`
-*   **Description:** Returns whether nightmare vision is currently active.
-*   **Parameters:** None.
-*   **Returns:** `boolean` — `true` if nightmare vision is active.
+* **Description:** Returns whether nightmare vision is currently active.
+* **Parameters:** None
+* **Returns:** `boolean` -- true if nightmare vision is enabled.
+* **Error states:** None
 
 ### `HasNightVision()`
-*   **Description:** Returns whether night vision is active either normally or via force.
-*   **Parameters:** None.
-*   **Returns:** `boolean` — `true` if either `nightvision` or `forcenightvision` is `true`.
+* **Description:** Returns whether night vision is active, checking both equipment-based and forced states.
+* **Parameters:** None
+* **Returns:** `boolean` -- true if night vision or forced night vision is enabled.
+* **Error states:** None
 
 ### `HasGoggleVision()`
-*   **Description:** Returns whether goggle vision is active either normally or via force.
-*   **Parameters:** None.
-*   **Returns:** `boolean` — `true` if either `gogglevision` or `forcegogglevision` is `true`.
+* **Description:** Returns whether goggle vision is active, checking both equipment-based and forced states.
+* **Parameters:** None
+* **Returns:** `boolean` -- true if goggle vision or forced goggle vision is enabled.
+* **Error states:** None
 
 ### `HasNutrientsVision()`
-*   **Description:** Returns whether nutrient vision is active either normally or via force.
-*   **Parameters:** None.
-*   **Returns:** `boolean` — `true` if either `nutrientsvision` or `forcenutrientsvision` is `true`.
+* **Description:** Returns whether nutrients vision is active, checking both equipment-based and forced states.
+* **Parameters:** None
+* **Returns:** `boolean` -- true if nutrients vision or forced nutrients vision is enabled.
+* **Error states:** None
 
 ### `HasScrapMonoleVision()`
-*   **Description:** Returns whether scrap monole vision is active either normally or via force.
-*   **Parameters:** None.
-*   **Returns:** `boolean` — `true` if either `scrapmonolevision` or `forcescrapmonolevision` is `true`.
+* **Description:** Returns whether scrap monole vision is active, checking both equipment-based and forced states.
+* **Parameters:** None
+* **Returns:** `boolean` -- true if scrap monole vision or forced scrap monole vision is enabled.
+* **Error states:** None
 
 ### `HasInspectaclesVision()`
-*   **Description:** Returns whether inspectacles vision is active either normally or via force.
-*   **Parameters:** None.
-*   **Returns:** `boolean` — `true` if either `inspectaclesvision` or `forceinspectaclesvision` is `true`.
+* **Description:** Returns whether inspectacles vision is active, checking both equipment-based and forced states.
+* **Parameters:** None
+* **Returns:** `boolean` -- true if inspectacles vision or forced inspectacles vision is enabled.
+* **Error states:** None
 
 ### `HasRoseGlassesVision()`
-*   **Description:** Returns whether rose glasses vision is active either normally or via force.
-*   **Parameters:** None.
-*   **Returns:** `boolean` — `true` if either `roseglassesvision` or `forceroseglassesvision` is `true`.
+* **Description:** Returns whether rose glasses vision is active, checking both equipment-based and forced states.
+* **Parameters:** None
+* **Returns:** `boolean` -- true if rose glasses vision or forced rose glasses vision is enabled.
+* **Error states:** None
 
 ### `GetCCPhaseFn()`
-*   **Description:** Returns the current phase function for colour cube transitions.
-*   **Parameters:** None.
-*   **Returns:** `table` or `nil` — The phase function table (e.g., `NIGHTVISION_PHASEFN`), or `nil` if no transition is active.
+* **Description:** Returns the current colour cube phase function.
+* **Parameters:** None
+* **Returns:** `function` or `nil` -- the phase function or nil if none active.
+* **Error states:** None
 
 ### `GetCCTable()`
-*   **Description:** Returns the current effective colour cube table.
-*   **Parameters:** None.
-*   **Returns:** `table` or `nil` — The current `cctable`, or `nil` if no overrides are active.
+* **Description:** Returns the currently active colour cube table.
+* **Parameters:** None
+* **Returns:** `table` or `nil` -- the colour cube table or nil if none active.
+* **Error states:** None
 
 ### `UpdateCCTable()`
-*   **Description:** Recalculates and applies the active colour cube table and phase function based on the current set of enabled vision modes. Pushes `ccoverrides` and `ccphasefn` events if changed.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Recalculates and updates the active colour cube table based on current vision states. Pushes `ccoverrides` and `ccphasefn` events if the table changes.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `SetGhostVision(enabled)`
-*   **Description:** Enables or disables ghost vision (unforced).
-*   **Parameters:** `enabled` (boolean) — Whether to enable ghost vision.
-*   **Returns:** Nothing.
-*   **Error states:** No-op if `enabled` matches current state.
+* **Description:** Enables or disables ghost vision. Updates colour cube table and pushes `ghostvision` event if state changes.
+* **Parameters:** `enabled` -- boolean to enable or disable ghost vision.
+* **Returns:** None
+* **Error states:** None
 
 ### `SetNightmareVision(enabled)`
-*   **Description:** Enables or disables nightmare vision (used for ruins lighting).
-*   **Parameters:** `enabled` (boolean) — Whether to enable nightmare vision.
-*   **Returns:** Nothing.
-*   **Error states:** No-op if `enabled` matches current state.
+* **Description:** Enables or disables nightmare vision. Updates colour cube table and pushes `nightmarevision` event if state changes.
+* **Parameters:** `enabled` -- boolean to enable or disable nightmare vision.
+* **Returns:** None
+* **Error states:** None
 
 ### `ForceNightVision(force)`
-*   **Description:** Forces night vision state, overriding item-based `nightvision`. Typically used by temporary buffs or item abilities.
-*   **Parameters:** `force` (boolean) — Whether to force night vision on.
-*   **Returns:** Nothing.
-*   **Error states:** No-op if `force` matches current `forcenightvision`.
+* **Description:** Forces night vision on or off regardless of equipment state. Only pushes `nightvision` event if not already enabled by equipment.
+* **Parameters:** `force` -- boolean to force night vision on or off.
+* **Returns:** None
+* **Error states:** None
 
-### `PushForcedNightVision(source, priority, customcctable, blend, customambienttable)`
-*   **Description:** Adds a forced night vision source with priority-based stacking. Replaces existing sources with the same `source` key. Applies highest-priority entry.
-*   **Parameters:**  
-    - `source` (string or any hashable identifier) — Unique identifier for the force source.  
-    - `priority` (number) — Priority level; higher values override lower ones. Defaults to `0`.  
-    - `customcctable` (table) — Optional custom colour cube overrides for this source.  
-    - `blend` (boolean) — Whether to blend transitions for this source.  
-    - `customambienttable` (table) — Optional ambient lighting overrides.
-*   **Returns:** Nothing.
+### `ForceNoNightVisionCC(force)`
+* **Description:** Forces suppression of night vision colour cube overrides.
+* **Parameters:** `force` -- boolean to enable or suppress night vision colour cubes.
+* **Returns:** None
+* **Error states:** None
+
+### `PushForcedNightVision(source, priority, customcctable, blend, customambienttable, nonightvisioncc)`
+* **Description:** Adds a forced night vision entry to the priority stack. Removes existing entry from same source before inserting. Updates vision state based on highest priority entry.
+* **Parameters:**
+  - `source` -- identifier for the force source (for removal tracking)
+  - `priority` -- number priority for stack ordering (higher = more priority)
+  - `customcctable` -- optional custom colour cube table
+  - `blend` -- optional blend state for transitions
+  - `customambienttable` -- optional ambient override table
+  - `nonightvisioncc` -- optional boolean to suppress colour cubes
+* **Returns:** None
+* **Error states:** None
 
 ### `PopForcedNightVision(source)`
-*   **Description:** Removes a specific forced night vision source. If removed source was highest priority, updates to next-highest priority or disables forced vision.
-*   **Parameters:** `source` (string or any hashable identifier) — The source to remove.
-*   **Returns:** Nothing.
+* **Description:** Removes a forced night vision entry from the stack by source. Updates vision state based on new highest priority entry or clears forced vision if stack becomes empty.
+* **Parameters:** `source` -- identifier for the force source to remove.
+* **Returns:** None
+* **Error states:** None
 
 ### `SetForcedNightVisionAmbientOverrides(ambienttable)`
-*   **Description:** Updates ambient lighting overrides applied when forced night vision is active.
-*   **Parameters:** `ambienttable` (table or `nil`) — Ambient overrides to apply, or `nil` to clear.
-*   **Returns:** Nothing.
-*   **Error states:** No-op if `ambienttable` matches current ambient overrides.
+* **Description:** Sets ambient override table for forced night vision. Pushes `nightvisionambientoverrides` event if table changes.
+* **Parameters:** `ambienttable` -- table of ambient overrides or nil to clear.
+* **Returns:** None
+* **Error states:** None
 
 ### `GetNightVisionAmbientOverrides()`
-*   **Description:** Returns the currently set ambient overrides for forced night vision.
-*   **Parameters:** None.
-*   **Returns:** `table` or `nil` — The ambient overrides table.
+* **Description:** Returns the current forced night vision ambient override table.
+* **Parameters:** None
+* **Returns:** `table` or `nil` -- the ambient override table.
+* **Error states:** None
 
 ### `ForceGoggleVision(force)`
-*   **Description:** Forces goggle vision state.
-*   **Parameters:** `force` (boolean) — Whether to force goggle vision on.
-*   **Returns:** Nothing.
-*   **Error states:** No-op if `force` matches current `forcegogglevision`.
+* **Description:** Forces goggle vision on or off regardless of equipment state. Only pushes `gogglevision` event if not already enabled by equipment.
+* **Parameters:** `force` -- boolean to force goggle vision on or off.
+* **Returns:** None
+* **Error states:** None
 
-### `ForceNutrientVision(force)`
-*   **Description:** Forces nutrient vision state (ThePlayer only).
-*   **Parameters:** `force` (boolean) — Whether to force nutrient vision on.
-*   **Returns:** Nothing.
-*   **Error states:** No-op if `force` matches current `forcenutrientsvision`. For non-player entities, no event is pushed.
+### `ForceNutrientsVision(force)`
+* **Description:** Forces nutrients vision on or off regardless of equipment state. Only pushes world-level `nutrientsvision` event if inst is ThePlayer and not already enabled by equipment.
+* **Parameters:** `force` -- boolean to force nutrients vision on or off.
+* **Returns:** None
+* **Error states:** None
 
 ### `ForceScrapMonoleVision(force)`
-*   **Description:** Forces scrap monole vision state.
-*   **Parameters:** `force` (boolean) — Whether to force scrap monole vision on.
-*   **Returns:** Nothing.
-*   **Error states:** No-op if `force` matches current `forcescrapmonolevision`.
+* **Description:** Forces scrap monole vision on or off regardless of equipment state. Only pushes `scrapmonolevision` event if not already enabled by equipment.
+* **Parameters:** `force` -- boolean to force scrap monole vision on or off.
+* **Returns:** None
+* **Error states:** None
 
 ### `ForceInspectaclesVision(force)`
-*   **Description:** Forces inspectacles vision state.
-*   **Parameters:** `force` (boolean) — Whether to force inspectacles vision on.
-*   **Returns:** Nothing.
-*   **Error states:** No-op if `force` matches current `forceinspectaclesvision`.
+* **Description:** Forces inspectacles vision on or off regardless of equipment state. Only pushes `inspectaclesvision` event if not already enabled by equipment.
+* **Parameters:** `force` -- boolean to force inspectacles vision on or off.
+* **Returns:** None
+* **Error states:** None
 
 ### `ForceRoseGlassesVision(force)`
-*   **Description:** Forces rose glasses vision state.
-*   **Parameters:** `force` (boolean) — Whether to force rose glasses vision on.
-*   **Returns:** Nothing.
-*   **Error states:** No-op if `force` matches current `forceroseglassesvision`.
+* **Description:** Forces rose glasses vision on or off regardless of equipment state. Only pushes `roseglassesvision` event if not already enabled by equipment.
+* **Parameters:** `force` -- boolean to force rose glasses vision on or off.
+* **Returns:** None
+* **Error states:** None
 
 ### `SetCustomCCTable(cctable, blend)`
-*   **Description:** Sets a custom colour cube override table, replacing previous overrides. Updates the active cctable immediately.
-*   **Parameters:**  
-    - `cctable` (table or `nil`) — Custom colour cube table or `nil` to clear.  
-    - `blend` (boolean) — Whether to use blending transitions.
-*   **Returns:** Nothing.
+* **Description:** Sets a custom colour cube table override. Updates internal state and calls `UpdateCCTable()` if table changes.
+* **Parameters:**
+  - `cctable` -- colour cube table or nil to clear override
+  - `blend` -- optional blend state for transitions
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:**  
-  - `equip` — Updates vision states on equipment changes.  
-  - `unequip` — Updates vision states on equipment removal.  
-  - `inventoryclosed` — Client-only; resets vision states if inventory is closed (client-side safeguard).  
-  - `changearea` — Triggers nightmare vision based on area tags (see `OnAreaChanged`).
-- **Pushes:**  
-  - `ccoverrides` — Sent when the active colour cube table changes.  
-  - `ccphasefn` — Sent when the colour cube phase function changes.  
-  - `ghostvision` — Sent when ghost vision state changes.  
-  - `nightvision` — Sent when night vision state (normal or forced) changes.  
-  - `gogglevision` — Sent when goggle vision state (normal or forced) changes.  
-  - `nutrientsvision` — Sent when nutrient vision state changes (client-side for ThePlayer only).  
-  - `scrapmonolevision` — Sent when scrap monole vision state changes.  
-  - `inspectaclesvision` — Sent when inspectacles vision state changes.  
-  - `roseglassesvision` — Sent when rose glasses vision state changes.  
-  - `nightmarevision` — Sent when nightmare vision state changes.  
-  - `nightvisionambientoverrides` — Sent when ambient overrides for forced night vision change.
+- **Listens to:** `equip` -- triggers vision state update on equipment change.
+- **Listens to:** `unequip` -- triggers vision state update on equipment removal.
+- **Listens to:** `inventoryclosed` (client only) -- triggers vision state update when inventory closes.
+- **Listens to:** `changearea` -- updates nightmare vision based on area tags.
+- **Pushes:** `nightmarevision` -- fired when nightmare vision state changes.
+- **Pushes:** `nightvision` -- fired when night vision state changes.
+- **Pushes:** `gogglevision` -- fired when goggle vision state changes (data: `{ enabled = boolean }`).
+- **Pushes:** `nutrientsvision` -- fired when nutrients vision state changes (world-level event).
+- **Pushes:** `scrapmonolevision` -- fired when scrap monole vision state changes (data: `{ enabled = boolean }`).
+- **Pushes:** `inspectaclesvision` -- fired when inspectacles vision state changes (data: `{ enabled = boolean }`).
+- **Pushes:** `roseglassesvision` -- fired when rose glasses vision state changes (data: `{ enabled = boolean }`).
+- **Pushes:** `ghostvision` -- fired when ghost vision state changes.
+- **Pushes:** `ccoverrides` -- fired when colour cube table changes.
+- **Pushes:** `ccphasefn` -- fired when colour cube phase function changes.
+- **Pushes:** `nightvisionambientoverrides` -- fired when ambient override table changes.

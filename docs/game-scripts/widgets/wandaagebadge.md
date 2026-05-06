@@ -1,116 +1,173 @@
 ---
 id: wandaagebadge
-title: Wandaagebadge
-description: Renders and manages the visual age, health pulse indicators, and effigy status for Wanda's character in Don't Starve Together.
-tags: [ui, player, character, health]
+title: OldAgeBadge
+description: UI widget that displays Wanda's age, health status, effigy indicators, and corrosive debuff states in the HUD.
+tags: [ui, widget, wanda, hud]
 sidebar_position: 10
-
-last_updated: 2026-03-08
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: widgets
-source_hash: f042b577
+source_hash: 5f674637
 system_scope: ui
 ---
 
-# Wandaagebadge
+# OldAgeBadge
 
-> Based on game build **714014** | Last updated: 2026-03-08
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`OldAgeBadge` is a UI widget that visually represents Wanda's aging state by displaying her current age in years, animating year/day hand indicators, and tracking health-based pulse effects and effigy presence. It extends the base `Badge` widget and integrates closely with Wanda-specific systems such as `player_classified` for aging simulation, `health` for status updates, and various sound and animation resources. It also supports visual feedback for acid sizzling effects,腐蚀 debuffs, and buff icons.
+`OldAgeBadge` is a HUD widget that extends the `Badge` class to display Wanda-specific status information including her current age in years, health percentage, effigy activation states, and corrosive debuff indicators. It handles visual feedback for health changes through color pulsing animations and manages multiple UI animation children for different status displays. This widget is typically attached to Wanda's player HUD and updates in real-time based on classified component data and health events.
 
 ## Usage example
 ```lua
-local OldAgeBadge = require "widgets/wandaagebadge"
-local badge = CreateWidget("oldagebadge", owner) -- or add to an entity's widget hierarchy
-badge:SetPercent(0.5, 100, 0) -- Set health age to mid-range
-badge:ShowBuff("abigail") -- Show Abigail buff icon
-badge:ShowEffigy("grave") -- Show gravestone effigy animation
+local WandaAgeBadge = require "widgets/wandaagebadge"
+local player = ThePlayer
+
+-- Create the badge widget attached to the player
+local agebadge = WandaAgeBadge(player)
+agebadge:SetPercent(0.75, 100, 0.1)
+agebadge:ShowEffigy("normal")
+agebadge:ShowBuff(1)
+
+-- Update health display when health changes
+agebadge:HealthDelta({ oldpercent = 0.8, newpercent = 0.75 })
 ```
 
 ## Dependencies & tags
-**Components used:** `player_classified`, `health` (via `owner.replica.health`)
-**Tags:** None identified.
+**External dependencies:**
+- `widgets/badge` -- parent class that provides base badge functionality
+- `widgets/uianim` -- UI animation child widgets for visual elements
+
+**Components used:**
+- `player_classified` -- accessed via `owner.player_classified` for oldager year percent and rate data
+- `replica.health` -- accessed via `owner.replica.health` for health penalty percent and max health values
+
+**Tags:**
+- None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `OVERRIDE_SYMBOL_BUILD` | table | `{}` | Modder-configurable mapping of symbol names to build names for buff icons. |
-| `default_symbol_build` | string | `"status_abigail"` | Default build used when no override is set for a symbol. |
-| `year_hand` | UIAnim | `nil` | Animated hand representing the year fraction of aging. |
-| `days_hand` | UIAnim | `nil` | Animated hand representing the day progress within a year. |
-| `effigyanim` | UIAnim | `nil` | Animation widget for standard (non-grave) effigy state. |
-| `gravestoneeffigyanim` | UIAnim | `nil` | Animation widget for grave effigy state. |
-| `bufficon` | UIAnim | `nil` | Animated icon for displaying active buffs (e.g., Abigail). |
-| `corrosives` | table | `{}` | Tracks active corrosive debuffs on the owner. |
-| `health_precent` | number | `1` | Current health percentage (normalized `0..1`). |
-| `healthpenalty` | number | `0` | Health penalty percentage applied to effective health. |
-| `buffsymbol` | number | `0` | Currently displayed buff symbol ID. |
-| `effigy` | boolean | `false` | Whether an effigy is currently active. |
-| `effigybreaksound` | string? | `nil` | Sound path used when effigy deactivates. |
-| `acidsizzling` | UIAnim? | `nil` | Optional visual effect for acid sizzling. |
+| `OVERRIDE_SYMBOL_BUILD` | table | `{}` | Modders can add symbol-build pairs by calling `SetBuildForSymbol`. |
+| `default_symbol_build` | string | `"status_abigail"` | Default build name for buff icon symbols. |
+| `rate_time` | number | `0` | Tracking value for rate calculations. |
+| `warning_precent` | number | `0.1` | Threshold percentage for warning states. |
+| `health_precent` | number | `1` | Current health percentage value. |
+| `year_hand` | UIAnim | `nil` | Animation child displaying year hand rotation. |
+| `days_hand` | UIAnim | `nil` | Animation child displaying day hand rotation. |
+| `effigyanim` | UIAnim | `nil` | Animation child for normal effigy status display. |
+| `gravestoneeffigyanim` | UIAnim | `nil` | Animation child for grave effigy status display. |
+| `effigy` | boolean | `false` | Whether an effigy is currently shown. |
+| `effigybreaksound` | string | `nil` | Sound name played when effigy breaks. |
+| `bufficon` | UIAnim | `nil` | Animation child for buff icon display. |
+| `buffsymbol` | number | `0` | Current buff symbol index (0 = none). |
+| `corrosives` | table | `{}` | Tracks active corrosive debuffs. |
+| `hots` | table | `{}` | Tracks active heal-over-time debuffs. |
+| `healthpenalty` | number | `0` | Current health penalty percentage. |
+| `acidsizzling` | UIAnim | `nil` | Animation child for acid sizzling effect (conditional). |
+| `pulsing` | string | `nil` | Current pulse color state ("green", "red", or nil). |
+| `playing_pulse_loop` | string | `nil` | Which pulse loop sound is playing ("up", "down", or nil). |
+| `turnofftask` | task | `nil` | Scheduled task to turn off pulse animation. |
 
 ## Main functions
 ### `SetBuildForSymbol(build, symbol)`
-*   **Description:** Allows modders to register a custom build (animation asset) for a given buff symbol.  
-*   **Parameters:**  
-    - `build` (string) — The animation build name (e.g., `"status_abigail"`).  
-    - `symbol` (string or number) — The symbol identifier used in `ShowBuff`.  
-*   **Returns:** Nothing.
+* **Description:** Allows modders to override the build used for a specific buff symbol. Stores the mapping in `OVERRIDE_SYMBOL_BUILD` table.
+* **Parameters:**
+  - `build` -- string build name to use for the symbol
+  - `symbol` -- string or number symbol identifier
+* **Returns:** None
+* **Error states:** None
 
 ### `ShowBuff(symbol)`
-*   **Description:** Displays a buff icon animation based on the provided symbol. Handles activation, idle, and deactivation states.  
-*   **Parameters:**  
-    - `symbol` (number or string) — Symbol ID. `0` hides the buff.  
-*   **Returns:** Nothing.  
-*   **Error states:** Uses `OVERRIDE_SYMBOL_BUILD[symbol]` or falls back to `default_symbol_build`.
+* **Description:** Displays a buff icon on the badge. Plays activate animation when changing to a new symbol, or deactivate animation when setting to 0 (none).
+* **Parameters:** `symbol` -- number buff symbol index (0 = no buff)
+* **Returns:** None
+* **Error states:** None
+
+### `UpdateBuff(symbol)`
+* **Description:** Wrapper function that calls `ShowBuff(symbol)`. Provided for API consistency.
+* **Parameters:** `symbol` -- number buff symbol index
+* **Returns:** None
+* **Error states:** None
 
 ### `ShowEffigy(effigy_type)`
-*   **Description:** Triggers effigy appearance animation for either `"grave"` or standard types.  
-*   **Parameters:**  
-    - `effigy_type` (string) — Either `"grave"` or any other string (treated as standard).  
-*   **Returns:** Nothing.
+* **Description:** Shows the effigy animation indicator. Supports "grave" type for gravestone effigies or any other value for normal effigies.
+* **Parameters:** `effigy_type` -- string effigy type ("grave" or other)
+* **Returns:** None
+* **Error states:** None
 
 ### `HideEffigy(effigy_type)`
-*   **Description:** Triggers effigy disappearance animation and schedules sound playback on animation completion.  
-*   **Parameters:**  
-    - `effigy_type` (string) — Either `"grave"` or any other string (treated as standard).  
-*   **Returns:** Nothing.  
-*   **Error states:** sound playback only occurs if the badge is visible and the effigy deactivate animation is active.
+* **Description:** Hides the effigy animation indicator and schedules a break sound to play after 7 frames if the effigy is currently shown. Cancels any existing break sound task before scheduling a new one.
+* **Parameters:** `effigy_type` -- string effigy type ("grave" or other)
+* **Returns:** None
+* **Error states:** None
 
 ### `SetPercent(val, max, penaltypercent)`
-*   **Description:** Updates the displayed age and year hand rotation based on the current health percentage (`val`). Also stores health penalty data.  
-*   **Parameters:**  
-    - `val` (number) — Health percentage (`0..1`).  
-    - `max` (number) — Max health (unused for calculation but present for signature compatibility).  
-    - `penaltypercent` (number) — Unused in current logic.  
-*   **Returns:** Nothing.
+* **Description:** Updates the age display based on health percentage. Calculates Wanda's age in years using `TUNING.WANDA_MIN_YEARS_OLD` and `TUNING.WANDA_MAX_YEARS_OLD`, updates the number string, and rotates the year hand accordingly.
+* **Parameters:**
+  - `val` -- number current health percentage (0-1)
+  - `max` -- number maximum health value
+  - `penaltypercent` -- number health penalty percentage
+* **Returns:** None
+* **Error states:** None
 
 ### `OnUpdate(dt)`
-*   **Description:** Client-side updater for day/year aging simulation. Compensates for paused state and predicts aging rate. Updates `days_hand` rotation.  
-*   **Parameters:**  
-    - `dt` (number) — Delta time in seconds.  
-*   **Returns:** Nothing.  
-*   **Error states:** Returns early if `TheNet:IsServerPaused()` is `true` or `owner.player_classified` is unavailable.
+* **Description:** Called every frame while updating. Retrieves oldager year percent from `player_classified` component and updates the days hand rotation. On client, performs prediction for oldager component progression based on DPS rate. Returns early if server is paused or `player_classified` is nil.
+* **Parameters:** `dt` -- number delta time since last frame
+* **Returns:** None
+* **Error states:** None
 
-### `PulseGreen()`, `PulseRed()`, `PulseOff()`, `Pulse(color)`
-*   **Description:** Manages health status pulse animations and sounds. `Pulse` dispatches to green or red based on `color`.  
-*   **Parameters (Pulse(color)):**  
-    - `color` (string) — `"green"` for health gain, otherwise `"red"`.  
-*   **Returns (Pulse*):** Nothing.  
-*   **Error states:** Sound volume for health-down pulses depends on oldager rate and age thresholds (`TUNING.WANDA_AGE_THRESHOLD_OLD`, `TUNING.WANDA_AGE_THRESHOLD_YOUNG`).
+### `PulseColor(r, g, b, a)`
+* **Description:** Sets the pulse animation color and plays the "on" animation followed by "on_loop". Used internally by `PulseGreen()` and `PulseRed()`.
+* **Parameters:**
+  - `r` -- number red channel (0-1)
+  - `g` -- number green channel (0-1)
+  - `b` -- number blue channel (0-1)
+  - `a` -- number alpha channel (0-1)
+* **Returns:** None
+* **Error states:** Errors if `self.pulse` is nil (no nil guard present before accessing `self.pulse:GetAnimState()`).
+
+### `PulseGreen()`
+* **Description:** Triggers a green pulse animation indicating positive health change. Calls `PulseColor(0, 1, 0, 1)`.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Inherits error states from `PulseColor()`.
+
+### `PulseRed()`
+* **Description:** Triggers a red pulse animation indicating negative health change. Calls `PulseColor(1, 0, 0, 1)`.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Inherits error states from `PulseColor()`.
+
+### `PulseOff()`
+* **Description:** Stops the pulse animation and kills the pulse loop sound. Resets `playing_pulse_loop` and `pulsing` to nil.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if `self.pulse` is nil (no nil guard present before accessing `self.pulse:GetAnimState()`).
+
+### `Pulse(color)`
+* **Description:** Triggers a health change pulse with sound effects. "green" plays health up sounds, any other value plays health down sounds with volume based on oldager rate and age thresholds.
+* **Parameters:** `color` -- string "green" or other value for red pulse
+* **Returns:** None
+* **Error states:** Errors if `self.owner.player_classified` is nil when accessing `GetOldagerRate()`. Errors if `self.pulse` is nil when calling `PulseGreen()` or `PulseRed()`.
 
 ### `HealthDelta(data)`
-*   **Description:** Handles health change events, updating age display, triggering pulses, and canceling pending pulse-off timers if needed.  
-*   **Parameters:**  
-    - `data` (table) — Must contain `newpercent` and `oldpercent` fields.  
-*   **Returns:** Nothing.
+* **Description:** Responds to health change events. Compares old and new health percentages and penalties to determine if a pulse should trigger. Cancels existing turnoff tasks and schedules a new one to turn off pulse after 0.25 seconds.
+* **Parameters:** `data` -- table containing `oldpercent`, `newpercent` fields from health event
+* **Returns:** None
+* **Error states:** Errors if `self.owner.replica.health` is nil (no nil guard before accessing `GetPenaltyPercent()` or `Max()`).
+
+### `ForceHealthPulse(data)`
+* **Description:** Forces a health pulse animation without comparing old/new values. Uses `data.up` for green pulse or `data.down` for red pulse.
+* **Parameters:** `data` -- table containing `up` or `down` boolean fields
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:**  
-  - `"startcorrosivedebuff"` — Adds debuff entry to `self.corrosives` and listens for `"onremove"` on the debuff instance.  
-  - `"serverpauseddirty"` — Pauses/resumes `"pulse_loop"` sound based on server pause state.  
-  - `"isacidsizzling"` — Creates or destroys `acidsizzling` animation based on acid sizzle state.  
-  - `"animover"` (on `effigyanim` and `gravestoneeffigyanim`) — Calls `OnEffigyDeactivated` to hide effigy visuals on animation completion.  
-- **Pushes:** None identified.
+- **Listens to:** `animover` on `effigyanim.inst` -- hides effigy widget when deactivation animation completes
+- **Listens to:** `animover` on `gravestoneeffigyanim.inst` -- hides gravestone effigy widget when deactivation animation completes
+- **Listens to:** `startcorrosivedebuff` on `owner` -- tracks new corrosive debuffs in `corrosives` table
+- **Listens to:** `onremove` on debuff entities -- removes corrosive debuff from tracking when debuff is removed
+- **Listens to:** `serverpauseddirty` on `TheWorld` -- kills or resumes pulse loop sound based on server pause state
+- **Listens to:** `isacidsizzling` on `owner` -- shows or hides acid sizzling animation based on sizzling state

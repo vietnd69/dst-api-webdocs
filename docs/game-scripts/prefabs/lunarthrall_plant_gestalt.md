@@ -1,49 +1,76 @@
 ---
 id: lunarthrall_plant_gestalt
 title: Lunarthrall Plant Gestalt
-description: Prefab definition for the Lunarthrall Plant Gestalt entity, a mobile lunar-aligned creature that spawns in the Ruins and affects sanity.
-tags: [lunar, creature, boss]
+description: Defines the lunarthrall_plant_gestalt prefab entity with AI brain, movement, and gestalt capture mechanics.
+tags: [prefab, lunar, gestalt, creature, ai]
 sidebar_position: 10
-
-last_updated: 2026-03-05
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 572dbbf4
+source_hash: c782d9ca
 system_scope: entity
 ---
 
 # Lunarthrall Plant Gestalt
 
-> Based on game build **714014** | Last updated: 2026-03-05
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`lunarthrall_plant_gestalt` is the prefab constructor function that defines the Lunarthrall Plant Gestalt entity — a boss-like lunar-aligned creature appearing in the Ruins. It is built using core ECS components including `animstate`, `soundemitter`, `physics`, `sanityaura`, and `locomotor`. It integrates with the `SGlunarthrall_plant_gestalt` stategraph and a custom brain (`lunarthrall_plant_gestalt_brain`). The entity is tagged for gameplay behavior (`brightmare`, `NOBLOCK`, `soulless`, `lunar_aligned`) and features a 15-second post-spawn timer that initiates its `spawn` state.
+`lunarthrall_plant_gestalt` is a creature prefab representing a lunar-aligned gestalt entity. It features AI behavior through a dedicated brain, locomotion capabilities, sanity aura effects, and can be captured via the gestalt capture system. The entity is marked as planar and soulless, affecting interactions with certain game mechanics like Wortox soul hopping.
 
 ## Usage example
-This prefab is instantiated internally by the world generation system and does not require direct instantiation by mods. However, a typical usage pattern when referencing its components might look like:
 ```lua
--- Assume `gestalt` is an existing instance of lunarthrall_plant_gestalt
-if gestalt:HasTag("lunar_aligned") then
-    gestalt.components.locomotor.walkspeed = 5
-    gestalt.components.sanityaura.aura = TUNING.SANITYAURA_LARGE
-end
+-- Spawn the prefab in the world
+local inst = SpawnPrefab("lunarthrall_plant_gestalt")
+
+-- Access configured components
+inst.components.sanityaura.aura = TUNING.SANITYAURA_MED
+inst.components.gestaltcapturable:SetLevel(2)
+
+-- The prefab automatically sets up state graph and brain on server
+-- Client-side instances skip server-only initialization
 ```
 
 ## Dependencies & tags
-**Components used:** `timer`, `sanityaura`, `locomotor`, `knownlocations`, `animstate`, `soundemitter`, `transform`, `physics`, `network`  
-**Tags:** Adds `brightmare`, `NOBLOCK`, `soulless`, `lunar_aligned`  
-**External prefabs referenced:** `lunarrift_portal` (scrapbook dependency)
+**External dependencies:**
+- `prefabutil` -- prefab utility functions
+- `brains/lunarthrall_plant_gestalt_brain` -- AI behavior tree for this entity
+
+**Components used:**
+- `timer` -- manages spawn timer (15 second "justspawned" timer)
+- `sanityaura` -- provides sanity aura effect to nearby players
+- `locomotor` -- handles movement speed and pathfinding capabilities
+- `gestaltcapturable` -- enables gestalt capture mechanics with level 2 planar setting
+- `knownlocations` -- tracks known locations for AI navigation
+
+**Tags:**
+- `brightmare` -- added on creation, affects nightmare creature interactions
+- `NOBLOCK` -- added on creation, prevents entity from blocking movement
+- `soulless` -- added on creation, prevents Wortox soul hopping to this entity
+- `lunar_aligned` -- added on creation, marks entity as lunar faction
+- `gestaltcapturable` -- added on creation, marks entity as capturable by gestalts
 
 ## Properties
-No public properties are initialized or exposed in this prefab file itself. All configuration is performed via component setters in the constructor (`fn`) and stategraph/brain.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `scrapbook_inspectonseen` | boolean | `true` | Enables scrapbook inspection when entity is first seen |
+| `scrapbook_thingtype` | string | `"creature"` | Categorizes entity as creature in scrapbook |
+| `scrapbook_adddeps` | table | `{"lunarrift_portal"}` | List of dependent prefabs for scrapbook |
+| `Spawn` | function | --- | Local function assigned to instance for spawn initialization logic. |
 
 ## Main functions
 ### `Spawn(inst)`
-* **Description:** Initialization callback invoked when the entity is placed into the world. Starts a 15-second timer, sets a random rotation, and transitions the entity to the `"spawn"` state via its stategraph.
-* **Parameters:** `inst` (Entity) — The entity instance being spawned.
-* **Returns:** Nothing.
-* **Error states:** None — assumes the entity has a valid `timer` and `stategraph` component.
+* **Description:** Called when the prefab spawns. Starts a 15-second timer, applies random rotation, and transitions state graph to "spawn" state.
+* **Parameters:** `inst` -- the entity instance being spawned
+* **Returns:** None
+* **Error states:** Errors if `inst.components.timer` is nil (timer component not added before Spawn is called) or if state graph is not set (inst.sg is nil).
+
+### `fn()`
+* **Description:** Main prefab constructor function. Creates the entity, initializes all components, sets up physics and animations, and configures server-side behavior. Returns the fully configured instance.
+* **Parameters:** None
+* **Returns:** Entity instance (`inst`)
+* **Error states:** None -- includes `TheWorld.ismastersim` guard to prevent server-only logic from running on clients.
 
 ## Events & listeners
-None identified. The prefab does not define event listeners or fire custom events directly.
+None identified.

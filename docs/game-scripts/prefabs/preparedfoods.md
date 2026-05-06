@@ -1,77 +1,99 @@
 ---
 id: preparedfoods
 title: Preparedfoods
-description: A prefabricated generator function factory that creates fully configured prepared food entities with configurable nutrition, perishability, and spice effects.
-tags: [food, inventory, crafting, perishable, spice]
+description: Defines the prefab factory and registration logic for all cooked food items in the game.
+tags: [prefabs, food, cooking]
 sidebar_position: 10
-
-last_updated: 2026-03-06
-build_version: 714014
+last_updated: 2026-04-18
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: c1009255
-system_scope: crafting
+source_hash: 49937355
+system_scope: entity
 ---
 
 # Preparedfoods
 
-> Based on game build **714014** | Last updated: 2026-03-06
+> Based on game build **722832** | Last updated: 2026-04-18
 
 ## Overview
-The `preparedfoods` module is not a component itself, but a **Prefab factory generator**. It defines the `MakePreparedFood(data)` function, which programmatically constructs fully-featured food entities for DST. This includes setting up visual assets (animations and inventory images), attaching required components (edible, inventoryitem, perishable, stackable, bait, tradable), applying spiced food overlays when applicable, and configuring food-specific properties like health, hunger, sanity, temperature effects, and spoil time. It is used by `preparedfoods.lua` (generic foods), `preparedfoods_warly.lua` (Warly-specific foods), and `spicedfoods.lua` (spiced variants).
+`preparedfoods.lua` acts as a factory module that generates and registers all cooked food prefabs in Don't Starve Together. It utilizes a central `MakePreparedFood` function to construct entities based on data definitions loaded from external tables (`preparedfoods`, `preparedfoods_warly`, `spicedfoods`). Each generated prefab is automatically configured with standard inventory, perishable, and edible components, ensuring consistent behavior across all food items.
 
 ## Usage example
 ```lua
-local food_data = {
-    name = "my_custom_food",
-    basename = "mycustomfood",
-    health = 15,
-    hunger = 20,
-    sanity = 5,
+-- This file is loaded by the engine to register prefabs.
+-- Modders typically extend the data tables required by this file.
+-- Example of data structure expected by MakePreparedFood:
+
+local new_food_data = {
+    name = "custom_food",
+    basename = "custom_food",
+    health = 10,
+    hunger = 10,
     foodtype = FOODTYPE.GENERIC,
-    perishtime = 40 * SECONDS,
-    spice = "chili",
+    perishtime = TUNING.PERISH_MED,
+    -- Additional fields configure assets and behavior
 }
 
-local my_food_prefab = MakePreparedFood(food_data)
+-- The file internally calls:
+-- Prefab = MakePreparedFood(new_food_data)
 ```
 
 ## Dependencies & tags
-**Components used:** `edible`, `inventoryitem`, `perishable`, `stackable`, `inspectable`, `bait`, `tradable`.  
-**Tags added:** `preparedfood` (always), `spicedfood` (when spice is present), plus any custom tags from `data.tags`.
+**External dependencies:**
+- `preparedfoods` -- base food data table
+- `preparedfoods_warly` -- Warly-specific food data table
+- `spicedfoods` -- spiced food variants data table
+
+**Components used:**
+- `edible` -- configures health, hunger, sanity, and temperature effects
+- `inspectable` -- allows players to examine the item
+- `inventoryitem` -- manages inventory icon and pickup behavior
+- `stackable` -- enables stacking in inventory (max size `TUNING.STACK_SIZE_SMALLITEM`)
+- `perishable` -- handles spoilage over time (conditional)
+- `bait` -- allows the item to be used as bait
+- `tradable` -- enables trading mechanics
+
+**Tags:**
+- `preparedfood` -- added to all instances
+- `spicedfood` -- added if spice data is present
 
 ## Properties
-No public properties are defined on a module-wide basis. The `MakePreparedFood` function accepts a `data` table with the following expected keys (derived from usage):
+The following properties define the `data` table schema passed to the factory function.
 
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `data.name` | string | *(required)* | Unique prefab name (e.g., `"sweettea"`). |
-| `data.basename` | string | `nil` | Base filename override for animations and images. |
-| `data.health` | number | *(required)* | Health value provided when eaten. |
-| `data.hunger` | number | *(required)* | Hunger value provided when eaten. |
-| `data.sanity` | number | `0` | Sanity change when eaten. |
-| `data.foodtype` | `FOODTYPE.*` | `FOODTYPE.GENERIC` | Food classification (affects AI preferences). |
-| `data.secondaryfoodtype` | `FOODTYPE.*` | `nil` | Optional secondary food classification. |
-| `data.temperature` | number | `0` | Immediate temperature change on consumption. |
-| `data.temperatureduration` | number | `0` | Duration (in seconds) of temperature effect. |
-| `data.nochill` | boolean | `nil` | If `true`, food cannot be chilled (used for Warly). |
-| `data.spice` | string | `nil` | Spice name (e.g., `"chili"`) to apply visual spice overlay. |
-| `data.perishtime` | number | `nil` | Perish time in seconds; if > 0, perishable component is added. |
-| `data.oneatenfn` | function | `nil` | Callback called when the food is eaten. |
-| `data.tags` | table | `nil` | Array of custom tags to add to the entity. |
-| `data.floater` | table | `nil` | Params for `MakeInventoryFloatable`: [x, y, z] offset. |
-| `data.overridebuild` | string | `nil` | Custom animation build to use instead of default. |
-| `data.prefabs` | table | `prefabs` | Additional prefabs to include in the asset list. |
+| `name` | string | --- | Unique prefab name and asset identifier. |
+| `basename` | string | --- | Base name used for display and asset lookups. |
+| `health` | number | --- | Health value granted when eaten. |
+| `hunger` | number | --- | Hunger value granted when eaten. |
+| `sanity` | number | `0` | Sanity value granted when eaten. |
+| `foodtype` | constant | `FOODTYPE.GENERIC` | Food classification (e.g., MEAT, VEGGIE). |
+| `secondaryfoodtype` | constant | `nil` | Secondary food classification. |
+| `perishtime` | number | `nil` | Time in seconds before the item spoils. |
+| `spice` | string | `nil` | Spice type (e.g., "CHILI", "GARLIC"). |
+| `overridebuild` | string | `nil` | Overrides the animation build name. |
+| `tags` | table | `nil` | List of additional tags to add to the instance. |
+| `prefabs` | table | `nil` | List of additional prefab dependencies to include. |
+| `floater` | table | `nil` | Configuration for water floating behavior. |
+| `oneatenfn` | function | `nil` | Callback function executed when the food is eaten. |
+| `OnPutInInventory` | function | `nil` | Callback function executed when put in inventory. |
+| `temperature` | number | `0` | Temperature delta applied when eaten. |
+| `temperatureduration` | number | `0` | Duration of the temperature effect. |
+| `nochill` | boolean | `nil` | If true, prevents cooling effects. |
+| `chargevalue` | number | `nil` | Electrical charge value (for WX-78). |
+| `wet_prefix` | string | `nil` | Prefix for wet inventory image. |
+| `scrapbook` | table | `nil` | Scrapbook configuration data. |
+| `scrapbook_sanityvalue` | number | `nil` | Sanity value displayed in scrapbook. |
+| `scrapbook_healthvalue` | number | `nil` | Health value displayed in scrapbook. |
 
 ## Main functions
 ### `MakePreparedFood(data)`
-*   **Description:** Constructs and returns a fully configured `Prefab` for a prepared food item. Handles asset loading, animation setup, component attachment, and network initialization.
-*   **Parameters:**  
-    `data` (table) – Configuration table containing food properties (e.g., `health`, `hunger`, `spice`, `perishtime`).
-*   **Returns:** `Prefab` – A callable prefab factory function suitable for use with `Prefab()`.
-*   **Error states:** Returns early on clients (non-master simulations) after instantiating only the visual entity, to prevent duplicate server-side initialization.
+*   **Description:** Factory function that constructs and returns a Prefab object based on the provided `data` table. It sets up assets, components, and entity logic for a specific food item.
+*   **Parameters:**
+    - `data` -- table containing configuration fields (see Properties).
+*   **Returns:** Prefab object ready for registration.
+*   **Error states:** Errors if `data.name` is nil when constructing asset paths (results in invalid asset string concatenation). Errors if `TheWorld` is not initialized during server-side component setup (rare, typically guarded by `ismastersim`).
 
 ## Events & listeners
-This module itself does not define event handlers. However, the generated prefabs support the following events via component behavior:
-- **Listens to:** `onputininventory` (custom listener via `data.OnPutInInventory` if provided).
-- **Pushes:** `imagechange` (via `inventoryitem:ChangeImageName`), and standard component events (`on eaten`, `perish`, etc.) are handled by attached components (`edible`, `perishable`, etc.).
+- **Listens to:** `onputininventory` -- triggers `data.OnPutInInventory` callback if defined in the data table.

@@ -1,221 +1,335 @@
 ---
 id: multiplayermainscreen
-title: Multiplayermainscreen
-description: Manages the main multiplayer screen UI, including menu navigation, banner rendering, screen transitions, and event-specific content.
-tags: [ui, frontend, screen, navigation]
+title: MultiplayerMainScreen
+description: Main menu screen for Don't Starve Together multiplayer mode, providing server browsing, hosting, player summary, and settings navigation with dynamic seasonal banners.
+tags: [screen, ui, menu, multiplayer]
 sidebar_position: 10
-
-last_updated: 2026-03-09
-build_version: 714014
+last_updated: 2026-04-27
+build_version: 722832
 change_status: stable
 category_type: screens
-source_hash: 86065330
+source_hash: 629ee693
 system_scope: ui
 ---
 
-# Multiplayermainscreen
+# MultiplayerMainScreen
 
-> Based on game build **714014** | Last updated: 2026-03-09
+> Based on game build **722832** | Last updated: 2026-04-27
 
 ## Overview
-`MultiplayerMainScreen` is a UI screen component that serves as the central hub for multiplayer actions in Don't Starve Together. It provides menus for browsing servers, creating/hosting games, accessing player summaries, options, mods, and special event screens. It also handles dynamic banner rendering based on game state (e.g., special events, beta builds), snowfall effects, and entitlement item popups. It inherits from `Screen` and integrates deeply with frontend systems like profile management, networking, inventory, and front-end audio/video.
+`MultiplayerMainScreen` is the primary main menu screen for Don't Starve Together multiplayer mode, extending `Screen`. It displays dynamic seasonal/event banners, main navigation menu (browse, host, player summary, compendium, options, quit), sub-menu with utility links, and handles entitlement checks, music playback, and popup dialogs for new users or special events. The screen manages focus navigation between menu, MOTD panel, and sub-menu widgets.
 
 ## Usage example
-This component is instantiated internally by the frontend and not directly instantiated by mods. It is typically used as part of the screen stack via `TheFrontEnd:PushScreen(MultiplayerMainScreen(...))`. Mods may override or extend behavior via hooks or by creating screens that interact with its public methods.
-
 ```lua
--- Not a typical usage for mods; the screen is created internally as:
--- TheFrontEnd:PushScreen(MultiplayerMainScreen(prev_screen, profile, offline, session_data))
--- where:
---   prev_screen = the screen that invoked this one (e.g., login or options)
---   profile = the local player's Profile component
---   offline = boolean indicating offline mode
---   session_data = session metadata table
+local MultiplayerMainScreen = require("screens/redux/multiplayermainscreen")
+
+-- Push the main menu screen onto the FrontEnd stack
+local screen = MultiplayerMainScreen(prev_screen, profile, offline, session_data)
+TheFrontEnd:PushScreen(screen)
+
+-- Enable/disable banner sounds
+screen:EnableBannerSounds(true)
+
+-- Navigate to settings from external code
+screen:Settings("AUDIO")
 ```
 
 ## Dependencies & tags
-**Components used:** `Profile`, `TheInventory`, `TheNet`, `TheFrontEnd`, `TheGenericKV`, `TheSim`, `ShardSaveGameIndex`, `KnownModIndex`, `TheItems`, `TheInput`, `TheStats`, `TheAnimList`, `TheStats`, `PostProcessor`, `FriendsManager`, `OnlineStatus`, `KitcoonPuppet`, `MainMenuMotdPanel`, `MainMenuStatsPanel`, `ItemBoxOpenerPopup`, `ThankYouPopup`, `SkinGifts`, `Stats`
+**External dependencies:**
+- `widgets/screen` -- Screen base class
+- `widgets/animbutton`, `widgets/imagebutton`, `widgets/menu`, `widgets/text`, `widgets/image`, `widgets/uianim`, `widgets/widget` -- UI widget primitives
+- `widgets/redux/templates` -- Standard button, menu, and dialog factories
+- `widgets/friendsmanager`, `widgets/onlinestatus`, `widgets/kitcoonpuppet` -- Specialized UI widgets
+- `screens/redux/popupdialog`, `screens/redux/festivaleventscreen`, `screens/redux/modsscreen`, `screens/redux/optionsscreen`, `screens/redux/compendiumscreen`, `screens/redux/playersummaryscreen`, `screens/redux/quickjoinscreen`, `screens/redux/serverlistingscreen`, `screens/redux/serverslotscreen`, `screens/redux/purchasepackscreen` -- Navigation target screens
+- `screens/thankyoupopup`, `screens/redux/itemboxopenerpopup` -- Popup dialogs
+- `skin_gifts`, `stats` -- Utility modules for entitlements and statistics
+- `os` -- System time functions
 
-**Widgets/widgets used (via require):** `Screen`, `AnimButton`, `ImageButton`, `Menu`, `Text`, `Image`, `UIAnim`, `Widget`, `PopupDialogScreen`, `FestivalEventScreen`, `ModsScreen`, `OptionsScreen`, `CompendiumScreen`, `PlayerSummaryScreen`, `QuickJoinScreen`, `ServerListingScreen`, `ServerSlotScreen`, `PurchasePackScreen`, `KitcoonPuppet`
+**Components used:** None (screen file, not a component).
 
-**Tags:** None identified.
+**Tags:** None.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `profile` | `Profile` | `nil` | Player profile used for saved filters, user data, and account info. |
-| `offline` | boolean | `nil` | Indicates whether the session is in offline mode. |
-| `session_data` | table | `nil` | Session metadata passed from prior screen. |
-| `prev_screen` | `Screen` | `nil` | Reference to the screen that launched this one. |
-| `menu_root` | `Widget` | `nil` | Root widget containing the main menu. |
-| `menu` | `Menu` | `nil` | Main menu widget for primary actions. |
-| `submenu` | `Menu` | `nil` | Secondary menu with utility actions (e.g., open save folder, profile). |
-| `motd_panel` | `Widget` / `nil` | `nil` | Panel used for MOTD or stats; may be `MainMenuMotdPanel` or `MainMenuStatsPanel`. |
-| `userprogress` | `Widget` / `nil` | `nil` | Progress display shown during festivals. |
-| `banner_root` | `Widget` | `nil` | Container for dynamic banner visuals. |
-| `build_number` | `Text` | `nil` | Text widget displaying the current build number. |
-| `logo` | `Image` | `nil` | Logo image widget (title art). |
-| `kit_puppet` | `KitcoonPuppet` | `nil` | Animated Kitcoon puppet displayed in UI. |
-| `snowfall` / `banner_snowfall` | `Widget` / `nil` | `nil` | Snowfall effect widgets (event-specific). |
-| `leaving` | boolean / `nil` | `nil` | Flag indicating screen is transitioning out. |
-| `last_focus_widget` | `Widget` / `nil` | `nil` | Last focused widget before leaving screen. |
-| `filter_settings` | table / `nil` | `nil` | Saved filter settings used for server listings. |
-| `musicstopped` | boolean | `false` | Tracks whether music is stopped. |
-| `musictask` | `PeriodicTask` / `nil` | `nil` | Task responsible for restarting music after fade. |
-| `bannersoundsenabled` | boolean | `false` | Whether banner-related sounds are active. |
-| `shown` | boolean | `false` | Whether the screen has been shown at least once. |
-| `entitlements_checked` | boolean | `false` | Whether entitlement items have been checked and displayed. |
-| `debug_menu` | `Menu` / `nil` | `nil` | Optional menu for dev builds (debug-only). |
+| `info_font` | string | `BODYTEXTFONT` | Font used for informational text elements. |
+| `profile` | Profile | --- | Player profile object for save/load operations. |
+| `offline` | boolean | --- | Whether the client is in offline mode. |
+| `session_data` | table | --- | Session data passed from previous screen. |
+| `log` | boolean | `true` | Logging enabled flag. |
+| `prev_screen` | Screen | --- | Reference to the previous screen in the stack. |
+| `default_focus` | Widget | --- | Widget to receive focus by default (set to `self.menu`). |
+| `entitlements_checked` | boolean | `false` | Whether DLC entitlements have been checked this session. |
+| `fixed_root` | Widget | --- | Root widget for fixed-position UI elements. |
+| `letterbox` | Widget | --- | Foreground letterbox overlay widget. |
+| `banner_root` | Widget | --- | Container for dynamic banner animations. |
+| `sidebar` | Image | --- | Black sidebar background image. |
+| `build_number` | Text | --- | Build version string display. |
+| `logo` | Image | --- | Game logo image (varies by event). |
+| `onlinestatus` | Widget | --- | Online status indicator widget. |
+| `kit_puppet` | Widget | --- | Kitcoon puppet widget for seasonal decoration. |
+| `motd_panel` | Widget | --- | MOTD panel or stats panel widget. |
+| `userprogress` | Widget | --- | User progress widget (festival events only). |
+| `banner_front` | Widget | `nil` | Optional foreground banner overlay. |
+| `menu` | Widget | --- | Main menu widget containing primary buttons. |
+| `submenu` | Widget | --- | Sub-menu widget with utility links. |
+| `debug_menu` | Widget | `nil` | Debug menu (dev builds only). |
+| `menu_root` | Widget | --- | Container widget for main menu. |
+| `snowfall` | Widget | `nil` | Snowfall effect widget (Winter's Feast event). |
+| `banner_snowfall` | Widget | `nil` | Banner snowfall effect widget. |
+| `bannersoundsenabled` | boolean | --- | Whether banner sounds are enabled. |
+| `musicstopped` | boolean | `nil` | Whether FE music is currently stopped. |
+| `musictask` | task | `nil` | Scheduled task for music start delay. |
+| `last_focus_widget` | Widget | `nil` | Last focused widget before screen transition. |
+| `leaving` | boolean | `nil` | Flag indicating screen is transitioning away. |
+| `filter_settings` | table | `nil` | Saved server filter settings. |
+| `cached_entity_count` | number | `nil` | Cached entity count for leak detection (dev builds). |
+| `IS_BETA` | constant (local) | `---` | True if `BRANCH` is "staging" or "dev". |
+| `IS_DEV_BUILD` | constant (local) | `---` | True if `BRANCH` is "dev". |
+| `SHOW_DST_DEBUG_HOST_JOIN` | constant (local) | `---` | True if `BRANCH` is "dev" (shows debug host/join menu). |
+| `SHOW_QUICKJOIN` | constant (local) | `false` | Quick join feature flag (disabled by default). |
 
 ## Main functions
-### `MakeBanner(self)`
-* **Description:** Renders and returns a dynamic banner widget based on the current game state (e.g., special events, beta, or default). This is the primary banner for the main menu.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** `Widget` — the banner container with UIAnim and optional overlay text.
-* **Error states:** Returns `nil` if banner creation fails; in practice, always returns a widget.
+### `_ctor(prev_screen, profile, offline, session_data)`
+* **Description:** Initialises the screen, calls `Screen._ctor(self, "MultiplayerMainScreen")`, sets up colour cube data and ambient colour, stores constructor parameters, calls `DoInit()`, sets default focus to menu, and applies online profile data via `TheGenericKV`.
+* **Parameters:**
+  - `prev_screen` -- previous screen in the FrontEnd stack
+  - `profile` -- Profile object for player data
+  - `offline` -- boolean indicating offline mode
+  - `session_data` -- session data table from previous screen
+* **Returns:** nil
+* **Error states:** None — all parameters are stored without dereferencing.
 
-### `MakeBannerFront(self)`
-* **Description:** Renders optional foreground banner elements (e.g., overlays) drawn on top of MOTD panels. Currently disabled for most cases — returns `nil`.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** `Widget` / `nil` — always `nil` in the current build.
+### `GotoShop(filter_info)`
+* **Description:** Navigates to the shop/purchase pack screen. Shows offline error dialog if not in online mode, otherwise stops music and fades to `PurchasePackScreen`.
+* **Parameters:**
+  - `filter_info` -- optional filter data for shop navigation
+* **Returns:** nil
+* **Error states:** None — guards offline mode with popup dialog.
 
-### `GotoShop(self, filter_info)`
-* **Description:** Navigates to the `PurchasePackScreen` (skin shop) if online mode is available; otherwise, shows an offline mode popup.
-* **Parameters:** `filter_info` (table) — optional shop filter data (e.g., category).
-* **Returns:** Nothing.
+### `getStatsPanel()`
+* **Description:** Returns a `MainMenuStatsPanel` widget with a store callback that checks offline mode and navigates to `PurchasePackScreen` or shows error dialog.
+* **Parameters:** None
+* **Returns:** `MainMenuStatsPanel` widget instance
+* **Error states:** None.
 
-### `getStatsPanel(self)`
-* **Description:** Returns a `MainMenuStatsPanel` instance, configured with a shop callback that opens the store (with offline fallback).
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** `MainMenuStatsPanel`.
+### `DoInit()`
+* **Description:** Builds the complete screen UI: creates `fixed_root`, letterbox, banner (via `MakeBanner`), sidebar, build number text, logo (varies by festival event), main menu, sub-menu, online status widget, Kitcoon puppet, MOTD/stats panel, user progress widget (festival events), and optional front banner. Calls `DoFocusHookups()` and hides the screen initially.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None — all widget creation is guarded by conditionals.
 
-### `DoInit(self)`
-* **Description:** Initializes the screen UI: builds layout (sidebar, banner, logo, menus), snowfall, MOTD/stats panel, Kitcoon puppet, and sets up focus hookups. Called once in the constructor.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `DoFocusHookups()`
+* **Description:** Configures focus navigation between menu, sub-menu, MOTD panel, and debug menu. Sets `MOVE_UP`/`MOVE_DOWN`/`MOVE_LEFT`/`MOVE_RIGHT` focus change directions.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None — checks `self.debug_menu` existence before configuring.
 
-### `DoFocusHookups(self)`
-* **Description:** Configures focus navigation between main menu, sub-menu, MOTD panel, and debug menu (if present).
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `OnControl(control, down)`
+* **Description:** Handles input control events. Calls base `Screen.OnControl`, then forwards to `motd_panel` if present. Returns true if input was handled.
+* **Parameters:**
+  - `control` -- CONTROL_* constant
+  - `down` -- boolean (true on press, false on release)
+* **Returns:** boolean — true if handled
+* **Error states:** None — guards `self.motd_panel` existence.
 
-### `OnShow(self)`
-* **Description:** Activated when the screen becomes visible. Starts snowfall, banner sounds, and disables pause file check. Automatically calls `Show()` internally.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `EnableBannerSounds(enable)`
+* **Description:** Sets the `bannersoundsenabled` flag to control whether banner sound effects play.
+* **Parameters:**
+  - `enable` -- boolean to enable/disable banner sounds
+* **Returns:** nil
+* **Error states:** None.
 
-### `OnHide(self)`
-* **Description:** Activated when the screen becomes hidden. Stops snowfall and banner sounds.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `OnShow()`
+* **Description:** Called when screen becomes visible. Calls base `OnShow`, starts snowfall effects if active (checking netbook/small texture mode), enables banner sounds, and unpauses file existence async checks.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None — guards snowfall widgets with nil checks.
 
-### `OnDestroy(self)`
-* **Description:** Cleanup called when screen is destroyed. Invokes `OnHide` then calls parent `OnDestroy`.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `OnHide()`
+* **Description:** Called when screen is hidden. Calls base `OnHide`, stops snowfall effects, and disables banner sounds.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
-### `EnableBannerSounds(self, enable)`
-* **Description:** Enables or disables banner-specific sound effects.
-* **Parameters:** `enable` (boolean) — whether to enable banner sounds.
-* **Returns:** Nothing.
+### `OnDestroy()`
+* **Description:** Called when screen is destroyed. Calls `OnHide()` then base `OnDestroy()` for cleanup.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
-### `StopMusic(self)`
-* **Description:** Stops the frontend music (`FEMusic`) and cancels any pending music restart task.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `OnRawKey(key, down)`
+* **Description:** Handles raw keyboard input. Currently empty (no-op).
+* **Parameters:**
+  - `key` -- keyboard key code
+  - `down` -- boolean (true on press, false on release)
+* **Returns:** nil
+* **Error states:** None.
 
-### `StartMusic(self)`
-* **Description:** Starts or schedules resumption of frontend music (`FEMusic`) after fading out during transitions.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `_FadeToScreen(screen_ctor, data)`
+* **Description:** Fades out, stores last focus widget, disables menu, sets `leaving` flag, then fades to a new screen constructed via `screen_ctor`. Used for transitions to screens with their own music.
+* **Parameters:**
+  - `screen_ctor` -- screen constructor function
+  - `data` -- table of arguments to pass to screen constructor
+* **Returns:** nil
+* **Error states:** None.
 
-### `OnFestivalEventButton(self)`
-* **Description:** Handles navigation to the active festival event screen, including offline mode popups and mod conflict warnings.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `StopMusic()`
+* **Description:** Stops the front-end music (`FEMusic`). Sets `musicstopped` flag and cancels any pending music start task.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
-### `OnCreateServerButton(self)`
-* **Description:** Navigates to `ServerSlotScreen` for creating a new server game.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `StartMusic()`
+* **Description:** Starts the front-end music with a 1.25 second delay if music is stopped and no task is pending. Sets fade parameter to 0 before scheduling.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
-### `OnBrowseServersButton(self)`
-* **Description:** Navigates to `ServerListingScreen`, applying saved filters and offline mode settings.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `_GoToFestfivalEventScreen(fadeout_cb)`
+* **Description:** Transitions to the festival event screen. Stops music if event has custom music, fades out, pushes `FestivalEventScreen`, fades in, and hides this screen. Calls `fadeout_cb` if provided during fade.
+* **Parameters:**
+  - `fadeout_cb` -- optional callback function called during fade-out
+* **Returns:** nil
+* **Error states:** None.
 
-### `OnPlayerSummaryButton(self)`
-* **Description:** Navigates to `PlayerSummaryScreen`, showing player stats and progress; opens shop popup if offline.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `OnFestivalEventButton()`
+* **Description:** Handles festival event button click. Shows offline error dialog if not online, or shows mods warning popup if mods are enabled (with options to disable mods and reset, continue with warning, or cancel). If no mods warning needed, transitions to festival event screen.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None — all paths show appropriate dialogs or transitions.
 
-### `OnCompendiumButton(self)`
-* **Description:** Navigates to `CompendiumScreen`.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `OnCreateServerButton()`
+* **Description:** Navigates to the server slot creation screen via `_GoToOnlineScreen`.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
-### `OnQuickJoinServersButton(self)`
-* **Description:** Shows the `QuickJoinScreen` popup (if enabled and no festival active).
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `_GoToOnlineScreen(screen_ctor, data)`
+* **Description:** Fades out, saves profile, pushes the specified online screen (server listing, server slot, etc.), fades in, and hides this screen. Used for online mode navigation.
+* **Parameters:**
+  - `screen_ctor` -- screen constructor function
+  - `data` -- table of arguments for screen constructor
+* **Returns:** nil
+* **Error states:** None.
 
-### `Settings(self, default_section)`
-* **Description:** Opens `OptionsScreen` with an optional default section (e.g., `"CONTROLSCHEME"`).
-* **Parameters:** `default_section` (string) — optional section name.
-* **Returns:** Nothing.
+### `OnBrowseServersButton()`
+* **Description:** Handles browse servers button click. Checks for new user popup first, loads or initialises filter settings (including SHOWLAN based on offline mode), then navigates to `ServerListingScreen`.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None — guards new user check and initialises filters if nil.
 
-### `OnModsButton(self)`
-* **Description:** Navigates to `ModsScreen` (mod manager).
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `OnPlayerSummaryButton()`
+* **Description:** Handles player summary button click. Shows offline error dialog if not online, otherwise stops music and fades to `PlayerSummaryScreen`.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
-### `Quit(self)`
-* **Description:** Shows quit confirmation popup.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `OnCompendiumButton()`
+* **Description:** Handles compendium button click. Fades to `CompendiumScreen`.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
-### `OnHostButton(self)`
-* **Description:** Starts a local server in offline mode, resetting or preserving world-gen options based on input keys.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `OnQuickJoinServersButton()`
+* **Description:** Handles quick join button click. Checks for new user popup, stores last focus widget, disables menu, sets `leaving` flag, and pushes `QuickJoinScreen` popup (no fade).
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
-### `OnJoinButton(self)`
-* **Description:** Attempts to connect to the default join IP address.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `Settings(default_section)`
+* **Description:** Navigates to the options/settings screen, optionally starting at a specific section.
+* **Parameters:**
+  - `default_section` -- optional string section name to open
+* **Returns:** nil
+* **Error states:** None.
 
-### `OnBecomeActive(self)`
-* **Description:** Called when the screen becomes active. Restores focus, starts music, enables Kitcoon, and performs entity leak checks (dev builds only).
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `OnModsButton()`
+* **Description:** Handles mods button click. Fades to `ModsScreen`.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
-### `OnBecomeInactive(self)`
-* **Description:** Called when the screen becomes inactive. Disables the Kitcoon puppet.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `Quit()`
+* **Description:** Shows quit confirmation dialog with Yes (calls `RequestShutdown()`) and No (pops dialog) options.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
 
-### `FinishedFadeIn(self)`
-* **Description:** Post-fade actions upon appearing: shows skin DLC entitlement popups, box opener popups, daily gifts, or language assistance popups (Steam only).
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `OnHostButton()`
+* **Description:** Handles host button click. Loads server mods, saves mod index, starts server in slot 1, disables DLC, and either deletes slot (with Shift/Ctrl held) or starts next instance with saved slot.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** Errors if `TheNet:StartServer()` fails silently (no error handling for false return).
 
-### `CheckNewUser(self, onno_fn, no_button_text)`
-* **Description:** Shows a first-time user popup and handles navigation flow (e.g., proceed to server creation or custom action).
-* **Parameters:**  
-  - `onno_fn` (function) — callback for "No" (proceed with original action).  
-  - `no_button_text` (string) — label for the "No" button.
-* **Returns:** `boolean` — `true` if popup was shown; `false` if user previously saw it.
+### `OnJoinButton()`
+* **Description:** Handles join button click. Starts client connection to `DEFAULT_JOIN_IP`, disables DLC if successful, and shows loading screen.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None — `start_worked` result is not checked for errors.
 
-### `CheckEntitlements(self)`
-* **Description:** Checks for unopened entitlement items (e.g., DLC gifts), opens box popups, and persists state via `TheGenericKV`.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `MakeMainMenu()`
+* **Description:** Builds the main menu widget tree with buttons for browse, host, player summary, compendium, options, quit, and conditional buttons for shop (console), mods (if enabled), quick join (if enabled and online), and festival event (if active). Creates debug menu in dev builds.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None — all conditional buttons check their respective flags.
 
-### `HandleNewControlSchemePopup(self)`
-* **Description:** Shows a one-time popup to guide users to set up controls when a controller is first attached.
-* **Parameters:** `self` (table) — the screen instance.
-* **Returns:** Nothing.
+### `MakeSubMenu()`
+* **Description:** Builds the sub-menu widget with icon buttons for save location (non-Linux/SteamDeck), manage account (if Steam ticket), forums, and more games (non-Rail).
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
+
+### `OnBecomeActive()`
+* **Description:** Called when screen becomes active. Validates profile items, updates user progress if returning from collection/game, shows screen if not shown, adds `FriendsManager`, restores focus, enables debug menu, clears `leaving` flag, starts music, starts workshop query (if logged on), calls MOTD panel `OnBecomeActive`, enables kit puppet, and checks for entity leaks in dev builds.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None — all widget calls are guarded with nil checks.
+
+### `OnBecomeInactive()`
+* **Description:** Called when screen becomes inactive. Disables the kit puppet.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
+
+### `FinishedFadeIn()`
+* **Description:** Called after screen fade-in completes. Checks for auth token, then handles new skin DLC entitlements popup, auto box item popup (mystery box opening), or daily gift/entitlement items popup. If no items, shows Steam language preference popup (if applicable).
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None — guards auth token check and handles all popup paths.
+
+### `HandleNewControlSchemePopup()`
+* **Description:** Shows new control scheme popup dialog if a controller is attached and user hasn't seen the popup before. Offers to open settings to CONTROLSCHEME section or dismiss.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None.
+
+### `OnUpdate(dt)`
+* **Description:** Per-frame update handler. Calls `HandleNewControlSchemePopup()` and `CheckEntitlements()` (once per session).
+* **Parameters:**
+  - `dt` -- delta time in seconds
+* **Returns:** nil
+* **Error states:** None.
+
+### `CheckNewUser(onnofn, no_button_text)`
+* **Description:** Shows new user detection popup if user hasn't seen it before. Yes button creates server, No button calls the provided callback. Returns true if popup was shown.
+* **Parameters:**
+  - `onnofn` -- function to call if user selects No
+  - `no_button_text` -- string for the No button label
+* **Returns:** boolean — true if popup was shown, false if user already saw it
+* **Error states:** None.
+
+### `GetHelpText()`
+* **Description:** Returns help text from MOTD panel if panel exists, has `GetHelpText` method, and is not focused. Otherwise returns empty string.
+* **Parameters:** None
+* **Returns:** string — help text or empty string
+* **Error states:** None.
+
+### `CheckEntitlements()`
+* **Description:** Checks DLC entitlements against seen status. Gets owned entitlements via `TheItems:GetOwnedEntitlements()`, applies online profile data if `TheGenericKV` not synced, compares owned vs seen counts, and shows `ItemBoxOpenerPopup` for any new entitlements. Sets `entitlements_checked` to true when complete.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None — uses `pcall` for JSON decode and guards all entitlement checks.
 
 ## Events & listeners
-- **Listens to:** None explicitly — all event handling is delegated to child widgets (e.g., `motd_panel`, `kit_puppet`).
-- **Pushes:** None — screen actions use direct navigation (`TheFrontEnd:PushScreen`) rather than event dispatch.
+None — screens consume input via `OnControl`, not engine event subscriptions.

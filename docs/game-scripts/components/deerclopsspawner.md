@@ -1,90 +1,150 @@
 ---
 id: deerclopsspawner
 title: Deerclopsspawner
-description: Manages the spawning, timing, and targeting logic for Deerclops boss attacks in DST.
-tags: [boss, combat, world, spawning, seasonal]
+description: Manages Deerclops boss spawning, timing, and attack cycles on the server.
+tags: [boss, spawning, seasonal, server]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: a4dce30e
-system_scope: world
+source_hash: 0860486c
+system_scope: entity
 ---
 
 # Deerclopsspawner
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`Deerclopsspawner` orchestrates Deerclops boss spawns during winter (and optionally off-season) in DST. It monitors active players, calculates attack timing based on season length and configured rates, selects a valid target player and location, and spawns the `deerclops` entity when conditions are met. It interacts with the `worldsettingstimer`, `areaaware`, `knownlocations`, and `talker` components to manage state, movement, and player announcements.
+`Deerclopsspawner` controls the seasonal spawning and attack patterns of the Deerclops boss entity. It tracks active players, manages warning periods before attacks, and coordinates spawn timing through the world settings timer system. This component only operates on the master server simulation and will error if instantiated on a client.
 
 ## Usage example
 ```lua
--- Typically added automatically to the world entity during init:
--- TheWorld.components.deerclopsspawner = TheWorld:AddComponent("deerclopsspawner")
--- No manual usage is intended; it operates as a singleton world component.
+local inst = CreateEntity()
+inst:AddComponent("deerclopsspawner")
+inst.components.deerclopsspawner:OnPostInit()
+
+-- Debug summon (server only)
+if TheWorld.ismastersim then
+    inst.components.deerclopsspawner:SummonMonster(ThePlayer)
+end
+
+-- Get debug status
+print(inst.components.deerclopsspawner:GetDebugString())
 ```
 
 ## Dependencies & tags
-**Components used:** `worldsettingstimer`, `areaaware`, `knownlocations`, `talker`  
-**Tags:** Checks `nohasslers` on player areas; no tags added or removed by this component.
+**External dependencies:**
+- `easing` -- imported but unused in this file
+
+**Components used:**
+- `worldsettingstimer` -- manages attack timer via `TheWorld.components.worldsettingstimer`
+- `areaaware` -- checked on players to verify valid spawn areas
+- `talker` -- used for warning speech announcements to players
+- `knownlocations` -- stores target base location for spawned Deerclops
+
+**Tags:**
+- `structure` -- checked when selecting attack targets
+- `deerclops` -- checked to prevent duplicate spawns
+- `nohasslers` -- area tag checked to exclude players from targeting
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Owner entity (always `TheWorld` in mastersim). |
+| `inst` | entity | `nil` | The entity instance that owns this component. |
 
 ## Main functions
+### `SetAttacksPerWinter(attacks)`
+* **Description:** Deprecated function. Previously set the number of Deerclops attacks per winter season.
+* **Parameters:** `attacks` -- number of attacks (ignored in current implementation).
+* **Returns:** None.
+* **Error states:** None.
+
+### `OverrideAttacksPerSeason(name, num)`
+* **Description:** Deprecated function. Previously allowed overriding attack count per season.
+* **Parameters:**
+  - `name` -- string identifier (ignored).
+  - `num` -- number of attacks (ignored).
+* **Returns:** None.
+* **Error states:** None.
+
+### `OverrideAttackDuringOffSeason(name, bool)`
+* **Description:** Deprecated function. Previously allowed enabling attacks outside winter season.
+* **Parameters:**
+  - `name` -- string identifier (ignored).
+  - `bool` -- boolean to enable off-season attacks (ignored).
+* **Returns:** None.
+* **Error states:** None.
+
 ### `OnPostInit()`
-* **Description:** Initializes the Deerclops attack timer based on season tuning and starts the attack cycle. Called once when the component is added to `TheWorld`.
+* **Description:** Initializes the attack timer and calculates attack delay based on winter length. Registers the Deerclops timer with the world settings timer system.
 * **Parameters:** None.
-* **Returns:** Nothing.
+* **Returns:** None.
+* **Error states:** Errors if `TheWorld.components.worldsettingstimer` is nil when calling `AddTimer()`.
 
-### `DoWarningSpeech(targetPlayer)`
-* **Description:** Triggers Deerclops warning speech for players near the target player.
-* **Parameters:** `targetPlayer` (`Entity`) — the player selected as the Deerclops target.
-* **Returns:** Nothing.
+### `DoWarningSpeech(_targetplayer)`
+* **Description:** Triggers warning announcement speech for the target player and nearby players within twice the hassler spawn distance.
+* **Parameters:** `_targetplayer` -- player entity to target for warnings.
+* **Returns:** None.
+* **Error states:** Errors if any active player near the target lacks a `talker` component when `Say()` is called.
 
-### `DoWarningSound(targetPlayer)`
-* **Description:** Spawns a `deerclopswarning_lvlX` prefab at the target player’s position based on time-to-attack. Warning level depends on how soon the Deerclops is expected (`4` = imminent).
-* **Parameters:** `targetPlayer` (`Entity`) — the player selected as the Deerclops target.
-* **Returns:** Nothing.
+### `DoWarningSound(_targetplayer)`
+* **Description:** Spawns a warning sound prefab at the target player's position. Sound level varies based on time remaining until attack.
+* **Parameters:** `_targetplayer` -- player entity to spawn sound near.
+* **Returns:** None.
+* **Error states:** Errors if `_targetplayer.Transform` is nil when getting world position.
 
 ### `OnUpdate(dt)`
-* **Description:** Handles warning state progression: tracks time-to-attack, toggles `_warning` flag, and schedules warning sounds and speech at diminishing intervals as the spawn time approaches.
-* **Parameters:** `dt` (number) — delta time in seconds since last frame.
-* **Returns:** Nothing.
-* **Error states:** Returns early and resets if `_activehassler` is present or timer is nil.
+* **Description:** Main update loop that checks timer status, manages warning state, and triggers warning speech/sounds during the warning period before attack.
+* **Parameters:** `dt` -- delta time in seconds.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `LongUpdate(dt)`
-* **Description:** Alias for `OnUpdate`; required for component update scheduling.
-* **Parameters:** `dt` (number) — delta time.
-* **Returns:** Nothing.
+* **Description:** Calls `OnUpdate(dt)`. Provided for compatibility with component update systems that distinguish short and long updates.
+* **Parameters:** `dt` -- delta time in seconds.
+* **Returns:** None.
+* **Error states:** None.
 
-### `SummonMonster(player)`
-* **Description:** Forces Deerclops to spawn within 10 seconds, overriding normal timing. Used for debug or quest triggers.
-* **Parameters:** `player` (`Entity`) — ignored; retained for API consistency.
-* **Returns:** Nothing.
+### `OnSave()`
+* **Description:** Returns save data including warning state, stored hassler record, and active hassler GUID.
+* **Parameters:** None.
+* **Returns:** `data` (table) containing `warning`, `storedhassler`, `activehassler`; `ents` (array) of entity GUIDs.
+* **Error states:** None.
+
+### `OnLoad(data)`
+* **Description:** Restores component state from save data including warning flag and stored hassler record. Handles legacy `timetoattack` field migration.
+* **Parameters:** `data` -- table containing saved component state.
+* **Returns:** None.
+* **Error states:** None.
+
+### `LoadPostPass(newents, savedata)`
+* **Description:** Resolves active hassler entity reference after all entities are loaded. Maps saved GUID to actual entity instance.
+* **Parameters:**
+  - `newents` -- table mapping GUIDs to loaded entities.
+  - `savedata` -- saved component data containing `activehassler` GUID.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable string describing current Deerclops state (e.g., waiting, warning, attacking).
+* **Description:** Returns a formatted debug string showing current spawner state including timer status, warning state, target player, and active/stored hassler info.
 * **Parameters:** None.
-* **Returns:** `string` — formatted debug info.
+* **Returns:** String containing debug information.
+* **Error states:** None.
+
+### `SummonMonster(player)`
+* **Description:** Debug function that forces Deerclops to spawn in 10 seconds. Sets or resumes the attack timer and starts component updating.
+* **Parameters:** `player` -- player entity (used for context, not strictly required).
+* **Returns:** None.
+* **Error states:** Errors if `TheWorld.components.worldsettingstimer` is nil when accessing timer methods.
 
 ## Events & listeners
-- **Listens to:**
-  - `ms_playerjoined` — adds player to `_activeplayers` and triggers attack checks.
-  - `ms_playerleft` — removes player from `_activeplayers`; if leaving player is the current target, calls `TargetLost`.
-  - `season` (world state) — triggers `TryStartAttacks` on season change.
-  - `hasslerremoved` — resets `_activehassler` and re-evaluates attacks.
-  - `hasslerkilled` — sets `_activehassler = nil`, increases next attack delay, and re-evaluates attacks.
-  - `storehassler` — saves `deerclops` save record for reuse (prevents duplicate spawns).
-  - `megaflare_detonated` — may trigger immediate attack based on RNG, range, and season.
-- **Pushes:** None directly. Events are only consumed internally.
-
-## Save/Load integration
-- **`OnSave()`** — returns table with `_warning`, `_storedhassler`, and optionally `_activehassler.GUID`. Also returns list of entity GUIDs to persist.
-- **`OnLoad(data)`** — restores `_warning` and `_storedhassler`; supports old `_timetoattack` field for backwards compatibility.
-- **`LoadPostPass(newents, savedata)`** — resolves `_activehassler` reference after entity restoration.
+- **Listens to:** `ms_playerjoined` -- adds player to active players list and checks attack conditions.
+- **Listens to:** `ms_playerleft` -- removes player from active list; triggers target loss if leaving player was the target.
+- **Listens to:** `hasslerremoved` -- clears active hassler reference and checks for next attack.
+- **Listens to:** `hasslerkilled` -- clears active hassler and triggers next attack with killed delay multiplier.
+- **Listens to:** `storehassler` -- saves hassler entity record for persistence.
+- **Listens to:** `megaflare_detonated` -- chance to spawn Deerclops during megaflare event if conditions allow.
+- **Watches world state:** `season` -- triggers attack check on season change.
+- **Watches world state:** `cycles` -- watches until `NO_BOSS_TIME` cycle threshold is passed.

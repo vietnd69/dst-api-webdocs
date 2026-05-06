@@ -1,83 +1,155 @@
 ---
 id: secondarystatusdisplays
-title: Secondarystatusdisplays
-description: Manages a secondary UI display panel for player upgrades and inventory, aligned for split-screen multiplayer use.
-tags: [ui, multiplayer, upgrade]
+title: SecondaryStatusDisplays
+description: A UI widget that displays secondary status information for players, including upgrade module displays for WX-78 robots.
+tags: [ui, widget, hud, wx78]
 sidebar_position: 10
-
-last_updated: 2026-03-08
-build_version: 714014
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
 category_type: widgets
-source_hash: 47c64b29
+source_hash: 0177c431
 system_scope: ui
 ---
 
-# Secondarystatusdisplays
+# SecondaryStatusDisplays
 
-> Based on game build **714014** | Last updated: 2026-03-08
+> Based on game build **722832** | Last updated: 2026-04-17
 
 ## Overview
-`SecondaryStatusDisplays` is a UI widget that provides a mirrored or offset version of the primary status display, specifically designed for split-screen multiplayer support. It hosts the upgrade modules UI (`UpgradeModulesDisplay`) and an optional side inventory panel, aligning elements to the opposite side of the screen depending on whether the owner is `Player1` (column1 = `50`) or another player (column1 = `-50`). It reacts to player mode changes (`ghostmode`) and upgrade module state updates via event listeners.
+`SecondaryStatusDisplays` is a HUD widget that mirrors `StatusDisplays` functionality but is aligned on the opposite side for splitscreen multiplayer. It primarily manages the display of upgrade modules for WX-78 robot characters, showing energy levels and module slots. The widget responds to player mode changes (ghost vs. player) and synchronizes with upgrade module events from the owning player entity.
 
 ## Usage example
 ```lua
-local inst = CreateEntity()
-inst:AddComponent("secondarystatusdisplays")
--- Assuming 'owner' is a player entity with the "upgrademoduleowner" tag:
-inst.components.secondarystatusdisplays.owner = owner
-inst.components.secondarystatusdisplays:SetGhostMode(false)
+local SecondaryStatusDisplays = require "widgets/secondarystatusdisplays"
+
+-- Typically instantiated by the HUD system for a player
+local owner = ThePlayer
+local statusWidget = SecondaryStatusDisplays(owner)
+
+-- Show or hide status numbers
+statusWidget:ShowStatusNumbers()
+statusWidget:HideStatusNumbers()
+
+-- Toggle ghost mode (hides inventory and module displays)
+statusWidget:SetGhostMode(true)
+
+-- Update module energy levels
+statusWidget:SetUpgradeModuleEnergyLevel(5, 3, false)
+statusWidget:SetUpgradeModuleMaxEnergyLevel(10, 8)
 ```
 
 ## Dependencies & tags
-**Components used:** None directly (relies on external widgets and `UpgradeModulesDisplay`).
-**Tags:** Checks `owner:HasTag("upgrademoduleowner")`; listens to owner for `upgrademodulesdirty`, `upgrademoduleowner_popallmodules`, and `energylevelupdate` events.
+**External dependencies:**
+- `widgets/widget` -- base widget class inheritance
+- `widgets/uianim` -- UI animation utilities
+- `widgets/upgrademodulesdisplay` -- child widget for displaying upgrade modules
+
+**Components used:**
+None identified
+
+**Tags:**
+- `upgrademoduleowner` -- checked to determine if module display should be added
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `owner` | entity | `nil` | The player entity this widget belongs to; must be provided at or shortly after construction. |
-| `column1` | number | `50` or `-50` | Horizontal offset in screen space, determined at construction based on `IsGameInstance(Instances.Player1)`. |
-| `isghostmode` | boolean | `true` (initially) | Tracks whether the owner is currently in ghost mode (affects visibility of child widgets). |
-| `side_inv` | widget | `nil` initially | Child widget container for side inventory UI. |
-| `upgrademodulesdisplay` | UpgradeModulesDisplay | `nil` initially | Child widget managing upgrade module display when the owner supports modules. |
+| `owner` | entity | `nil` | The player entity that owns this HUD widget. |
+| `column1` | number | `60` or `-60` | X position offset (60 for Player1, -60 for others). |
+| `modetask` | task | `nil` | Scheduled task reference for mode switching. |
+| `isghostmode` | boolean | `nil` | Whether the widget is in ghost mode (hides displays). |
+| `side_inv` | widget | Widget instance | Child widget for side inventory display. |
+| `upgrademodulesdisplay` | widget | `nil` | Child widget for upgrade modules display (WX-78 only). |
 
 ## Main functions
-### `SetGhostMode(ghostmode)`
-*   **Description:** Toggles visibility of the side inventory and upgrade modules display based on ghost mode state. Defers actual UI updates to avoid race conditions during mode transitions.
-*   **Parameters:** `ghostmode` (boolean) – `true` to hide modules/inventory (e.g., during spectating), `false` to show them.
-*   **Returns:** Nothing.
-*   **Error states:** No-op if the current `isghostmode` value already matches `ghostmode`.
+### `ShowStatusNumbers()`
+* **Description:** Opens the upgrade modules display to show status numbers.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `HideStatusNumbers()`
+* **Description:** Closes the upgrade modules display to hide status numbers.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `Layout()`
+* **Description:** Empty layout function, available for override or future implementation.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `AddModuleOwnerDisplay()`
-*   **Description:** Instantiates and attaches the `UpgradeModulesDisplay` child widget if the owner has the `upgrademoduleowner` tag and none exists yet.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
-*   **Error states:** No-op if `upgrademodulesdisplay` already exists.
+* **Description:** Creates and adds the upgrade modules display child widget if the owner has the `upgrademoduleowner` tag. Initializes energy level and modules data.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if `self.owner` is nil when calling `GetEnergyLevel()` or `GetModulesData()`.
+
+### `HideModuleOwnerDisplay()`
+* **Description:** Hides the upgrade modules display widget without removing it.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `ShowModuleOwnerDisplay()`
+* **Description:** Shows the upgrade modules display widget if it exists.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `UpdateModuleOwnerDisplayPosition()`
+* **Description:** Adjusts the Y position of the upgrade modules display based on whether it is extended (7 slots vs 6 slots).
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `SetGhostMode(ghostmode)`
+* **Description:** Toggles between ghost mode and player mode. Ghost mode hides side inventory and upgrade modules displays. Schedules a task to call `OnSetGhostMode` or `OnSetPlayerMode` after completion.
+* **Parameters:**
+  - `ghostmode` -- boolean, true for ghost mode, false for player mode
+* **Returns:** None
+* **Error states:** None
 
 ### `ModulesDirty(data)`
-*   **Description:** Delegates the `upgrademodulesdirty` event to the `UpgradeModulesDisplay` to refresh module UI.
-*   **Parameters:** `data` (table) – Module data payload, passed through to the underlying display.
-*   **Returns:** Nothing.
+* **Description:** Handles module data changes by updating both this widget's display and the owner's HUD upgrade module widget.
+* **Parameters:**
+  - `data` -- table containing module data from `owner:GetModulesData()`
+* **Returns:** None
+* **Error states:** None
 
 ### `PopAllUpgradeModules()`
-*   **Description:** Delegates the request to pop all installed upgrade modules to the `UpgradeModulesDisplay`.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Removes all upgrade modules from the display and synchronizes with the owner's HUD widget.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `SetUpgradeModuleEnergyLevel(new_level, old_level)`
-*   **Description:** Updates the energy level display in the `UpgradeModulesDisplay`.
-*   **Parameters:** `new_level` (number) – current energy level; `old_level` (number) – previous energy level.
-*   **Returns:** Nothing.
+### `SetUpgradeModuleEnergyLevel(new_level, old_level, skipsound)`
+* **Description:** Updates the current energy level display and synchronizes with the owner's HUD widget.
+* **Parameters:**
+  - `new_level` -- number, the new energy level value
+  - `old_level` -- number, the previous energy level value
+  - `skipsound` -- boolean, whether to skip the update sound effect
+* **Returns:** None
+* **Error states:** None
+
+### `SetUpgradeModuleMaxEnergyLevel(new_level, old_level)`
+* **Description:** Updates the maximum energy level display, synchronizes with the owner's HUD widget, and recalculates display position.
+* **Parameters:**
+  - `new_level` -- number, the new maximum energy level
+  - `old_level` -- number, the previous maximum energy level
+* **Returns:** None
+* **Error states:** None
 
 ### `UpgradeModulesEnergyLevelDelta(data)`
-*   **Description:** Extracts `new_level` and `old_level` from an energy update event payload and calls `SetUpgradeModuleEnergyLevel`.
-*   **Parameters:** `data` (table or `nil`) – May contain `data.new_level` and `data.old_level`; defaults to `0` for missing fields.
-*   **Returns:** Nothing.
+* **Description:** Handles energy level update events by extracting level data and calling appropriate update functions for max level and current level changes.
+* **Parameters:**
+  - `data` -- table with fields `new_max_level`, `old_max_level`, `new_level`, `old_level` (all optional, default to 0 if nil)
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:**  
-  `energylevelupdate` (on owner) – triggers `UpgradeModulesEnergyLevelDelta`.  
-  `upgrademodulesdirty` (on owner) – triggers `ModulesDirty`.  
-  `upgrademoduleowner_popallmodules` (on owner) – triggers `PopAllUpgradeModules`.  
-- **Pushes:** None.
+- **Listens to:** `upgrademodulesdirty` -- triggers `ModulesDirty()` when module data changes
+- **Listens to:** `upgrademoduleowner_popallmodules` -- triggers `PopAllUpgradeModules()` when all modules are popped
+- **Listens to:** `energylevelupdate` -- triggers `UpgradeModulesEnergyLevelDelta()` when energy levels change
+- **Pushes:** None identified

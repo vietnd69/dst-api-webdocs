@@ -5,11 +5,11 @@ description: A static data file containing localized string mappings for charact
 tags: [localization, assets, ui, skin, strings]
 sidebar_position: 10
 
-last_updated: 2026-04-11
-build_version: 719586
+last_updated: 2026-04-22
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: f2ba40ca
+source_hash: 5f8ca638
 system_scope: ui
 ---
 

@@ -1,662 +1,887 @@
 ---
 id: mainfunctions
 title: Mainfunctions
-description: Central game logic component managing initialization, shutdown, loading, unloading, spawning, persistence, and state transitions for prefabs and player sessions in Don't Starve Together.
-tags: [init, shutdown, loading, persistence, spawning]
+description: Defines core global utility functions for game lifecycle, entity management, simulation control, and network operations in Don't Starve Together.
+tags: [core, lifecycle, utilities, network, world]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
-category_type: root
-source_hash: cabb37c1
+category_type: utility
+source_hash: 0032e5f6
 system_scope: world
 ---
 
 # Mainfunctions
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-`mainfunctions.lua` serves as the foundational game logic module in Don't Starve Together. It handles high-level lifecycle management including startup, shutdown, world loading/unloading, player session persistence and restoration, prefab registration and spawning, non-interactive sequence (NIS) playback, pause/simulation state control, and UI-driven state transitions. It coordinates across entities, world state, components, and frontend/backend systems—acting as the orchestrator for core simulation and session behavior.
+`mainfunctions.lua` serves as the central hub for global game logic operations and simulation control. It exposes the primary API for managing the game lifecycle (initialization, shutdown, pause), entity spawning and removal, save/load processes, and network event handling. Unlike components, these functions are not attached to specific entities but operate on the global simulation context (`TheSim`, `TheWorld`, `TheNet`). Modders typically interact with this module indirectly through console commands or specific high-level APIs like `SpawnPrefab`, though direct calls are generally reserved for engine-level logic.
 
 ## Usage example
 ```lua
--- Initialize global systems and start game frontend
-GlobalInit()
-Start()
+-- Spawn a prefab at the console position if it exists
+local prefab_name = "chester"
+if PrefabExists(prefab_name) then
+    SpawnPrefab(prefab_name)
+end
 
--- Load and spawn a player from save record
-local saved = { x = 0, y = 0, z = 0, puid = 123, rx = 0, ry = 0, rz = 0 }
-local newents = {}
-local player = SpawnSaveRecord(saved, newents)
+-- Pause the simulation with a reason string
+SetPause(true, "debug_inspection")
 
--- Set and apply time scale
-SetDefaultTimeScale(1.0)
-
--- Save game before shutdown
-SaveGame(true, function() Shutdown() end)
+-- Save the current game state manually
+SaveGame()
 ```
 
 ## Dependencies & tags
-**Components used:**
-- `components/nis.lua` (`Play`, `SetCancel`, `SetInit`, `SetName`, `SetScript`)
-- `components/playerspawner.lua` (`SpawnAtLocation`)
-- `components/scenariorunner.lua` (`SetScript`)
-- `components/vaultroommanager.lua` (`GetVaultLobbyCenterMarker`)
-- `components/walkableplatformplayer.lua` (`TestForPlatform`)
-- `components/worldoverseer.lua` (`QuitAll`)
-- `components/worldstate.lua` (`Dump`)
-- `dbui_no_package/debug_console.lua`, `dbui_no_package/debug_nodes.lua`
-- `debugsounds.lua`
-- `dlcsupport.lua`
-- `gamelogic.lua`
-- `map/customize.lua`, `map/levels.lua`
-- `savefileupgrades.lua`
-- `stats.lua`
 
-**Tags:**  
-None explicitly declared in the chunks.
+**External dependencies:**
+- `screens/redux/popupdialog` -- Required for popup dialog screens
+- `screens/worldgenscreen` -- Required for world generation screen
+- `screens/healthwarningpopup` -- Required for health warning popup on Rail
+- `stats` -- Required for PushMetricsEvent
+- `dbui_no_package/debug_nodes` -- Conditionally required for debug UI
+- `dbui_no_package/debug_console` -- Conditionally required for debug console
+- `scheduler` -- Required for task scheduling
+- `gamelogic` -- Required in Start function
+- `map/levels` -- Required in UpdateWorldGenOverride for worldgen data
+- `savefileupgrades` -- Required for worldgen override upgrades
+- `map/customize` -- Required for customize options in UpdateWorldGenOverride
+- `screens/redux/pausescreen` -- Required in SetPauseFromCode
+- `screens/redux/lobbyscreen` -- Required in ResumeRequestLoadComplete
+- `widgets/text` -- Required in DisplayAntiAddictionNotification
+- `dlcsupport` -- Required for DLC management
+- `nis/` -- Required dynamically in PlayNIS for NIS scripts
+
+**Components used:**
+- `walkableplatformmanager` -- Accessed via TheWorld.components.walkableplatformmanager for platform position resolution
+- `scenariorunner` -- Added and configured in SpawnSaveRecord for scenario scripts
+- `playerspawner` -- Accessed via TheWorld.components.playerspawner:SpawnAtLocation for player spawning
+- `walkableplatformplayer` -- TestForPlatform called on player component for platform attachment
+- `worldoverseer` -- QuitAll called in DoWorldOverseerShutdown
+- `vaultroommanager` -- GetVaultLobbyCenterMarker called for vault lobby position
+- `worldstate` -- Dump method accessed for debug string
+- `nis` -- Component added and configured in PlayNIS function
+
+**Tags:**
+- `player` -- check
 
 ## Properties
+
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| (none) | — | — | No direct properties exposed; this module contains only functions and uses globals like `Settings`, `Purchases`, and `TheSim`. |
+| `DEBUG_MODE` | constant (local) | `BRANCH == "dev"` | Gates dev-mode error handling in LoadPrefabFile. |
+| `modprefabinitfns` | table (local) | `{}` | Stores prefab post-init functions indexed by prefab name. Populated by RegisterPrefabsImpl, accessed by SpawnPrefabFromSim to apply mod post-init functions. |
+| `PREFABDEFINITIONS` | table (local) | `{}` | Stores loaded prefab definitions indexed by prefab name. Populated by LoadPrefabFile after successful prefab registration. |
+| `MOD_FRONTEND_PREFABS` | table (local) | `{}` | Tracks frontend mod prefab names for unload/reload operations. Used by ModUnloadFrontEndAssets and ModReloadFrontEndAssets. |
+| `MOD_PRELOAD_PREFABS` | table (local) | `{}` | Tracks preload mod prefab names for unload/preload operations. Used by ModUnloadPreloadAssets and ModPreloadAssets. |
+| `Scripts` | table (local) | `{}` | Caches loaded script functions by filename. Used by LoadScript to avoid reloading the same script multiple times. |
+| `screen_fade_time` | constant (local) | `0.25` | Fade duration for network disconnect dialogs. |
+| `BASE64_CHARS` | constant (local) | `"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"` | Character set for world state tag encoding. |
+| `BASE64_LOOKUP` | constant (local) | table | Lookup table for base64 character decoding in world state tags. |
+| `platforms_supporting_audio_focus` | constant (local) | table | Platforms that support audio focus handling (WIN32_STEAM, WIN32_RAIL, LINUX_STEAM, OSX_STEAM). Controls muting behavior in OnFocusLost/OnFocusGained. |
+| `SimTearingDown` | global (boolean) | `false` | Set to true during SimReset; checked before shutdown operations. |
+| `SimShuttingDown` | global (boolean) | `false` | Set to true in Shutdown(); indicates sim is quitting. |
+| `PerformingRestart` | global (boolean) | `false` | Set to true in DoRestart(); prevents multiple restart sequences. |
+| `Paused` | global (boolean) | `false` | Game pause state; read by SetPause, OnServerPauseDirty, IsPaused. |
+| `Autopaused` | global (boolean) | `false` | Auto-pause state (e.g., map open); read by OnServerPauseDirty. |
+| `GameAutopaused` | global (boolean) | `false` | Game auto-pause state (lobby); read by OnServerPauseDirty. |
+| `Settings` | global (table) | `{}` | Stores instance parameters decoded from JSON; used by SetInstanceParameters, IsInFrontEnd. |
+| `Purchases` | global (table) | `{}` | Stores purchases decoded from JSON; used by SetPurchases. |
+| `exiting_game` | global (boolean) | `false` | Set to true in RequestShutdown(); prevents duplicate shutdown requests. |
+| `IsDynamicCloudShutdown` | global (boolean) | `false` | Set to true in OnDynamicCloudSyncDelete(); affects server shutdown behavior. |
+| `OnAccountEventListeners` | global (table) | `{}` | Array of listener objects registered via RegisterOnAccountEventListener; iterated in OnAccountEvent. |
+| `login_button` | global (local) | `nil` | Reference to login button widget; used by TurnOffLoginButton/TurnOnLoginButton during integrity checks. |
+| `LoadingStates` | table (enum) | --- | Loading state enum used by NotifyLoadingState: None=0, Loading=1, Generating=2, DoneGenerating=3, DoneLoading=4. Controls client-side screen transitions during world load/generation. |
+| `HashesMessageState` | global (string) | `nil` | State of hash integrity check UI (SHOW_WARNING, SHOWING_POPUP, MISSING_HASHES, MISSING_DATABUNDLES, CHOSE_TO_PLAY_ANYWAY); read by ShowBadHashUI and DataBundleFileHashes. |
+| `IsIntegrityChecking` | global (boolean) | `nil` | Set to true in BeginDataBundleFileHashes(); indicates integrity check is running. |
+| `WORLDSTATETAGS` | table (world state tag namespace) | --- | Base game world state tag namespace created via CreateWorldStateTag("WS:", ...). Contains declared tags: CELESTIAL_ORB_FOUND, CELESTIAL_PORTAL_BUILT, CRABBY_HERMIT_HAPPY, LUNAR_RIFTS_ACTIVE (Forest); ATRIUM_KEY_FOUND, ARCHIVES_ENERGIZED, SHADOW_RIFTS_ACTIVE (Caves). Used by BuildTagsStringCommon() for server tag encoding. |
+| `WORLDSTATE_NAMESPACES` | table | `{}` | Stores all registered world state tag namespace objects. Keys are namespace strings, values are tag namespace objects. Populated by CreateWorldStateTag(), used by tag lookup and encoding functions. |
 
 ## Main functions
+
 ### `SavePersistentString(name, data, encode, callback)`
-* **Description:** Saves a persistent string value, optionally showing a saving indicator in the frontend if `TheFrontEnd` exists.  
-* **Parameters:**  
-  - `name`: string — key for the persistent storage  
-  - `data`: string — value to persist  
-  - `encode`: boolean (optional, default `false`) — whether to encode the data  
-  - `callback`: function (optional) — called after persistence completes  
-* **Returns:** `nil`
+* **Description:** Saves a persistent string to disk via TheSim, showing a saving indicator if TheFrontEnd exists. Callback is passed to TheSim and invoked when the operation completes.
+* **Parameters:**
+  - `name` -- string -- name identifier for the persistent string
+  - `data` -- string -- data to save
+  - `encode` -- boolean -- whether to encode the data (default false)
+  - `callback` -- function -- callback passed to TheSim, invoked when save completes
+* **Returns:** None
 
 ### `ErasePersistentString(name, callback)`
-* **Description:** Erases a persistent string entry, optionally showing a saving indicator in the frontend.  
-* **Parameters:**  
-  - `name`: string — key of the persistent entry to erase  
-  - `callback`: function (optional) — called after erasure completes  
-* **Returns:** `nil`
+* **Description:** Erases a persistent string from disk via TheSim, showing a saving indicator if TheFrontEnd exists. Callback is passed to TheSim and invoked when the operation completes.
+* **Parameters:**
+  - `name` -- string -- name identifier for the persistent string to erase
+  - `callback` -- function -- callback passed to TheSim, invoked when erase completes
+* **Returns:** None
 
 ### `Print(msg_verbosity, ...)`
-* **Description:** Conditionally prints messages to console based on `VERBOSITY_LEVEL`.  
-* **Parameters:**  
-  - `msg_verbosity`: number — minimum verbosity level to print  
-  - `...`: variadic arguments to pass to `print`  
-* **Returns:** `nil`
+* **Description:** Conditionally prints messages based on verbosity level comparison.
+* **Parameters:**
+  - `msg_verbosity` -- number -- verbosity level to compare against VERBOSITY_LEVEL
+  - `...` -- variadic -- arguments to print if verbosity check passes
+* **Returns:** None
 
 ### `SecondsToTimeString(total_seconds)`
-* **Description:** Converts a number of seconds to a formatted time string: `M:SS`, `SS`, or `S`.  
-* **Parameters:**  
-  - `total_seconds`: number — time in seconds  
-* **Returns:** string
+* **Description:** Converts seconds to a formatted time string (M:SS or SS format).
+* **Parameters:**
+  - `total_seconds` -- number -- total seconds to convert to time string
+* **Returns:** string -- formatted time string
 
 ### `ShouldIgnoreResolve(filename, assettype)`
-* **Description:** Determines whether a given asset should be skipped during path resolution (e.g., sounds on dedicated servers, certain image types).  
-* **Parameters:**  
-  - `filename`: string  
-  - `assettype`: string — asset type enum (e.g., `"SOUNDPACKAGE"`, `"INV_IMAGE"`)  
-* **Returns:** boolean — `true` if asset should be ignored, `false` otherwise
+* **Description:** Determines if an asset should be ignored during prefab resolution based on type and dedicated server status.
+* **Parameters:**
+  - `filename` -- string -- asset filename to check
+  - `assettype` -- string -- type of asset (INV_IMAGE, MINIMAP_IMAGE, SOUNDPACKAGE, SOUND, PKGREF, etc.)
+* **Returns:** boolean -- true if asset should be ignored
 
 ### `RegisterPrefabsImpl(prefab, resolve_fn)`
-* **Description:** Registers a single prefab: resolves its assets using `resolve_fn`, registers post-init functions, and stores the prefab in global tables.  
-* **Parameters:**  
-  - `prefab`: table — prefab definition  
-  - `resolve_fn`: function — function to resolve asset paths  
-* **Returns:** `nil`
+* **Description:** Internal function to register a prefab, resolve its assets, and store post-init functions.
+* **Parameters:**
+  - `prefab` -- table -- prefab definition table
+  - `resolve_fn` -- function -- function to resolve asset paths
+* **Returns:** None
 
 ### `RegisterPrefabs(...)`
-* **Description:** Registers multiple prefabs using `RegisterPrefabsImpl` and asset resolution.  
-* **Parameters:**  
-  - `...`: variadic list of prefab tables  
-* **Returns:** `nil`
+* **Description:** Registers multiple prefabs with asset resolution.
+* **Parameters:**
+  - `...` -- variadic -- prefab definitions to register
+* **Returns:** None
+
+### `RegisterSinglePrefab(prefab)`
+* **Description:** Registers a single prefab with asset resolution.
+* **Parameters:**
+  - `prefab` -- table -- single prefab definition to register
+* **Returns:** None
 
 ### `LoadPrefabFile(filename, async_batch_validation, search_asset_first_path)`
-* **Description:** Loads a Lua file returning prefab definitions, validates, resolves assets, and registers them.  
-* **Parameters:**  
-  - `filename`: string — path to prefab file  
-  - `async_batch_validation`: boolean (optional) — if true, uses `VerifyPrefabAssetExistsAsync` for resolution  
-  - `search_asset_first_path`: boolean (optional) — overrides asset resolution behavior  
-* **Returns:** table — list of successfully loaded prefab instances
+* **Description:** Loads and executes a prefab file, registering all Prefab objects it returns.
+* **Parameters:**
+  - `filename` -- string -- path to prefab file
+  - `async_batch_validation` -- boolean -- whether to use async batch validation
+  - `search_asset_first_path` -- string -- alternative asset search path
+* **Returns:** table -- array of loaded prefab definitions
+* **Error states:** Errors if file cannot be loaded or doesn't return callable chunk
 
 ### `ModUnloadFrontEndAssets(modname)`
-* **Description:** Unloads and unregisters prefabs associated with frontend assets for a mod (or all mods if `modname` is `nil`).  
-* **Parameters:**  
-  - `modname`: string (optional) — mod identifier  
-* **Returns:** `nil`
+* **Description:** Unloads frontend assets for a specific mod or all mods.
+* **Parameters:**
+  - `modname` -- string -- mod name to unload (nil for all)
+* **Returns:** None
 
 ### `ModReloadFrontEndAssets(assets, modname)`
-* **Description:** Reloads frontend assets for a mod: unloads existing, resolves paths, creates and registers a temporary prefab.  
-* **Parameters:**  
-  - `assets`: table — list of asset definitions  
-  - `modname`: string — mod identifier (validated via `KnownModIndex`)  
-* **Returns:** `nil`
+* **Description:** Reloads frontend assets for a mod, creating a temporary prefab.
+* **Parameters:**
+  - `assets` -- table -- asset definitions to reload
+  - `modname` -- string -- mod name
+* **Returns:** None
+* **Error states:** Errors if modname does not refer to a valid mod
 
 ### `ModUnloadPreloadAssets(modname)`
-* **Description:** Unloads and unregisters prefabs associated with preloaded assets for a mod (or all mods).  
-* **Parameters:**  
-  - `modname`: string (optional)  
-* **Returns:** `nil`
+* **Description:** Unloads preload assets for a specific mod or all mods.
+* **Parameters:**
+  - `modname` -- string -- mod name to unload (nil for all)
+* **Returns:** None
 
 ### `ModPreloadAssets(assets, modname)`
-* **Description:** Reloads preloaded assets for a mod: unloads existing, resolves paths, creates and registers a temporary prefab, loads prefabs into sim.  
-* **Parameters:**  
-  - `assets`: table  
-  - `modname`: string  
-* **Returns:** `nil`
+* **Description:** Preloads assets for a mod before game starts.
+* **Parameters:**
+  - `assets` -- table -- asset definitions to preload
+  - `modname` -- string -- mod name
+* **Returns:** None
+* **Error states:** Errors if modname does not refer to a valid mod
+
+### `RegisterAchievements(achievements)`
+* **Description:** Registers achievements with TheGameService.
+* **Parameters:**
+  - `achievements` -- table -- array of achievement definitions
+* **Returns:** None
 
 ### `LoadAchievements(filename)`
-* **Description:** Loads and registers achievements from a Lua file.  
-* **Parameters:**  
-  - `filename`: string  
-* **Returns:** table — return values from the loaded file
+* **Description:** Loads and registers achievements from a file.
+* **Parameters:**
+  - `filename` -- string -- path to achievements file
+* **Returns:** table -- array of loaded achievements
+* **Error states:** Errors if file cannot be loaded or doesn't return callable chunk
 
 ### `LoadHapticEffects(filename)`
-* **Description:** Loads haptic effects from a Lua file and registers them with `TheHaptics`.  
-* **Parameters:**  
-  - `filename`: string  
-* **Returns:** table — return values from the loaded file
+* **Description:** Loads and registers haptic effects from a file with TheHaptics.
+* **Parameters:**
+  - `filename` -- string -- path to haptic effects file
+* **Returns:** table -- array of loaded effects
+* **Error states:** Errors if file cannot be loaded or doesn't return callable chunk
 
 ### `AwardFrontendAchievement(name)`
-* **Description:** Awards an achievement in the frontend only (console-specific).  
-* **Parameters:**  
-  - `name`: string  
-* **Returns:** `nil`
+* **Description:** Awards an achievement to the frontend player on console platforms.
+* **Parameters:**
+  - `name` -- string -- achievement name to award
+* **Returns:** None
 
 ### `AwardPlayerAchievement(name, player)`
-* **Description:** Awards an achievement for a specific player (console-specific).  
-* **Parameters:**  
-  - `name`: string  
-  - `player`: entity (optional) — must have `"player"` tag  
-* **Returns:** `nil`
+* **Description:** Awards an achievement to a specific player on console platforms.
+* **Parameters:**
+  - `name` -- string -- achievement name to award
+  - `player` -- Entity -- player entity to award achievement to
+* **Returns:** None
 
 ### `NotifyPlayerProgress(name, value, player)`
-* **Description:** Notifies progress toward an achievement for a player (console-specific).  
-* **Parameters:**  
-  - `name`: string  
-  - `value`: number  
-  - `player`: entity  
-* **Returns:** `nil`
+* **Description:** Notifies TheGameService of player progress on console platforms.
+* **Parameters:**
+  - `name` -- string -- progress stat name
+  - `value` -- number -- progress value
+  - `player` -- Entity -- player entity
+* **Returns:** None
 
 ### `NotifyPlayerPresence(name, level, days, player)`
-* **Description:** Notifies presence data (e.g., level, days survived) for a player (console-specific).  
-* **Parameters:**  
-  - `name`: string  
-  - `level`: number  
-  - `days`: number  
-  - `player`: entity  
-* **Returns:** `nil`
+* **Description:** Notifies TheGameService of player presence on console platforms.
+* **Parameters:**
+  - `name` -- string -- presence stat name
+  - `level` -- number -- presence level
+  - `days` -- number -- days played
+  - `player` -- Entity -- player entity or nil
+* **Returns:** None
 
 ### `AwardRadialAchievement(name, pos, radius)`
-* **Description:** Awards an achievement to all players within a radius of a position (console-specific).  
-* **Parameters:**  
-  - `name`: string  
-  - `pos`: vector-like — `{x, y, z}`  
-  - `radius`: number  
-* **Returns:** `nil`
+* **Description:** Awards an achievement to all players within a radius on console platforms.
+* **Parameters:**
+  - `name` -- string -- achievement name
+  - `pos` -- Vector3 -- center position
+  - `radius` -- number -- search radius
+* **Returns:** None
 
 ### `SpawnPrefabFromSim(name)`
-* **Description:** Instantiates a prefab on the sim thread only (does not replicate to clients). Returns GUID or `-1` on error.  
-* **Parameters:**  
-  - `name`: string — prefab name  
-* **Returns:** number (GUID) or `-1`
+* **Description:** Spawns a prefab directly from TheSim, applying mod post-init functions and pushing entity_spawned event.
+* **Parameters:**
+  - `name` -- string -- prefab name to spawn
+* **Returns:** number -- entity GUID or -1 on failure
+* **Error states:** None
 
 ### `PrefabExists(name)`
-* **Description:** Checks whether a prefab has been registered.  
-* **Parameters:**  
-  - `name`: string  
-* **Returns:** boolean
+* **Description:** Checks if a prefab exists in the Prefabs table.
+* **Parameters:**
+  - `name` -- string -- prefab name to check
+* **Returns:** boolean -- true if prefab exists
 
 ### `SpawnPrefab(name, skin, skin_id, creator, skin_custom)`
-* **Description:** Spawns a prefab with optional skin and metadata; returns instance reference via `Ents[guid]`.  
-* **Parameters:**  
-  - `name`: string  
-  - `skin`: string/number (optional) — skin ID  
-  - `skin_id`: string/number (optional)  
-  - `creator`: entity (optional)  
-  - `skin_custom`: any (optional)  
-* **Returns:** entity — `Ents[guid]` or `nil`
+* **Description:** Spawns a prefab via TheSim and returns the entity instance.
+* **Parameters:**
+  - `name` -- string -- prefab name
+  - `skin` -- string -- skin identifier (optional)
+  - `skin_id` -- string -- skin ID (optional)
+  - `creator` -- Entity -- creator entity (optional)
+  - `skin_custom` -- table -- custom skin data (optional)
+* **Returns:** Entity -- spawned entity instance
 
 ### `ReplacePrefab(original_inst, name, skin, skin_id, creator)`
-* **Description:** Destroys `original_inst`, spawns `name` at same position, returns new instance.  
-* **Parameters:**  
-  - `original_inst`: entity  
-  - `name`, `skin`, `skin_id`, `creator`: same as `SpawnPrefab`  
-* **Returns:** entity
+* **Description:** Replaces an entity with a new prefab at the same position.
+* **Parameters:**
+  - `original_inst` -- Entity -- entity to replace
+  - `name` -- string -- new prefab name
+  - `skin` -- string -- skin identifier (optional)
+  - `skin_id` -- string -- skin ID (optional)
+  - `creator` -- Entity -- creator entity (optional)
+* **Returns:** Entity -- replacement entity instance
 
-### `ResolveSaveRecordPosition(data)`
-* **Description:** Resolves save-record world position, preferring platform-relative coordinates if `data.puid` exists.  
-* **Parameters:**  
-  - `data`: table — expected to contain `x`, `y`, `z`, `puid`, `rx`, `ry`, `rz`  
-* **Returns:** number, number, number, platform (if applicable)
+### `ResolveSaveRecordPosition(data)` (local)
+* **Description:** (Local function) Resolves save record position with walkable platform support. Returns platform-relative coordinates if puid is set and platform exists, otherwise falls back to absolute x,y,z.
+* **Parameters:**
+  - `data` -- table -- save record data containing position (x,y,z) and optional platform info (puid, rx, ry, rz)
+* **Returns:** number, number, number, Entity -- x, y, z coordinates and platform entity (or nil if no platform)
 
 ### `SpawnSaveRecord(saved, newents)`
-* **Description:** Spawns an entity from a save record, attaches scenario component if needed, sets position, and registers in `newents`.  
-* **Parameters:**  
-  - `saved`: table — save record  
-  - `newents`: table — output mapping (by ID or entity key)  
-* **Returns:** entity or `nil`
+* **Description:** Spawns an entity from save record data, restoring position, skins, scenario, and persist data.
+* **Parameters:**
+  - `saved` -- table -- save record with prefab, position, and data
+  - `newents` -- table -- table to track new entities (optional)
+* **Returns:** Entity -- spawned entity or nil on failure
+* **Error states:** None
 
 ### `CreateEntity(name)`
-* **Description:** Creates a new low-level entity, attaches script wrapper, adds to `Ents`.  
-* **Parameters:**  
-  - `name`: string (optional)  
-* **Returns:** entity script wrapper
+* **Description:** Creates a new entity via TheSim and registers it in Ents table.
+* **Parameters:**
+  - `name` -- string -- optional entity name
+* **Returns:** Entity -- created entity script
 
 ### `OnRemoveEntity(entityguid)`
-* **Description:** Cleanup handler when entity is removed: cleans up debug state, brains, state graphs, schedulers, and entity tracking tables.  
-* **Parameters:**  
-  - `entityguid`: number  
-* **Returns:** `nil`
+* **Description:** Cleanup callback when entity is removed, handling brain, stategraph, tasks, and update lists.
+* **Parameters:**
+  - `entityguid` -- number -- GUID of entity being removed
+* **Returns:** None
 
 ### `RemoveEntity(guid)`
-* **Description:** Removes an entity immediately, unless `delayclientdespawn` is set.  
-* **Parameters:**  
-  - `guid`: number  
-* **Returns:** `nil`
+* **Description:** Removes an entity, respecting delayclientdespawn flag for seamless player swapping.
+* **Parameters:**
+  - `guid` -- number -- entity GUID to remove
+* **Returns:** None
 
 ### `PushEntityEvent(guid, event, data)`
-* **Description:** Pushes an event to an entity if it exists.  
-* **Parameters:**  
-  - `guid`: number  
-  - `event`: string  
-  - `data`: any  
-* **Returns:** `nil`
+* **Description:** Pushes an event to an entity by GUID.
+* **Parameters:**
+  - `guid` -- number -- entity GUID
+  - `event` -- string -- event name
+  - `data` -- table -- event data
+* **Returns:** None
 
 ### `GetEntityDisplayName(guid)`
-* **Description:** Returns the display name of an entity or empty string if not found.  
-* **Parameters:**  
-  - `guid`: number  
-* **Returns:** string
+* **Description:** Gets the display name of an entity by GUID.
+* **Parameters:**
+  - `guid` -- number -- entity GUID
+* **Returns:** string -- display name or empty string
 
-### `GetTickTime()`, `GetTime()`, `GetStaticTime()`, `GetTick()`, `GetStaticTick()`, `GetTimeReal()`, `GetTimeRealSeconds()`
-* **Description:** Returns simulation-related timing data (tick duration, current sim time, real time, etc.).  
-* **Parameters:** none  
-* **Returns:** number
+### `GetTickTime()`
+* **Description:** Gets the tick time from TheSim.
+* **Parameters:** None
+* **Returns:** number -- tick time in seconds
+
+### `GetTime()`
+* **Description:** Gets the current game time in seconds.
+* **Parameters:** None
+* **Returns:** number -- current time in seconds
+
+### `GetStaticTime()`
+* **Description:** Gets the static tick time in seconds.
+* **Parameters:** None
+* **Returns:** number -- static time in seconds
+
+### `GetTick()`
+* **Description:** Gets the current tick count.
+* **Parameters:** None
+* **Returns:** number -- current tick
+
+### `GetStaticTick()`
+* **Description:** Gets the static tick count.
+* **Parameters:** None
+* **Returns:** number -- static tick
+
+### `GetTimeReal()`
+* **Description:** Gets the real time in milliseconds from TheSim.
+* **Parameters:** None
+* **Returns:** number -- real time in ms
+
+### `GetTimeRealSeconds()`
+* **Description:** Gets the real time in seconds.
+* **Parameters:** None
+* **Returns:** number -- real time in seconds
 
 ### `LoadScript(filename)`
-* **Description:** Loads and caches a script from `scripts/` by filename.  
-* **Parameters:**  
-  - `filename`: string  
-* **Returns:** value — return value of the loaded script’s top-level call
+* **Description:** Loads and caches a script file from scripts/ directory.
+* **Parameters:**
+  - `filename` -- string -- script filename in scripts/ directory
+* **Returns:** function -- loaded script function
+* **Error states:** Crashes via assert if script file does not return a function
 
 ### `RunScript(filename)`
-* **Description:** Loads and runs a script if it returns a callable.  
-* **Parameters:**  
-  - `filename`: string  
-* **Returns:** `nil`
+* **Description:** Loads and executes a script file.
+* **Parameters:**
+  - `filename` -- string -- script filename to run
+* **Returns:** None
 
 ### `GetEntityString(guid)`
-* **Description:** Returns debug string of an entity.  
-* **Parameters:**  
-  - `guid`: number  
-* **Returns:** string
+* **Description:** Gets the debug string for an entity by GUID.
+* **Parameters:**
+  - `guid` -- number -- entity GUID
+* **Returns:** string -- debug string or empty string
 
-### `GetExtendedDebugString()`, `GetDebugString()`, `GetDebugEntity()`, `SetDebugEntity(inst)`, `GetDebugTable()`, `SetDebugTable(tbl)`
-* **Description:** Debug utility functions for inspecting or setting debugging context (entity, table, strings).  
-* **Parameters:** varies  
-* **Returns:** varies
+### `GetExtendedDebugString()`
+* **Description:** Gets extended debug info including brain, sound debug, worldstate, or current screen.
+* **Parameters:** None
+* **Returns:** string -- debug string
 
-### `OnEntitySleep(guid)`, `OnEntityWake(guid)`
-* **Description:** Handles entity going to sleep or waking: pushes events, manages brain/SG/emitter state, and calls per-component hooks.  
-* **Parameters:**  
-  - `guid`: number  
-* **Returns:** `nil`
+### `GetDebugString()`
+* **Description:** Gets the current debug string including scheduler and debug entity info.
+* **Parameters:** None
+* **Returns:** string -- debug string
 
-### `OnPhysicsWake(guid)`, `OnPhysicsSleep(guid)`
-* **Description:** Calls per-component `OnPhysicsWake` or `OnPhysicsSleep` hooks for entity.  
-* **Parameters:**  
-  - `guid`: number  
-* **Returns:** `nil`
+### `GetDebugEntity()`
+* **Description:** Gets the current debug entity.
+* **Parameters:** None
+* **Returns:** Entity -- debug entity or nil
+
+### `SetDebugEntity(inst)`
+* **Description:** Sets or clears the debug entity, updating selection state.
+* **Parameters:**
+  - `inst` -- Entity -- entity to set as debug target or nil to clear
+* **Returns:** None
+
+### `GetDebugTable()`
+* **Description:** Gets the current debug table.
+* **Parameters:** None
+* **Returns:** table -- debug table or nil
+
+### `SetDebugTable(tbl)`
+* **Description:** Sets the debug table.
+* **Parameters:**
+  - `tbl` -- table -- table to set as debug target
+* **Returns:** None
+
+### `OnEntitySleep(guid)`
+* **Description:** Callback when entity goes to sleep, pushing entitysleep event and hibernating brain, stategraph, emitter, and components.
+* **Parameters:**
+  - `guid` -- number -- entity GUID
+* **Returns:** None
+
+### `OnEntityWake(guid)`
+* **Description:** Callback when entity wakes up, pushing entitywake event and waking brain, stategraph, emitter, and components.
+* **Parameters:**
+  - `guid` -- number -- entity GUID
+* **Returns:** None
+
+### `OnPhysicsWake(guid)`
+* **Description:** Callback when entity physics wakes, calling OnPhysicsWake on entity and components.
+* **Parameters:**
+  - `guid` -- number -- entity GUID
+* **Returns:** None
+
+### `OnPhysicsSleep(guid)`
+* **Description:** Callback when entity physics sleeps, calling OnPhysicsSleep on entity and components.
+* **Parameters:**
+  - `guid` -- number -- entity GUID
+* **Returns:** None
 
 ### `OnServerPauseDirty(pause, autopause, gameautopause, source)`
-* **Description:** Syncs pause state across server and clients, updates UI, manages mixer mix and `"serverpauseddirty"` event.  
-* **Parameters:**  
-  - `pause`: boolean  
-  - `autopause`: boolean  
-  - `gameautopause`: boolean  
-  - `source`: string  
-* **Returns:** `nil`
+* **Description:** Handles server pause state changes, updating mixer, HUD, frontend, and pushing serverpauseddirty event.
+* **Parameters:**
+  - `pause` -- boolean -- whether server is paused
+  - `autopause` -- boolean -- whether auto-paused (e.g., map open)
+  - `gameautopause` -- boolean -- whether game auto-paused (lobby state)
+  - `source` -- string -- source of pause request
+* **Returns:** None
 
 ### `ReplicateEntity(guid)`
-* **Description:** Forces replication of an entity to clients; handles seamless swap targets specially.  
-* **Parameters:**  
-  - `guid`: number  
-* **Returns:** `nil`
+* **Description:** Replicates an entity, temporarily swapping ThePlayer for seamless swap targets.
+* **Parameters:**
+  - `guid` -- number -- entity GUID
+* **Returns:** None
 
 ### `DisableLoadingProtection(guid)`
-* **Description:** Disables loading protection on a player entity.  
-* **Parameters:**  
-  - `guid`: number  
-* **Returns:** `nil`
+* **Description:** Disables loading protection for a player entity.
+* **Parameters:**
+  - `guid` -- number -- player entity GUID
+* **Returns:** None
 
 ### `PlayNIS(nisname, lines)`
-* **Description:** Loads and plays a non-interactive sequence using the `nis` component.  
-* **Parameters:**  
-  - `nisname`: string — filename in `nis/`  
-  - `lines`: table — script lines to pass to `nis.script`  
-* **Returns:** entity — NIS entity
+* **Description:** Creates and plays a Non-Interactive Sequence (cinematic) with specified script and dialogue.
+* **Parameters:**
+  - `nisname` -- string -- name of NIS script in nis/ directory
+  - `lines` -- table -- dialogue lines for the NIS
+* **Returns:** Entity -- NIS entity instance
 
-### `IsPaused()`, `IsSimPaused()`
-* **Description:** Returns whether game is manually paused or simulation is paused.  
-* **Parameters:** none  
-* **Returns:** boolean
+### `IsPaused()`
+* **Description:** Checks if the game is paused.
+* **Parameters:** None
+* **Returns:** boolean -- true if paused
+
+### `IsSimPaused()`
+* **Description:** Checks if the sim is paused.
+* **Parameters:** None
+* **Returns:** boolean -- true if sim paused
 
 ### `SetDefaultTimeScale(scale)`
-* **Description:** Sets default time scale; applies immediately if not paused.  
-* **Parameters:**  
-  - `scale`: number  
-* **Returns:** `nil`
+* **Description:** Sets the default time scale, applying immediately if not paused.
+* **Parameters:**
+  - `scale` -- number -- time scale value
+* **Returns:** None
 
 ### `SetSimPause(val)`
-* **Description:** Sets `simpaused` flag. **Note:** Not used in DST.  
-* **Parameters:**  
-  - `val`: boolean  
-* **Returns:** `nil`
+* **Description:** Sets sim pause state (V2C: unused in DST).
+* **Parameters:**
+  - `val` -- boolean -- pause value
+* **Returns:** None
 
 ### `SetServerPaused(pause)`
-* **Description:** Sets server pause state; ignores request if IMGUI window is focused.  
-* **Parameters:**  
-  - `pause`: boolean (optional, default toggles current state)  
-* **Returns:** `nil`
+* **Description:** Sets server pause state via TheNet, ignoring if ImGui window is focused.
+* **Parameters:**
+  - `pause` -- boolean -- pause state (nil toggles)
+* **Returns:** None
 
 ### `SetAutopaused(autopause)`
-* **Description:** Increments/decrements `autopausecount` and updates net pause state via `DoAutopause()`.  
-* **Parameters:**  
-  - `autopause`: boolean  
-* **Returns:** `nil`
+* **Description:** Increments or decrements autopause counter and triggers DoAutopause.
+* **Parameters:**
+  - `autopause` -- boolean -- whether to increment or decrement autopause count
+* **Returns:** None
+* **Error states:** Asserts if autopausecount goes out of valid range in DEBUG_MODE
 
 ### `SetCraftingAutopaused(autopause)`
-* **Description:** Sets crafting autopause state and updates net pause state.  
-* **Parameters:**  
-  - `autopause`: boolean  
-* **Returns:** `nil`
+* **Description:** Sets crafting autopause flag and triggers DoAutopause.
+* **Parameters:**
+  - `autopause` -- boolean -- crafting autopause state
+* **Returns:** None
 
 ### `SetConsoleAutopaused(autopause)`
-* **Description:** Increments/decrements `consoleautopausecount` and updates net pause state.  
-* **Parameters:**  
-  - `autopause`: boolean  
-* **Returns:** `nil`
+* **Description:** Increments or decrements console autopause counter and triggers DoAutopause.
+* **Parameters:**
+  - `autopause` -- boolean -- whether to increment or decrement console autopause count
+* **Returns:** None
 
 ### `DoAutopause()`
-* **Description:** Determines whether to autopause based on profile settings and counts.  
-* **Parameters:** none  
-* **Returns:** `nil`
+* **Description:** Evaluates autopause conditions and sets TheNet autopaused state based on profile settings.
+* **Parameters:** None
+* **Returns:** None
 
-### `OnSimPaused()`, `OnSimUnpaused()`
-* **Description:** Stub for sim pause (`OnSimPaused`) and event `"ms_simunpaused"` fire on `"ms_simunpaused"` (`OnSimUnpaused`).  
-* **Parameters:** none  
-* **Returns:** `nil`
+### `OnSimPaused()`
+* **Description:** Callback when sim pauses (V2C: should not do anything as sim is paused).
+* **Parameters:** None
+* **Returns:** None
+
+### `OnSimUnpaused()`
+* **Description:** Callback when sim unpauses, pushing ms_simunpaused event to TheWorld.
+* **Parameters:** None
+* **Returns:** None
 
 ### `SetPause(val, reason)`
-* **Description:** Toggles pause state, updates mixer, and calls `PlayerPauseCheck` if defined.  
-* **Parameters:**  
-  - `val`: boolean  
-  - `reason`: any  
-* **Returns:** `nil`
+* **Description:** Sets game pause state, updating mixer and calling PlayerPauseCheck callback.
+* **Parameters:**
+  - `val` -- boolean -- pause state
+  - `reason` -- string -- reason for pause
+* **Returns:** None
 
 ### `SetInstanceParameters(settings)`
-* **Description:** Decodes JSON `settings` and stores in global `Settings`.  
-* **Parameters:**  
-  - `settings`: string — JSON object  
-* **Returns:** `nil`
+* **Description:** Decodes and stores instance parameters from JSON string.
+* **Parameters:**
+  - `settings` -- string -- JSON-encoded settings string
+* **Returns:** None
 
 ### `SetPurchases(purchases)`
-* **Description:** Decodes JSON `purchases` and stores in global `Purchases`.  
-* **Parameters:**  
-  - `purchases`: string — JSON array/object  
-* **Returns:** `nil`
+* **Description:** Decodes and stores purchases from JSON string.
+* **Parameters:**
+  - `purchases` -- string -- JSON-encoded purchases string
+* **Returns:** None
+
+### `UpdateWorldGenOverride(overrides, cb, slot, shard)` (local)
+* **Description:** (Local function) Updates worldgen override file, merging with existing saves and validating options against worldgen/settings presets.
+* **Parameters:**
+  - `overrides` -- table -- worldgen override options
+  - `cb` -- function -- callback after update
+  - `slot` -- string -- cluster slot (optional)
+  - `shard` -- string -- shard name (optional)
+* **Returns:** None
+* **Error states:** None
 
 ### `SaveGame(isshutdown, cb)`
-* **Description:** Saves game data on the server: entities, map, players, mods, snapshots, worldgen overrides.  
-* **Parameters:**  
-  - `isshutdown`: boolean — whether shutdown is imminent  
-  - `cb`: function (optional) — called after save completes  
-* **Returns:** `nil`
+* **Description:** Saves the game including entities, map, world network, shard network, and player sessions. Disabled for clients.
+* **Parameters:**
+  - `isshutdown` -- boolean -- whether this is a shutdown save
+  - `cb` -- function -- callback after save completes
+* **Returns:** None
+* **Error states:** Crashes via assert if save.map, save.map.prefab, save.map.tiles, save.map.width, save.map.height, or save.mods are missing from savedata
 
 ### `ProcessJsonMessage(message)`
-* **Description:** Processes JSON-encoded client commands (e.g., pause toggle, quit).  
-* **Parameters:**  
-  - `message`: string — JSON message  
-* **Returns:** `nil`
+* **Description:** Processes JSON commands for sim control including toggle_pause, upsell_closed, quit, and player ID setting.
+* **Parameters:**
+  - `message` -- string -- JSON-encoded command message
+* **Returns:** None
 
-### `LoadFonts()`, `UnloadFonts()`
-* **Description:** Loads or unloads fonts via `TheSim`.  
-* **Parameters:** none  
-* **Returns:** `nil`
+### `LoadFonts()`
+* **Description:** Loads all fonts from FONTS table with fallbacks and advance adjustments.
+* **Parameters:** None
+* **Returns:** None
 
-### `Start()`, `GlobalInit()`
-* **Description:** Initializes frontend, disk permissions, custom commands, and mod checks. Initializes global assets and hardware stats.  
-* **Parameters:** none  
-* **Returns:** `nil`
+### `UnloadFonts()`
+* **Description:** Unloads all fonts from FONTS table.
+* **Parameters:** None
+* **Returns:** None
+
+### `Start()`
+* **Description:** Initializes the game including sound debug, FrontEnd, gamelogic, config permissions, custom commands, and controllers.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Calls known_assert() for config directory write/read permissions, log file validity, and disk space — triggers error UI on failure
+
+### `GlobalInit()`
+* **Description:** Called once when sim is first created, loading global prefabs, fonts, sounds, and sending hardware stats.
+* **Parameters:** None
+* **Returns:** None
 
 ### `DoLoadingPortal(cb)`
-* **Description:** Triggers fade-out to white and logs stats.  
-* **Parameters:**  
-  - `cb`: function — called after fade  
-* **Returns:** `nil`
+* **Description:** Handles transition to loading screen, pushing metrics and fading out.
+* **Parameters:**
+  - `cb` -- function -- callback after fade completes
+* **Returns:** None
 
 ### `LoadMapFile(map_name)`
-* **Description:** Loads map file in-game via `StartNextInstance`.  
-* **Parameters:**  
-  - `map_name`: string  
-* **Returns:** `nil`
+* **Description:** Loads a map file, disabling DLC and starting next instance with LOAD_FILE action.
+* **Parameters:**
+  - `map_name` -- string -- name of map file to load
+* **Returns:** None
+
+### `JapaneseOnPS4()`
+* **Description:** Checks if running on PS4 in Japanese region.
+* **Parameters:** None
+* **Returns:** boolean -- true if PS4 Japanese region
 
 ### `StartNextInstance(in_params)`
-* **Description:** Begins a new instance (load, new game, etc.) via `SimReset`.  
-* **Parameters:**  
-  - `in_params`: table (optional)  
-* **Returns:** `nil`
+* **Description:** Starts the next game instance, collecting match results and calling SimReset.
+* **Parameters:**
+  - `in_params` -- table -- instance parameters (optional)
+* **Returns:** None
 
 ### `ForceAssetReset()`
-* **Description:** Forces a full asset reset by clearing asset-set flags.  
-* **Parameters:** none  
-* **Returns:** `nil`
+* **Description:** Forces asset reset by setting Settings.current_asset_set to FORCERESET.
+* **Parameters:** None
+* **Returns:** None
 
 ### `SimReset(instanceparameters)`
-* **Description:** Shuts down current instance and resets the sim with provided parameters.  
-* **Parameters:**  
-  - `instanceparameters`: table (optional)  
-* **Returns:** `nil`
+* **Description:** Resets the sim, encoding instance parameters and calling TheSim:Reset().
+* **Parameters:**
+  - `instanceparameters` -- table -- instance parameters (optional)
+* **Returns:** None
 
-### `RequestShutdown()`, `DoWorldOverseerShutdown()`, `Shutdown()`
-* **Description:** Graceful shutdown: shows quit dialog, stops servers, notifies overseer, calls `TheSim:Quit()`.  
-* **Parameters:** none  
-* **Returns:** `nil`
+### `RequestShutdown()`
+* **Description:** Requests game shutdown, showing quit dialog and stopping dedicated servers if hosting.
+* **Parameters:** None
+* **Returns:** None
+
+### `DoWorldOverseerShutdown()`
+* **Description:** Calls QuitAll on worldoverseer component if on master shard.
+* **Parameters:** None
+* **Returns:** None
+
+### `Shutdown()`
+* **Description:** Performs shutdown sequence including world overseer cleanup and TheSim:Quit().
+* **Parameters:** None
+* **Returns:** None
 
 ### `DisplayError(error)`
-* **Description:** Displays a global error screen; handles mod vs. vanilla errors differently.  
-* **Parameters:**  
-  - `error`: string  
-* **Returns:** `nil`
+* **Description:** Displays error screen with mod names and appropriate buttons based on error type and platform.
+* **Parameters:**
+  - `error` -- string -- error message to display
+* **Returns:** None
 
 ### `SetPauseFromCode(pause)`
-* **Description:** Pushes `PauseScreen` if pausing in gameplay.  
-* **Parameters:**  
-  - `pause`: boolean  
-* **Returns:** `nil`
+* **Description:** Sets pause from code, pushing pause screen if in gameplay.
+* **Parameters:**
+  - `pause` -- boolean -- whether to pause
+* **Returns:** None
 
-### `InGamePlay()`, `IsMigrating()`
-* **Description:** Returns `inGamePlay` flag or checks migration state.  
-* **Parameters:** none  
-* **Returns:** boolean
+### `InGamePlay()`
+* **Description:** Checks if currently in gameplay state.
+* **Parameters:** None
+* **Returns:** boolean -- value of inGamePlay
+
+### `IsMigrating()`
+* **Description:** Checks if currently migrating (no active screen or only ConnectingToGamePopup).
+* **Parameters:** None
+* **Returns:** boolean -- true if migrating
 
 ### `DoRestart(save)`
-* **Description:** Restarts game (new instance), optionally saving first.  
-* **Parameters:**  
-  - `save`: boolean — whether to save before restart  
-* **Returns:** `nil`
+* **Description:** Restarts the game, optionally saving first and showing loading screen.
+* **Parameters:**
+  - `save` -- boolean -- whether to save before restart
+* **Returns:** None
+
+### `OnDynamicCloudSyncReload()`
+* **Description:** Handles dynamic cloud sync reload by sending world rollback request.
+* **Parameters:** None
+* **Returns:** None
+
+### `OnDynamicCloudSyncDelete()`
+* **Description:** Handles dynamic cloud sync delete by setting flag and restarting.
+* **Parameters:** None
+* **Returns:** None
 
 ### `OnPlayerLeave(player_guid, expected)`
-* **Description:** Handles server-side player disconnect: fires `"ms_playerdisconnected"` and `"ms_playerdespawn"` events.  
-* **Parameters:**  
-  - `player_guid`: number  
-  - `expected`: boolean  
-* **Returns:** `nil`
+* **Description:** Handles player leave event on master sim, pushing ms_playerdisconnected and ms_playerdespawn events.
+* **Parameters:**
+  - `player_guid` -- number -- GUID of leaving player
+  - `expected` -- boolean -- whether departure was expected
+* **Returns:** None
 
 ### `OnPushPopupDialog(message)`
-* **Description:** Displays a popup dialog with localized title/body.  
-* **Parameters:**  
-  - `message`: string — key into `STRINGS.UI.POPUPDIALOG.BODY`  
-* **Returns:** `nil`
+* **Description:** Shows a popup dialog with localized title and body from STRINGS.
+* **Parameters:**
+  - `message` -- string -- message key for popup dialog
+* **Returns:** None
 
 ### `OnDemoTimeout()`
-* **Description:** Handles demo timeout: stops servers, serializes session, restarts.  
-* **Parameters:** none  
-* **Returns:** `nil`
+* **Description:** Handles demo timeout by stopping servers, serializing session, and restarting.
+* **Parameters:** None
+* **Returns:** None
 
 ### `OnNetworkDisconnect(message, should_reset, force_immediate_reset, details, miscdata)`
-* **Description:** Handles client/server disconnection events, including immediate resets, account-based blocks (e.g., bans), and UI flow (popups, screen transitions, fading).  
-* **Parameters:**  
-  - `message`: string — localized message key (e.g., `"E_BANNED"`)  
-  - `should_reset`: boolean — whether full reset is appropriate  
-  - `force_immediate_reset`: boolean — triggers immediate restart  
-  - `details`: table (optional) — with `help_button` for UI controls  
-  - `miscdata`: function (optional) — callback after screen pop  
-* **Returns:** `true`
+* **Description:** Handles network disconnect with multiple code paths:
+  - `force_immediate_reset = true` — immediately calls DoRestart(true) and returns.
+  - `IsMigrating()` check — skips server stop if currently migrating between shards.
+  - Screen name checks — special handling for ConnectingToGamePopup (pops screen), QuickJoinScreen (cancels join, tries next server), HostCloudServerPopup (cancels join, shows error).
+  - Fade level check — if already fading, queues popup dialog to appear after fade-in completes; otherwise shows popup immediately.
+  Session serialization occurs before reset decision. Returns true.
+* **Parameters:**
+  - `message` -- string -- disconnect reason code
+  - `should_reset` -- boolean -- whether to reset after disconnect
+  - `force_immediate_reset` -- boolean -- whether to force immediate reset
+  - `details` -- table -- additional disconnect details
+  - `miscdata` -- any -- miscellaneous data
+* **Returns:** boolean -- true
 
 ### `RegisterOnAccountEventListener(listener)`
-* **Description:** Adds a listener to the global account event listener list.  
-* **Parameters:**  
-  - `listener`: object — expects `OnAccountEvent(success, event_code, custom_message)`  
-* **Returns:** `nil`
+* **Description:** Registers a listener for account events.
+* **Parameters:**
+  - `listener` -- table -- listener object with OnAccountEvent method
+* **Returns:** None
 
 ### `RemoveOnAccountEventListener(listener_to_remove)`
-* **Description:** Removes a listener from the account event listener list by reference.  
-* **Parameters:**  
-  - `listener_to_remove`: object  
-* **Returns:** `nil`
+* **Description:** Removes a listener from account event listeners.
+* **Parameters:**
+  - `listener_to_remove` -- table -- listener object to remove
+* **Returns:** None
 
 ### `OnAccountEvent(success, event_code, custom_message)`
-* **Description:** Broadcasts an account-related event to all registered listeners.  
-* **Parameters:**  
-  - `success`: boolean  
-  - `event_code`: string  
-  - `custom_message`: string (optional)  
-* **Returns:** `nil`
+* **Description:** Dispatches account event to all registered listeners.
+* **Parameters:**
+  - `success` -- boolean -- whether account event succeeded
+  - `event_code` -- string -- event code
+  - `custom_message` -- string -- custom message
+* **Returns:** None
 
 ### `TintBackground(bg)`
-* **Description:** Applies a tint to a background UI element using a color constant from `BGCOLOURS.FULL`.  
-* **Parameters:**  
-  - `bg`: UI background widget — expects `:SetTint(r, g, b, a)`  
-* **Returns:** `nil`
+* **Description:** Sets background tint color (currently uses BGCOLOURS.FULL).
+* **Parameters:**
+  - `bg` -- widget -- background widget to tint
+* **Returns:** None
 
-### `OnFocusLost()`, `OnFocusGained()`
-* **Description:** Handles app focus loss/gain (save, mute/unmute, unpause).  
-* **Parameters:** none  
-* **Returns:** `nil`
+### `OnFocusLost()`
+* **Description:** Handles focus lost event, pausing on Android and muting audio on supported platforms.
+* **Parameters:** None
+* **Returns:** None
 
-### `OnUserPickedCharacter(char, skin_base, clothing_body, clothing_hand, clothing_legs, clothing_feet)`
-* **Description:** Handles player selection in character select screen; packages data and sends spawn request to server.  
-* **Parameters:**  
-  - `char`: string — prefab name  
-  - `skin_base`, `clothing_*`: string — skin names  
-* **Returns:** `nil`
+### `OnFocusGained()`
+* **Description:** Handles focus gained event, unpausing on Android and restoring audio on supported platforms.
+* **Parameters:** None
+* **Returns:** None
 
 ### `ResumeRequestLoadComplete(success)`
-* **Description:** Handles post-resume-request outcome; on failure, deletes invalid session and returns to lobby.  
-* **Parameters:**  
-  - `success`: boolean  
-* **Returns:** `nil`
+* **Description:** Handles resume request load completion, showing lobby screen on failure.
+* **Parameters:**
+  - `success` -- boolean -- whether resume load succeeded
+* **Returns:** None
 
 ### `ParseUserSessionData(data)`
-* **Description:** Safely parses raw save file string into a Lua table using sandboxed execution.  
-* **Parameters:**  
-  - `data`: string — raw save file content  
-* **Returns:** `playerdata` (table or `nil`), `prefab` (string)
+* **Description:** Parses user session data from save file string.
+* **Parameters:**
+  - `data` -- string -- raw session data string
+* **Returns:** table, string -- playerdata table and prefab name, or nil and empty string on failure
 
 ### `ResumeExistingUserSession(data, guid)`
-* **Description:** Spawns a player entity on the server using persisted session data, respecting vault room placement.  
-* **Parameters:**  
-  - `data`: table — session payload (`data.data`, position info)  
-  - `guid`: number  
-* **Returns:** `player.player_classified.entity` or `nil`
+* **Description:** Resumes existing user session on server, spawning player at last known location.
+* **Parameters:**
+  - `data` -- table -- session data table
+  - `guid` -- number -- player entity GUID
+* **Returns:** number -- player classified entity or nil
 
 ### `RestoreSnapshotUserSession(sessionid, userid)`
-* **Description:** Loads a session snapshot by ID, spawns a new player, and teleports it; sets `_snapshot_platform` metadata.  
-* **Parameters:**  
-  - `sessionid`: string — snapshot file ID  
-  - `userid`: string — associated user ID  
-* **Returns:** `player.player_classified.entity` or `nil`
+* **Description:** Restores user session from snapshot, spawning player with persist data.
+* **Parameters:**
+  - `sessionid` -- string -- snapshot session ID
+  - `userid` -- string -- user ID
+* **Returns:** number -- player classified entity or nil
 
 ### `ExecuteConsoleCommand(fnstr, guid, x, z)`
-* **Description:** Executes arbitrary Lua code in sandboxed context, temporarily overriding `ThePlayer` and `TheInput.overridepos`.  
-* **Parameters:**  
-  - `fnstr`: string — Lua code  
-  - `guid`, `x`, `z`: optional inputs  
-* **Returns:** `nil`
+* **Description:** Executes arbitrary Lua console command with optional player and position context.
+* **Parameters:**
+  - `fnstr` -- string -- Lua code to execute
+  - `guid` -- number -- entity GUID to set as ThePlayer (optional)
+  - `x` -- number -- x position override (optional)
+  - `z` -- number -- z position override (optional)
+* **Returns:** None
 
 ### `NotifyLoadingState(loading_state, match_results)`
-* **Description:** Coordinates loading screen transitions based on client/server role and worldgen settings.  
-* **Parameters:**  
-  - `loading_state`: number — from `LoadingStates` (`None`, `Loading`, `Generating`, `DoneGenerating`, `DoneLoading`)  
-  - `match_results`: string (optional JSON) — decoded into `TheFrontEnd.match_results`  
-* **Returns:** `nil`
+* **Description:** Notifies loading state with client/server-specific behavior:
+  - **Client:** Handles screen transitions based on `loading_state` enum:
+    - `LoadingStates.Loading` — shows loading screen, fades out (or pops screen if hide_worldgen_loading_screen property set).
+    - `LoadingStates.Generating` — shows WorldGenScreen after 0.15s delay (unless hide_worldgen_loading_screen set).
+    - `LoadingStates.DoneGenerating` — pops current screen.
+  - **Server:** Notifies TheNet with encoded match_results.
+  Behavior varies by `hide_worldgen_loading_screen` game mode property.
+* **Parameters:**
+  - `loading_state` -- number -- loading state from LoadingStates enum
+  - `match_results` -- table -- match results data
+* **Returns:** None
 
 ### `CreateWorldStateTag(namespace, atlas)`
-* **Description:** Factory function for namespace-specific world state tag system using bit-encoding.  
-* **Parameters:**  
-  - `namespace`: string — unique identifier (e.g., `"WS:"`)  
-  - `atlas`: string — UI atlas path  
-* **Returns:** table of tag functions (`DeclareTag`, `EncodeTags`, `DecodeTags`, etc.)
+* **Description:** Creates a world state tag namespace object with tag declaration, encoding, and sync capabilities.
+* **Parameters:**
+  - `namespace` -- string -- namespace with colon suffix (e.g., 'WS:')
+  - `atlas` -- string -- atlas path for tag icons
+* **Returns:** table -- world state tag object or nil if invalid namespace
+* **Error states:** None
 
-### `GetWorldStateTagObjectFromNamespace(namespace)`, `GetWorldStateTagObjectFromTag(tag)`, `ForEachWorldStateTagObject(fn, ...)`
-* **Description:** Retrieves or iterates over world state tag objects by namespace or tag.  
-* **Parameters:**  
-  - `namespace`/`tag`/`fn`: varies  
-* **Returns:** object or `nil`
+### `GetWorldStateTagObjectFromNamespace(namespace)`
+* **Description:** Gets world state tag object by namespace.
+* **Parameters:**
+  - `namespace` -- string -- namespace to look up
+* **Returns:** table -- tag object or nil
+
+### `GetWorldStateTagObjectFromTag(tag)`
+* **Description:** Gets world state tag object by searching all namespaces for matching encoded tag.
+* **Parameters:**
+  - `tag` -- string -- encoded tag string
+* **Returns:** table -- tag object or nil
+
+### `ForEachWorldStateTagObject(fn, ...)`
+* **Description:** Iterates over all world state tag objects, calling fn for each.
+* **Parameters:**
+  - `fn` -- function -- function to call for each tag object
+  - `...` -- variadic -- arguments to pass to fn
+* **Returns:** None
 
 ### `BuildTagsStringCommon(tagsTable)`
-* **Description:** Builds a comma-separated string of server visibility tags, including game state, mod, language, and world state tags.  
-* **Parameters:**  
-  - `tagsTable`: table of tag strings  
-* **Returns:** string
+* **Description:** Builds server tags string including vote, shard, mod, beta, language, and world state tags.
+* **Parameters:**
+  - `tagsTable` -- table -- table to build tags into
+* **Returns:** string -- concatenated tags string
 
 ### `SaveAndShutdown()`
-* **Description:** Performs server shutdown: despawns players, saves shard game index.  
-* **Parameters:** none  
-* **Returns:** `nil`
+* **Description:** Saves game and shuts down, despawning all players on master sim. Returns early (nil) if TheWorld is nil.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `IsInFrontEnd()`
-* **Description:** Checks if game is in frontend using `Settings.reset_action`.  
-* **Parameters:** none  
-* **Returns:** boolean
+* **Description:** Checks if currently in frontend (no reset action or LOAD_FRONTEND).
+* **Parameters:** None
+* **Returns:** boolean -- true if in frontend
 
 ### `CreateRepeatedSoundVolumeReduction(repeat_time, lowered_volume_percent)`
-* **Description:** Factory function returning a closure for time-based audio volume reduction.  
-* **Parameters:**  
-  - `repeat_time`: number — seconds between triggers  
-  - `lowered_volume_percent`: number — volume multiplier (e.g., `0.75`)  
-* **Returns:** function — current volume level (0–1)
+* **Description:** Creates a function that reduces sound volume if called within repeat_time window.
+* **Parameters:**
+  - `repeat_time` -- number -- time window in seconds
+  - `lowered_volume_percent` -- number -- reduced volume percentage
+* **Returns:** function -- volume reduction function
 
 ### `DisplayAntiAddictionNotification(notification)`
-* **Description:** Displays a persistent anti-addiction message for ~10 seconds. De-duplicates overlapping notifications.  
-* **Parameters:**  
-  - `notification`: string — key into `STRINGS.ANTIADDICTION`  
-* **Returns:** `nil`
+* **Description:** Displays anti-addiction notification text for 10.5 seconds.
+* **Parameters:**
+  - `notification` -- string -- notification key from STRINGS.ANTIADDICTION
+* **Returns:** None
 
 ### `ShowBadHashUI()`
-* **Description:** Shows a modal popup when game file integrity is compromised.  
-* **Parameters:** none  
-* **Returns:** `nil`
+* **Description:** Shows bad hashes error UI with options to play anyway, view instructions, or quit. Returns early (nil) if HashesMessageState is not SHOW_WARNING.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `HookLoginButtonForDataBundleFileHashes(button)`
-* **Description:** Registers a login button widget for enabling/disabling during integrity checks.  
-* **Parameters:**  
-  - `button`: UI button widget  
-* **Returns:** `nil`
+### `BeginDataBundleFileHashes()`
+* **Description:** Begins data bundle file hash integrity check, disabling login button.
+* **Parameters:** None
+* **Returns:** None
 
-### `BeginDataBundleFileHashes()`, `DataBundleFileHashes(calculatedhashes)`
-* **Description:** Marks integrity check as in-progress, disables login, compares hashes.  
-* **Parameters:**  
-  - `calculatedhashes`: table — `{filename = hash}`  
-* **Returns:** `nil`
+### `DataBundleFileHashes(calculatedhashes)`
+* **Description:** Validates data bundle file hashes against hashes.txt, setting HashesMessageState on mismatch.
+* **Parameters:**
+  - `calculatedhashes` -- table -- calculated file hashes
+* **Returns:** None
 
 ## Events & listeners
-* **`ms_playerdisconnected`** — fired server-side on player disconnect (via `OnPlayerLeave`)
-* **`ms_playerdespawn`** — fired server-side on player disconnect (via `OnPlayerLeave`)
-* **`serverpauseddirty`** — fired on pause state change (via `OnServerPauseDirty`)
-* **`ms_simunpaused`** — fired on simulation unpaused (via `OnSimUnpaused`)
-* **Account event notifications** — delivered to registered listeners via `OnAccountEvent`
+
+**Pushes:**
+- `entity_spawned` — Pushed by SpawnPrefabFromSim when entity spawns
+- `entitysleep` — Pushed by OnEntitySleep when entity goes to sleep
+- `entitywake` — Pushed by OnEntityWake when entity wakes up
+- `serverpauseddirty` — Pushed by OnServerPauseDirty with pause state data
+- `ms_simunpaused` — Pushed by OnSimUnpaused when sim unpauses
+- `ms_playerdisconnected` — Pushed by OnPlayerLeave when player disconnects
+- `ms_playerdespawn` — Pushed by OnPlayerLeave when player despawns
+- `entercharacterselect` — Pushed by ResumeRequestLoadComplete on failure
+- `quit` — Pushed by ProcessJsonMessage on quit command

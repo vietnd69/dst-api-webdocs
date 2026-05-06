@@ -1,117 +1,199 @@
 ---
 id: tree_rocks
 title: Tree Rocks
-description: A rock tree prefab that supports growth stages, mining, falling, and vine loot generation, while interacting with combat, burnable, and sleeper systems.
-tags: [environment, entity, world, combat]
+description: Defines the tree_rock prefab family, which functions as a growable tree that transforms into a mineable boulder upon being chopped or burnt.
+tags: [prefab, resource, growable, loot]
 sidebar_position: 10
-
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 8369f4d2
-system_scope: environment
+source_hash: cfe59048
+system_scope: entity
 ---
 
 # Tree Rocks
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-The `tree_rocks.lua` file defines prefabs for rock trees (`tree_rock1`, `tree_rock2`, and variants), which function as environmental structures that can be chopped, mined, fall over, and regenerate. These prefabs incorporate multiple components: `lootdropper` (for drop generation), `workable` (for chopping and mining actions), `growable` (for growth stages), `plantregrowth` (for regrowth after falling), and `burnable` (for fire interaction). They also support area-of-effect knockback and damage on impact, interact with nearby Leif entities via the `sleeper` component, and generate custom vine loot based on world topology. The `tree_rock_seed` can plant a new tree, which then grows through stages from short to normal height.
+`tree_rocks.lua` registers a family of 7 spawnable prefabs representing rocky trees that can be chopped down or mined. The entity starts as a growable tree (`tree` tag) and transitions into a static boulder (`boulder` tag) when fully chopped or burnt. It features complex loot generation based on world topology (rooms, tasks, layouts) via `tree_rock_data.lua`, including special "vine loot" (gems) that are visually attached to the tree. The file uses a factory function `MakeRockTree` to generate variations (`tree_rock1`, `tree_rock2`, and their stage-specific variants).
 
 ## Usage example
-Rock trees are typically instantiated via the returned prefabs (`tree_rock1`, `tree_rock2`, etc.) rather than direct component manipulation. However, a minimal example of adding and configuring a rock tree manually would be:
-
 ```lua
-local tree = SpawnPrefab("tree_rock1")
-tree.Transform:SetPosition(x, y, z)
-tree.components.lootdropper:SetChanceLootTable("tree_rock1_chop")
-tree.components.workable:SetWorkLeft(TUNING.TREE_ROCK.CHOP)
-tree.components.growable:SetStage(2)
+-- Spawn a random tree rock at world origin:
+local inst = SpawnPrefab("tree_rock")
+inst.Transform:SetPosition(0, 0, 0)
+
+-- Spawn a specific variant (e.g., rock1 at normal stage):
+local inst2 = SpawnPrefab("tree_rock1_normal")
+
+-- Access assets for preloading:
+local assets = {
+    Asset("ANIM", "anim/tree_rock_short.zip"),
+    Asset("ANIM", "anim/tree_rock_normal.zip"),
+    Asset("SOUND", "sound/rifts6.fsb"),
+}
 ```
 
 ## Dependencies & tags
-**Components used:** `lootdropper`, `workable`, `growable`, `plantregrowth`, `burnable`, `propagator`, `sleeper`, `combat`, `inventory`, `hauntable`, `inspectable`, `soundemitter`, `animator`, `minimapentity`, `transform`, `network`.
+**External dependencies:**
+- `prefabs/tree_rock_data` -- provides loot tables, growth stage data, and topology-based loot modifiers.
 
-**Tags added/checked:** `tree`, `rock_tree`, `shelter`, `nodangermusic`, `boulder`, `burnt`, `tree_rock_breaker`, `tree_rock_bouncer`. Also uses `leif` for wake-up logic.
+**Components used:**
+- `lootdropper` -- manages resource drops (rocks, nitre, flint, gems) on chop/mine.
+- `workable` -- handles chopping (tree state) and mining (boulder state).
+- `growable` -- manages growth stages (short, normal).
+- `plantregrowth` -- enables the tree to plant saplings nearby.
+- `burnable` -- allows the tree to catch fire and transition to burnt state.
+- `propagator` -- spreads fire to nearby entities.
+- `inspectable` -- provides status text ("CHOPPED" when boulder).
+- `inventory` -- GetEquippedItem() called in HasHardHat() to check for hard armor.
+
+**Tags:**
+- `tree` -- added in `fn()`; removed when chopped/burnt.
+- `rock_tree` -- added in `fn()`; identifies entity type for regrowth.
+- `shelter` -- added in `fn()`; provides shelter from rain.
+- `nodangermusic` -- added in `fn()`; suppresses danger music.
+- `burnt` -- added in `OnBurnt()`; indicates burnt state.
+- `boulder` -- added in `MakeRock()`; indicates mined/chopped state.
 
 ## Properties
-No public properties are defined in the constructor or elsewhere — this file is primarily a prefab factory and contains no component class definition. All runtime state is stored on the `inst` object (e.g., `inst.build`, `inst.anims`, `inst.vine_loot`) but not exposed as component properties.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `assets` | table | --- | Array of `Asset(...)` entries for animations, sounds, and minimap icons. |
+| `prefabs` | table | `{...}` | Array of dependent prefab names spawned as loot or FX (e.g., `rocks`, `rock_break_fx`). |
+| `builds` | table | `{rock1, rock2}` | Configuration table defining animation banks, grow times, and damage values for the two rock tree variants. |
+| `NUM_VINE_LOOT` | constant | `5` | Number of vine gem slots attached to the tree model. |
+| `SWAY1_TIME` | constant | `15 * FRAMES` | Frame delay for first sway sound task. |
+| `SWAY2_TIME` | constant | `45 * FRAMES` | Frame delay for second sway sound task. |
+| `AOE_RANGE_PADDING` | constant | `3` | Padding added to drop damage range for entity search. |
+| `AOE_TARGET_MUST_HAVE_TAGS` | table | `{ "_combat" }` | Tags required for entities to be affected by falling rock. |
+| `AOE_TARGET_CANT_TAGS` | table | `{ "INLIMBO", "flight", "invisible", "notarget", "noattack" }` | Tags that exclude entities from falling rock damage. |
+| `BOUNCE_FALL_DELAY` | constant | `11 * FRAMES` | Delay before OnRockFall is called after bounce animation. |
+| `FALL_DELAY` | constant | `4 * FRAMES` | Delay before OnRockFall is called after miss animation. |
+| `LEIF_TAGS` | table | `{ "leif" }` | Tags used to find nearby Leif entities when tree is chopped; triggers wakeup and target suggestion.
 
 ## Main functions
-### `MakeRockTree(name, build, stage)`
-*   **Description:** Factory function that returns a `Prefab` for a rock tree (e.g., `tree_rock1`). It initializes all required components (lootdropper, workable, growable, plantregrowth, burnable, etc.), sets animations and loot tables, and registers save/load callbacks.
-*   **Parameters:**  
-    *   `name` (string) – prefab name (e.g., `"tree_rock1"`).  
-    *   `build` (string, optional) – key from the `builds` table (`"rock1"` or `"rock2"`), determining growth and AOE stats.  
-    *   `stage` (number, optional) – initial `growable` stage (`1` = short, `2` = normal).
-*   **Returns:** A `Prefab` instance.
-*   **Error states:** None documented.
+### `MakeRockTree(name, build, stage)` (local)
+*   **Description:** Factory function that constructs and returns a `Prefab` object. Configures the prefab name, animation build, and initial growth stage. Called at the bottom of the file to register 7 distinct prefabs.
+*   **Parameters:**
+    - `name` -- string prefab name (e.g., `"tree_rock1"`)
+    - `build` -- string key into `builds` table (`"rock1"` or `"rock2"`)
+    - `stage` -- integer initial growth stage (1=short, 2=normal). Random if nil.
+*   **Returns:** `Prefab` object
+*   **Error states:** None.
 
-### `MakeRock(inst, no_change_physics)`
-*   **Description:** Transforms the entity from a standing rock tree into a boulder after falling or burning. Removes burnable, propagator, workable (chopping), and shelter components; adds a new `workable` for mining; adjusts physics to obstacle type; and sets loot table to `"tree_rock1_mine"`.
-*   **Parameters:**  
-    *   `inst` (Entity) – the rock tree instance to convert.  
-    *   `no_change_physics` (boolean) – if `true`, skips physics collider removal/replacement.
-*   **Returns:** Nothing.
+### `OnChop(inst, chopper, chopsleft, numchops)` (local)
+*   **Description:** Callback for `workable` component while tree is being chopped. Plays chop animation/sound, spawns chop FX, and wakes nearby Leifs. Suggests the chopper as a combat target to woken Leifs.
+*   **Parameters:**
+    - `inst` -- tree rock entity
+    - `chopper` -- entity performing the chop
+    - `chopsleft` -- remaining work
+    - `numchops` -- total work
+*   **Returns:** None
+*   **Error states:** Errors if entity found by LEIF_TAGS search lacks `combat` component (no nil guard before `v.components.combat` access).
 
-### `OnChop(inst, chopper, chopsleft, numchops)`
-*   **Description:** Callback invoked each time the tree is chopped. Plays chop animation and sound, spawns `tree_rock_chop` FX, and wakes nearby `leif` entities via `sleeper.WakeUp`. Also suggests `chopper` as a target to leifs' `combat` component.
-*   **Parameters:**  
-    *   `inst` (Entity) – the rock tree instance.  
-    *   `chopper` (Entity, optional) – the entity doing the chopping.  
-    *   `chopsleft` (number) – remaining chops before falling.  
-    *   `numchops` (number) – total chops required (from `TUNING.TREE_ROCK.CHOP`).
-*   **Returns:** Nothing.
+### `OnChopDown(inst, chopper)` (local)
+*   **Description:** Callback for `workable` component when chopping is finished. Triggers falling animation, spawns loot (including vine loot), and converts the tree to a boulder via `MakeRock()`.
+*   **Parameters:**
+    - `inst` -- tree rock entity
+    - `chopper` -- entity that finished chopping
+*   **Returns:** None
+*   **Error states:** None.
 
-### `OnChopDown(inst, chopper)`
-*   **Description:** Callback invoked after the final chop. Triggers the fall animation sequence (`fall_pre`), drops loot and vine loot, and calls `MakeRock(inst, true)` to transition to boulder state.
-*   **Parameters:**  
-    *   `inst` (Entity) – the rock tree instance.  
-    *   `chopper` (Entity, optional) – the entity that finished chopping.
-*   **Returns:** Nothing.
+### `OnMine(inst, miner, minesleft, nummines)` (local)
+*   **Description:** Callback for `workable` component when in boulder state. Plays mining animation. If `minesleft <= 0`, spawns break FX, drops loot, and removes the entity. May spook the miner if they have the `spooked` component and animation is not `burnt_full_normal` or `fall_full_normal`.
+*   **Parameters:**
+    - `inst` -- tree rock entity
+    - `miner` -- entity performing the mine
+    - `minesleft` -- remaining work
+    - `nummines` -- total work
+*   **Returns:** None
+*   **Error states:** Errors if `inst.components.lootdropper` is nil (no nil guard before `DropLoot` call).
 
-### `OnBurnt(inst, immediate)`
-*   **Description:** Handles conversion to burnt state. If `immediate` is `true` (e.g., on load), it instantly converts to a boulder with appropriate mining animation. Otherwise, it plays a `fall_pre_burnt` animation and transitions after a delay.
-*   **Parameters:**  
-    *   `inst` (Entity) – the rock tree instance.  
-    *   `immediate` (boolean) – if `true`, skips fall animation.
-*   **Returns:** Nothing.
+### `OnBurnt(inst, immediate)` (local)
+*   **Description:** Callback for `burnable` component. Adds `burnt` tag. If `immediate` (e.g., loaded from save), converts to boulder instantly. Otherwise, plays falling animation and schedules conversion via `MakeRock()`.
+*   **Parameters:**
+    - `inst` -- tree rock entity
+    - `immediate` -- boolean forcing instant conversion
+*   **Returns:** None
+*   **Error states:** Errors if `inst.components.workable` is nil (no nil guard before `workleft` access).
 
-### `OnMine(inst, miner, minesleft, nummines)`
-*   **Description:** Callback for mining (boulder state). When `minesleft <= 0`, spawns rock break FX, drops loot, and removes the entity. Otherwise, plays animation and triggers spooked FX for players with `spooked` component.
-*   **Parameters:**  
-    *   `inst` (Entity) – the rock tree instance.  
-    *   `miner` (Entity, optional) – the mining entity.  
-    *   `minesleft` (number) – remaining mine actions before destruction.  
-    *   `nummines` (number) – total mine actions required.
-*   **Returns:** Nothing.
+### `OnRockFall(inst)` (local)
+*   **Description:** Called after falling animation completes. If current animation is a miss or bounce variant (`fall_miss`, `fall_miss_burnt`, `fall_bounce`, `fall_bounce_burnt`), triggers camera shake and deals AOE damage to entities within `drop_damage_range`, applying knockback. Changes physics to obstacle.
+*   **Parameters:** `inst` -- tree rock entity
+*   **Returns:** None
+*   **Error states:** Errors if affected entity lacks `combat` component (no nil guard before `v.components.combat` access).
 
-### `SetupVineLoot(inst, loots)`
-*   **Description:** Initializes vine loot (gems, resources) on the tree based on world topology (`GetLootWeightedTable`). Updates `AnimState` to show or hide gem vines and override symbols.
-*   **Parameters:**  
-    *   `inst` (Entity) – the rock tree instance.  
-    *   `loots` (table, optional) – precomputed loot list (uses `GetVineLoots(inst)` if omitted).
-*   **Returns:** Nothing.
+### `OnAnimOver(inst)` (local)
+*   **Description:** Listener for `animover` event during falling sequence. Determines if the rock should break (if `tree_rock_breaker` below), bounce (if `tree_rock_bouncer` or hard hat below), or continue falling. Spawns loot if breaking.
+*   **Parameters:** `inst` -- tree rock entity
+*   **Returns:** None
+*   **Error states:** Errors if `inst.components.lootdropper` is nil (no nil guard before component access).
 
-### `GetLootWeightedTable(inst)`
-*   **Description:** Determines the weighted loot table using the rock tree’s position, queried against world topology (`TheWorld.Map:GetTopologyIDAtPoint`). Falls back to `WEIGHTED_VINE_LOOT.DEFAULT` if no match.
-*   **Parameters:** `inst` (Entity) – the rock tree instance.
-*   **Returns:** table – weighted loot table (e.g., `WEIGHTED_VINE_LOOT.vent_proximity`).
-*   **Error states:** Returns `WEIGHTED_VINE_LOOT.DEFAULT` if topology lookup fails.
+### `OnSave(inst, data)`
+*   **Description:** Serializes entity state for world save. Records `burnt`, `boulder`, and `vine_loot` status.
+*   **Parameters:**
+    - `inst` -- entity instance
+    - `data` -- table to populate
+*   **Returns:** None (modifies `data` table)
+*   **Error states:** None.
 
-### `GetAffectedEntities(inst)`
-*   **Description:** Finds entities within the tree’s `drop_damage_range` that are valid targets for knockback/damage. Filters by required and forbidden tags (`_combat` must be present; `INLIMBO`, `flight`, `invisible`, etc. are forbidden).
-*   **Parameters:** `inst` (Entity) – the rock tree instance.
-*   **Returns:** table – array of valid entities within range.
+### `OnLoad(inst, data)`
+*   **Description:** Restores entity state from world save. Re-applies burnt/boulder state and vine loot configuration.
+*   **Parameters:**
+    - `inst` -- entity instance
+    - `data` -- saved data table
+*   **Returns:** None
+*   **Error states:** None
+
+### `GetStatus(inst)`
+*   **Description:** Callback for `inspectable` component. Returns status text based on entity state.
+*   **Parameters:** `inst` -- tree rock entity
+*   **Returns:** `"CHOPPED"` if `boulder` tag is present, `nil` otherwise
+*   **Error states:** None
+
+### `handler_growfromseed(inst)`
+*   **Description:** Assigned to `inst.growfromseed`. Called during regrowth from seed to set initial growth stage and play animation.
+*   **Parameters:** `inst` -- tree rock entity
+*   **Returns:** None
+*   **Error states:** Errors if `inst.components.growable` is nil (no nil guard present).
+
+### `ResetSwaySoundTasks(inst)` (local)
+*   **Description:** Manages sway sound timing tasks. Cancels existing tasks and schedules new `PlaySwaySound` callbacks if current animation is sway1.
+*   **Parameters:** `inst` -- tree rock entity
+*   **Returns:** None
+*   **Error states:** None
+
+### `PlaySwaySound(inst)` (local)
+*   **Description:** Task callback that plays sway sound if current animation matches sway1.
+*   **Parameters:** `inst` -- tree rock entity
+*   **Returns:** None
+*   **Error states:** None
+
+### `WakeUpLeif(ent)` (local)
+*   **Description:** Wakes a sleeping Leif entity. Called via `DoTaskInTime` when tree is chopped to alert nearby Leifs.
+*   **Parameters:** `ent` -- Leif entity
+*   **Returns:** None
+*   **Error states:** Errors if `ent.components.sleeper` is nil (no nil guard before `WakeUp` call).
+
+### `SetupVineLoot(inst, loots)` (local)
+*   **Description:** Assigns gem loot to the 5 vine slots on the tree model. Overrides animation symbols to display the gems. Called during construction and load.
+*   **Parameters:**
+    - `inst` -- tree rock entity
+    - `loots` -- array of loot prefab names (optional, generated if nil)
+*   **Returns:** None
+*   **Error states:** None.
+
+### `GetLootWeightedTable(inst)` (local)
+*   **Description:** Calculates the loot table for this specific tree based on its world topology (room, task, or static layout ID). Merges in extra loot modifiers if tests pass.
+*   **Parameters:** `inst` -- tree rock entity
+*   **Returns:** table of weighted loot choices
+*   **Error states:** None.
 
 ## Events & listeners
-- **Listens to:**  
-  - `animover` (via `inst:ListenForEvent("animover", OnAnimOver)`) – triggers fall/bounce/break logic and animation chaining.  
-  - `death` (handled by `burnable` component) – cancels burn task when killed.
-- **Pushes:**  
-  - `onextinguish` – triggered on fire extinguish (via `burnable`).  
-  - `onwakeup` – triggered on leif wake-up (via `sleeper`).  
-  - `on_loot_dropped`, `loot_prefab_spawned`, `broke_tree_rock`, `knockback` – triggered during interaction and falling.  
-  - Entity-level events: `onload`, `onsave` – via `inst.OnLoad`/`inst.OnSave`.
+- **Listens to:** `animover` -- triggers `OnAnimOver` to handle falling physics and break/bounce logic.
+- **Pushes:** `knockback` -- fired by `OnRockFall` on entities hit by falling rock. Data: `{ knocker, radius, strengthmult, forcelanded }`.
+- **Pushes:** `broke_tree_rock` -- fired by `OnAnimOver` if rock breaks on an entity. Data: `{ tree_rock = inst }`.
+- **World state watchers:** None identified.

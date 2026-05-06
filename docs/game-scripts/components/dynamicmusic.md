@@ -1,132 +1,126 @@
 ---
 id: dynamicmusic
 title: Dynamicmusic
-description: Manages adaptive background music for the player entity based on gameplay context such as location, actions, time of day, season, and nearby events.
-tags: [audio, player, environment, world]
+description: Manages context-aware background music playback based on player actions, environment, and game state.
+tags: [audio, music, environment]
 sidebar_position: 10
 
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: 8358ff31
+source_hash: 29bc4491
 system_scope: audio
 ---
 
 # Dynamicmusic
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-17
 
 ## Overview
-`Dynamicmusic` is a player-associated component responsible for dynamically controlling background music playback based on the player’s state, surroundings, and in-game events. It responds to world state changes (day/night, season), player actions (working, attacking), special conditions (inspiration buff, sanity effects), and triggered events (boss fights, races, feasting). It leverages the `AreaAware` component to detect zone tags (e.g., `"Nightmare"`, `"lunacyarea"`) and integrates with the global sound emitter (`TheFocalPoint.SoundEmitter`) for real-time audio parameter control. This component ensures contextual, immersive audio without overlapping or conflicting music layers.
+`DynamicMusic` controls adaptive background music playback for player entities. It responds to environmental conditions (season, cave/forest, ruins, lunar island), player activities (working, building, fighting), and special events (boss fights, mini-games, festivals). The component manages multiple music layers including busy themes, danger themes, epic fight music, and triggered event music. It uses the world's focal point sound emitter and listens to numerous player events to determine appropriate audio playback. **Note:** This component has no public methods on `self` — all functionality is event-driven via `PushEvent` calls.
 
 ## Usage example
 ```lua
-local inst = ThePlayer
-if not inst.components.dynamicmusic then
-    inst:AddComponent("dynamicmusic")
-end
+local inst = CreateEntity()
+inst:AddComponent("dynamicmusic")
 
--- Enable music dynamics (enabled by default)
-inst:PushEvent("enabledynamicmusic", { enable = true })
+-- Music is controlled via events, not direct method calls
+inst:PushEvent("playeractivated", player)
+inst:PushEvent("enabledynamicmusic", true)
 
--- Trigger a boss fight theme (e.g., for "malbatross")
-inst:PushEvent("triggeredevent", { name = "malbatross", duration = 30 })
-
--- Start Carnival minigame music
-inst:PushEvent("playcarnivalmusic", { is_game_active = true })
+-- Trigger specific music themes via events
+player:PushEvent("playracemusic")
+player:PushEvent("playcarnivalmusic", { is_game_active = true })
+player:PushEvent("triggeredevent", { name = "dragonfly", level = 1, duration = 60 })
 ```
 
 ## Dependencies & tags
-**Components used:** `areaaware` (for zone detection via `CurrentlyInTag`)
-**Tags:** None added/removed directly by this component; it only checks player tags (`"attack"`, `"working"`, `"noepicmusic"`, `"shadow"`, `"shadowchesspiece"`, `"smolder"`, `"thorny"`, `"nodangermusic"`) and entity tags via `HasTag`/`HasAnyTag`.
+**External dependencies:**
+- `TheFocalPoint.SoundEmitter` -- global sound emitter for music playback
+- `TheSim:FindEntities()` -- entity searching for nearby threats and pirates
+
+**Components used:**
+- `areaaware` -- checks if player is in specific areas via `CurrentlyInTag()`
+- `combat` -- retrieves combat target for danger music detection
+- `replica.combat` -- network-replicated combat component for target access
+- `replica.follower` -- checks follower relationships for music exclusion
+
+**Tags:**
+- `cave` -- checked on inst to determine cave vs forest music
+- `Nightmare` -- checked via areaaware for ruins music
+- `lunacyarea` -- checked via areaaware for lunar island music
+- `epic` -- marks entities that trigger epic fight music
+- `noepicmusic` -- excludes entities from triggering epic music
+- `prey`, `hostile` -- checked for danger music eligibility
+- `attack`, `working` -- checked on player for action-based music
+- `crewmember` -- marks pirate entities for pirate music
+- `shadow`, `shadowchesspiece`, `smolder`, `thorny`, `nodangermusic` -- exclude from danger triggers
+- `feasting` -- checked for feast music activation
+- `bird`, `butterfly`, `shadowminion`, `abigail`, `possessedbody`, `smashable`, `wall`, `engineering`, `smoldering`, `veggie` -- various exclusion tags for danger music
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | — | Reference to the entity that owns this component (typically a player). |
-| `_iscave` | boolean | `false` | Set if the owning entity has the `"cave"` tag. Affects music selection (e.g., cave vs. surface themes). |
-| `_isenabled` | boolean | `true` | Enables/disables music playback globally; controlled via the `"enabledynamicmusic"` event. |
-| `_busytheme` | number \| nil | `nil` | Current active "busy" theme index (from `BUSYTHEMES` table). Tracks which ambient/work theme is playing. |
-| `_dangertask` | GTimer \| nil | `nil` | Timer handle for danger music timeout (auto-stops after 10s unless extended). |
-| `_busytask` | GTimer \| nil | `nil` | Timer handle for busy theme timeout (default: 15s; varies by context). |
-| `_extendtime` | number \| nil | `0` | Timestamp until which current music should be extended (used to prevent immediate re-triggering). |
-| `_pirates_near` | periodic task \| nil | `nil` | Periodic task running when Pirates minigame is active, checking for nearby crew members. |
-| `_triggeredlevel` | number \| nil | `nil` | Tracks the intensity level of the currently playing triggered danger music. |
-| `_activatedplayer` | Entity \| nil | `nil` | Cached reference to the currently active player entity. Used to attach/detach event listeners. |
-| `_hasinspirationbuff` | number | `0` | Binary flag (`0` or `1`) indicating presence of Wathgrithr’s inspiration buff; affects danger music intensity. |
+| `inst` | entity | -- | The entity instance that owns this component (assigned from constructor parameter). |
+
+## Internal State
+*These are private local variables, not part of the public API:*
+| Variable | Type | Initial Value | Description |
+|----------|------|---------------|-------------|
+| `_isenabled` | boolean | `true` | Whether dynamic music is currently enabled. |
+| `_busytask` | task | `nil` | Scheduled task for busy music timeout. |
+| `_dangertask` | task | `nil` | Scheduled task for danger music timeout. |
+| `_pirates_near` | task | `nil` | Periodic task for checking nearby pirates. |
+| `_triggeredlevel` | number | `nil` | Current level of triggered danger music. |
+| `_isday` | boolean | `nil` | Whether the current world phase is day. |
+| `_busytheme` | number | `nil` | Current busy music theme identifier. |
+| `_extendtime` | number | `nil` | Timestamp for extending music duration (set to `0` in `StartSoundEmitter`). |
+| `_soundemitter` | SoundEmitter | `nil` | Reference to the global sound emitter. |
+| `_activatedplayer` | entity | `nil` | Currently activated player entity. |
+| `_hasinspirationbuff` | number | `nil` | Inspiration buff state (0 or 1). |
 
 ## Main functions
-### `StartBusyTheme(player, theme, sound, duration, extendtime)`
-* **Description:** Starts or extends a "busy" ambient/work theme. Used for multiple special contexts (farming, carnival, stageplay, etc.). Prevents overlapping themes unless a higher-priority one is explicitly triggered. Extends existing theme duration if it is active and matches the requested theme.
+### `ShouldPlayDangerMusic(player, target)`
+* **Description:** Global function that determines if danger music should play based on target's tags and follower relationship. Returns `false` if target has no combat component, is prey without hostile tag, has exclusion tags (bird, butterfly, shadow, etc.), or is a shadow minion/abigail/possessed body that is not following the player.
 * **Parameters:**
-  * `player` (Entity) — The player entity to check conditions against (e.g., location, tags).
-  * `theme` (number) — `BUSYTHEMES` constant identifying the theme type (e.g., `BUSYTHEMES.FARMING`).
-  * `sound` (string) — Sound path for the music asset.
-  * `duration` (number) — Time in seconds before the theme times out (unless extended).
-  * `extendtime` (number, optional) — Optional extension timestamp (defaults to `0`).
-* **Returns:** Nothing.
-* **Error states:** Returns early if `_dangertask`, `_pirates_near`, or `_isenabled` prevents playback; also skips if theme matches current theme and time hasn’t expired.
-
-### `StartDanger(player)`
-* **Description:** Activates danger music (epic or standard) based on proximity to high-threat entities (`"epic"` tag, excluding `"noepicmusic"`), cave/season logic, and world zone tags (`"Nightmare"`). Stops any active busy theme first.
-* **Parameters:**
-  * `player` (Entity) — The player entity performing the search for nearby threats.
-* **Returns:** Nothing.
-* **Error states:** Early return if `_dangertask` is already active (just extends duration); no effect if `_isenabled` is `false`.
-
-### `StartTriggeredDanger(player, data)`
-* **Description:** Plays a custom danger theme triggered by a named event (e.g., `"malbatross"`, `"wagstaff_experiment"`). Supports multiple intensities/levels via the `data.level` field. Overrides standard danger logic.
-* **Parameters:**
-  * `player` (Entity) — The player entity (not directly used, but required for signature consistency).
-  * `data` (table, optional) — Event payload with `name` (string) and optional `level` (number) and `duration` (number).
-* **Returns:** Nothing.
-* **Error states:** Returns early if same level is already active (just extends); skips if `_isenabled` is `false` or music asset string is empty.
-
-### `UpdatePirates(player)`
-* **Description:** Periodic function run while Pirates music is active. Calculates proximity-based intensity for pirate warning music, sets volume, and stops the busy theme if pirates are near.
-* **Parameters:**
-  * `player` (Entity) — Player used for position and entity search.
-* **Returns:** Nothing.
-
-### `OnPlayerActivated(inst, player)`
-* **Description:** Cleanup and re-initialization when a new player becomes active. Stops listeners and sound on the previous player, then sets up listeners and sound emitter for the new player.
-* **Parameters:**
-  * `inst` (Entity) — The entity owning this component (the world controller).
-  * `player` (Entity) — The newly activated player.
-* **Returns:** Nothing.
-
-### `OnEnableDynamicMusic(inst, enable)`
-* **Description:** Global toggle for dynamic music playback. Can disable/enable music even if player is active. On disable, immediately kills all active sounds and cancels pending tasks.
-* **Parameters:**
-  * `inst` (Entity) — The entity owning this component.
-  * `enable` (boolean) — Whether to enable dynamic music.
-* **Returns:** Nothing.
+  - `player` -- entity instance (the player checking for danger)
+  - `target` -- entity instance (the potential threat target)
+* **Returns:** boolean -- `true` if danger music should play, `false` otherwise
+* **Error states:** Errors if `target.replica.combat` is accessed when `target.replica` is nil (no guard present).
 
 ## Events & listeners
-- **Listens to:**
-  - `"playeractivated"` — Triggered when a new player becomes active; switches context to the new player.
-  - `"playerdeactivated"` — Triggered when a player is deactivated; cleans up listeners and sounds.
-  - `"enabledynamicmusic"` — Enables or disables all dynamic music behavior.
-  - `"buildsuccess"` — Extends or starts busy theme (working).
-  - `"gotnewitem"` — Extends current busy theme.
-  - `"performaction"` — Checks for attack/working state and triggers danger/busy accordingly.
-  - `"attacked"` — Triggers danger music on valid attacks from non-exempt enemies.
-  - `"goinsane"` — Plays sanity stinger and delays busy/danger music briefly.
-  - `"goenlightened"` — Plays lunacy stinger and delays busy/danger music briefly.
-  - `"triggeredevent"` — Plays custom danger theme for named events (bosses, minigames).
-  - `"playboatmusic"` — Starts ocean-themed music if player is on a platform.
-  - `"isfeasting"` — Starts feasting theme if player has `"feasting"` state tag.
-  - `"playracemusic"` — Starts racing theme.
-  - `"playhermitmusic"` — Starts hermit theme.
-  - `"playtrainingmusic"` — Starts training theme.
-  - `"playpiratesmusic"` — Starts pirate warning music loop.
-  - `"playfarmingmusic"` — Starts farming theme.
-  - `"hasinspirationbuff"` — Updates inspiration buff flag for Wathgrithr intensity scaling.
-  - `"playcarnivalmusic"` — Starts carnival ambient or minigame theme.
-  - `"stageplaymusic"` — Starts stageplay mood-based music.
-  - `"playpillowfightmusic"` — Starts pillow fight theme.
-  - `"playrideofthevalkyrie"` — Starts Ride of the Valkyries theme.
-  - `"playboatracemusic"` — Starts boat race theme.
-  - `"playbalatromusic"` — Starts Balatro theme.
-- **Pushes:** None — this component only responds to events and controls audio parameters silently.
+**Listens to (on component entity):**
+- `playeractivated` -- initializes player listeners and sound emitter for the activated player
+- `playerdeactivated` -- removes player listeners and cleans up sound emitter
+- `enabledynamicmusic` -- enables or disables dynamic music functionality
+
+**Listens to (on player entity):**
+- `buildsuccess` -- extends busy music duration
+- `gotnewitem` -- extends busy music duration
+- `performaction` -- checks for attack or work actions to trigger appropriate music
+- `attacked` -- triggers danger music when attacked by valid threats
+- `goinsane` -- plays insanity stinger sound
+- `goenlightened` -- plays enlightenment stinger sound
+- `triggeredevent` -- starts triggered danger music for boss fights and special events
+- `playboatmusic` -- starts ocean sailing music
+- `isfeasting` -- starts feast music during winter's feast
+- `playracemusic` -- starts Year of the Carrat race music
+- `playhermitmusic` -- starts hermit island music
+- `playtrainingmusic` -- starts training mini-game music
+- `playpiratesmusic` -- starts pirate proximity music system
+- `playfarmingmusic` -- starts farming music
+- `hasinspirationbuff` -- updates inspiration buff intensity parameter
+- `playcarnivalmusic` -- starts summer carnival ambient or mini-game music
+- `stageplaymusic` -- starts stage play mood music (happy, mysterious, dramatic, confession)
+- `playpillowfightmusic` -- starts Year of the Carrat pillow fight music
+- `playrideofthevalkyrie` -- starts Wigfrid's Ride of the Valkyrie music
+- `playboatracemusic` -- starts boat race music
+- `playbalatromusic` -- starts Balatro mini-game music
+- `wx_performedspinaction` -- triggers danger or busy music based on WX-78 spin action
+
+**Watches world state:**
+- `phase` -- triggers dawn/dusk stinger sounds on phase changes
+- `season` -- resets busy theme on season change for appropriate seasonal music
+
+**Pushes:** None identified

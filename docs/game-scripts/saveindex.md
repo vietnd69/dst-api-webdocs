@@ -1,215 +1,283 @@
 ---
 id: saveindex
 title: Saveindex
-description: Manages save slot indexing, persistence loading/saving, and world configuration for Don't Starve Together multiplayer sessions.
-tags: [network, persistence, world]
+description: Manages save slot indexing, world data persistence, and session metadata for Don't Starve Together save files.
+tags: [save, persistence, session]
 sidebar_position: 10
-
-last_updated: 2026-03-10
-build_version: 714014
+last_updated: 2026-04-22
+build_version: 722832
 change_status: stable
 category_type: root
-source_hash: e20ecacd
-system_scope: network
+source_hash: 5ced4e44
+system_scope: world
 ---
 
 # Saveindex
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **722832** | Last updated: 2026-04-22
 
 ## Overview
-`SaveIndex` is the central component responsible for managing multiple save slots and their associated game state data in Don't Starve Together. It handles persistent storage of world and server configuration, session identification, mod state, and level data overrides. It supports both local and cluster-based multiplayer environments, including upgrades from older save formats and dynamic handling of preset configurations via `worldgenoverride.lua` and `leveldataoverride.lua`. It does not directly interact with the world simulation but serves as a configuration and coordination layer for the save system.
+`saveindex.lua` defines the `SaveIndex` class, which manages the save slot index system for Don't Starve Together. It handles save slot creation, loading, deletion, and metadata tracking including session IDs, world generation options, server configuration, and enabled mods. The class interfaces with `TheSim` for persistent string storage and `TheNet` for session and cluster management. Save data versioning is tracked with automatic upgrade paths from v1 through v4.
 
 ## Usage example
 ```lua
+-- SaveGameIndex is the global instance used throughout the game
+-- To create a new instance for custom use:
+local SaveIndex = require "saveindex"
 local saveIndex = SaveIndex()
+
+-- Load the save index from persistent storage
 saveIndex:Load(function()
-    local currentSlot = saveIndex:GetCurrentSaveSlot()
-    local slotData = saveIndex:GetSlotServerData(currentSlot)
-    local worldOptions = saveIndex:GetSlotGenOptions(currentSlot)
-    print("Current game mode:", saveIndex:GetGameMode(currentSlot))
+    print("Loaded "..saveIndex:GetNumSlots().." save slots")
 end)
+
+-- Set current slot and check if empty
+saveIndex:SetCurrentIndex(1)
+if saveIndex:IsSlotEmpty(1) then
+    print("Slot 1 is empty")
+end
+
+-- Get session ID for a slot
+local session = saveIndex:GetSlotSession(1)
+
+-- Note: The game uses a global SaveGameIndex instance defined elsewhere
+-- Example with global instance:
+-- local session = SaveGameIndex:GetSlotSession(1)
 ```
 
 ## Dependencies & tags
-**Components used:** `nil` (this is a standalone class, not an ECS component; no `inst:AddComponent` or `inst.components.X` calls)
-**Tags:** None
+**External dependencies:**
+- `map/levels` -- level data and default world generation presets
+- `map/customize` -- world customization options validation
+- `savefileupgrades` -- save data version upgrade utilities
+
+**Components used:**
+- None identified (standalone class, not attached to entities)
+
+**Tags:**
+- None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `data` | table | `{ version = 4, slots = {} }` | The in-memory save index data structure. |
-| `current_slot` | number | `1` | Index of the currently active save slot. |
-| `loaded_from_file` | boolean | `false` | Indicates whether the save index was successfully loaded from persistent storage. |
+| `self.data` | table | `{ version = 4, slots = {} }` | Internal data table containing save data version and all slot entries. |
+| `self.data.version` | number | `4` | Save data format version for compatibility checking. |
+| `self.data.slots` | table | `{}` | Array of slot data tables, each containing world, server, session_id, and enabled_mods. |
+| `self.data.last_used_slot` | number | `nil` | Index of the last accessed save slot. |
+| `self.current_slot` | number | `1` | Currently active save slot index. |
+| `self.loaded_from_file` | boolean | `nil` | Set to `true` after successful file load; used for migration logic. |
 
 ## Main functions
+### `SaveIndex()`
+* **Description:** Constructor that creates a new SaveIndex instance and initializes default data structure.
+* **Parameters:** None
+* **Returns:** SaveIndex instance
+* **Error states:** None
+
 ### `Init()`
-*   **Description:** Initializes the internal `data` table with default values and ensures the minimum number of save slots (defined by `NUM_SAVE_SLOTS`) exist.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Initializes the save index data structure with version number and guarantees minimum slot count.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `GuaranteeMinNumSlots(numslots)`
-*   **Description:** Ensures that `self.data.slots` contains at least `numslots` slots, adding empty ones as needed.
-*   **Parameters:** `numslots` (number) – Minimum number of slots to guarantee.
-*   **Returns:** Nothing.
+* **Description:** Ensures the slots array has at least `numslots` entries, creating new empty slots as needed.
+* **Parameters:** `numslots` -- minimum number of slots to guarantee
+* **Returns:** None
+* **Error states:** None
 
 ### `GetNumSlots()`
-*   **Description:** Returns the current count of save slots.
-*   **Parameters:** None.
-*   **Returns:** `number` – Number of slots in `self.data.slots`.
+* **Description:** Returns the total number of save slots currently in the index.
+* **Parameters:** None
+* **Returns:** Number of slots (integer)
+* **Error states:** None
 
 ### `GetSaveIndexName()`
-*   **Description:** Returns the filename used for the persistent save index (e.g., `saveindex` or `saveindex_dev` in dev builds).
-*   **Parameters:** None.
-*   **Returns:** `string` – The filename string.
+* **Description:** Returns the filename for the save index, appending branch name if in dev mode.
+* **Parameters:** None
+* **Returns:** String filename (e.g., `"saveindex"` or `"saveindex_dev"`)
+* **Error states:** None
 
 ### `Save(callback)`
-*   **Description:** Saves the current save index. **Note:** As of 09/09/2020, this method is deprecated and performs no actual saving; it only invokes the callback.
-*   **Parameters:** `callback` (function?) – Optional callback to invoke after "saving".
-*   **Returns:** Nothing.
+* **Description:** Saves the save index to persistent storage. Currently deprecated and does not actually save data.
+* **Parameters:** `callback` -- function to call after save operation (optional)
+* **Returns:** None
+* **Error states:** None (deprecated, no-op)
 
 ### `Load(callback)`
-*   **Description:** Loads the save index from persistent storage (local or dedicated). Invokes `OnLoad` upon completion.
-*   **Parameters:** `callback` (function) – Function to call after loading completes.
-*   **Returns:** Nothing.
+* **Description:** Loads the save index from persistent storage on game start.
+* **Parameters:** `callback` -- function to call after load completes
+* **Returns:** None
+* **Error states:** None (load failures are handled internally)
 
 ### `LoadClusterSlot(slot, shard, callback)`
-*   **Description:** Loads the save index from a specific cluster slot and shard (e.g., `"Master"` or `"Caves"`). Does not log errors if the slot is empty.
-*   **Parameters:** 
-    *   `slot` (number) – Slot index.
-    *   `shard` (string) – Shard name (e.g., `"Master"`).
-    *   `callback` (function) – Function to call after loading completes.
-*   **Returns:** Nothing.
+* **Description:** Loads save index data from a specific cluster slot and shard (used in frontend for cluster saves).
+* **Parameters:**
+  - `slot` -- save slot number
+  - `shard` -- shard name (e.g., `"Master"`, `"Caves"`)
+  - `callback` -- function to call after load completes
+* **Returns:** None
+* **Error states:** None
+
+### `GetSaveDataFile(file, cb)`
+* **Description:** Loads save data from a specific file path with validation and error handling.
+* **Parameters:**
+  - `file` -- path to the save file
+  - `cb` -- callback function receiving loaded save data
+* **Returns:** None
+* **Error states:** Asserts on load failure, nil data, empty data, or corrupt save file.
 
 ### `GetSaveData(slotnum, cb)`
-*   **Description:** Loads session-specific world save data (not the save index itself) from the file system based on the session ID in `slotnum`.
-*   **Parameters:** 
-    *   `slotnum` (number) – Slot index to read.
-    *   `cb` (function) – Callback invoked with the loaded world data table, or `nil` on failure.
-*   **Returns:** Nothing.
+* **Description:** Retrieves save data for a specific slot, handling both cluster and non-cluster save paths.
+* **Parameters:**
+  - `slotnum` -- save slot number
+  - `cb` -- callback function receiving loaded save data
+* **Returns:** None
+* **Error states:** None (callback receives nil if file not found)
 
 ### `DeleteSlot(slot, cb, save_options)`
-*   **Description:** Deletes a save slot's persistent session data and resets its `slotdata` entries. If `save_options` is true, world and server options are preserved.
-*   **Parameters:** 
-    *   `slot` (number?) – Slot index (or `nil` for current slot).
-    *   `cb` (function?) – Callback after deletion.
-    *   `save_options` (boolean) – If true, retain world and server options after deletion.
-*   **Returns:** Nothing.
+* **Description:** Deletes a save slot, removing session data and cluster data. Optionally preserves world options.
+* **Parameters:**
+  - `slot` -- slot number to delete
+  - `cb` -- callback after deletion
+  - `save_options` -- boolean to preserve world/server/mod options
+* **Returns:** None
+* **Error states:** None
 
 ### `SaveCurrent(onsavedcb, isshutdown)`
-*   **Description:** Initiates a full save for the current slot on the server (clients return early). Sets the session ID and calls `SaveGame`.
-*   **Parameters:** 
-    *   `onsavedcb` (function) – Callback after save completes.
-    *   `isshutdown` (boolean) – Whether the sim is shutting down after saving.
-*   **Returns:** Nothing (early return on clients).
+* **Description:** Saves the current game state. Only executes on server (clients return early).
+* **Parameters:**
+  - `onsavedcb` -- callback after save completes
+  - `isshutdown` -- boolean indicating if sim is shutting down
+* **Returns:** None
+* **Error states:** Asserts if `TheWorld` is nil.
 
 ### `SetCurrentIndex(saveslot)`
-*   **Description:** Sets the current active slot index.
-*   **Parameters:** `saveslot` (number) – Slot index to set as current.
-*   **Returns:** Nothing.
+* **Description:** Sets the currently active save slot index.
+* **Parameters:** `saveslot` -- slot number to set as current
+* **Returns:** None
+* **Error states:** None
 
 ### `GetCurrentSaveSlot()`
-*   **Description:** Returns the index of the current save slot.
-*   **Parameters:** None.
-*   **Returns:** `number`.
+* **Description:** Returns the currently active save slot index.
+* **Parameters:** None
+* **Returns:** Current slot number (integer)
+* **Error states:** None
 
 ### `OnGenerateNewWorld(saveslot, savedata, session_identifier, cb)`
-*   **Description:** Initializes a new world save slot with provided world data and session ID. Serializes the session and saves the save index.
-*   **Parameters:** 
-    *   `saveslot` (number) – Slot index to initialize.
-    *   `savedata` (table) – World state data to serialize.
-    *   `session_identifier` (string) – Unique session ID.
-    *   `cb` (function) – Callback after saving completes.
-*   **Returns:** Nothing.
+* **Description:** Initializes a new world save with session identifier and triggers save after serialization.
+* **Parameters:**
+  - `saveslot` -- slot number for the new world
+  - `savedata` -- world serialization data
+  - `session_identifier` -- unique session ID
+  - `cb` -- callback after save completes
+* **Returns:** None
+* **Error states:** None
 
 ### `UpdateServerData(saveslot, serverdata, onsavedcb)`
-*   **Description:** Updates the server-specific data for a given slot and saves the save index.
-*   **Parameters:** 
-    *   `saveslot` (number) – Slot index to update.
-    *   `serverdata` (table) – Server configuration data (e.g., game mode, online mode).
-    *   `onsavedcb` (function?) – Callback after saving.
-*   **Returns:** Nothing.
+* **Description:** Updates server configuration data for a save slot and triggers save.
+* **Parameters:**
+  - `saveslot` -- slot number to update
+  - `serverdata` -- server configuration table
+  - `onsavedcb` -- callback after save completes
+* **Returns:** None
+* **Error states:** None
 
 ### `GetGameMode(saveslot)`
-*   **Description:** Retrieves the game mode for a given slot, defaulting to `DEFAULT_GAME_MODE` if unset.
-*   **Parameters:** `saveslot` (number) – Slot index.
-*   **Returns:** `string` – Game mode (e.g., `"survival"`, `"neverdeath"`).
+* **Description:** Returns the game mode for a specific save slot.
+* **Parameters:** `saveslot` -- slot number to query
+* **Returns:** Game mode string (defaults to `DEFAULT_GAME_MODE` if not set)
+* **Error states:** None
 
 ### `StartSurvivalMode(saveslot, customoptions, serverdata, onsavedcb)`
-*   **Description:** Initializes a new survival-mode slot, applying level data overrides and worldgen overrides before updating server data.
-*   **Parameters:** 
-    *   `saveslot` (number) – Slot index to start.
-    *   `customoptions` (table?) – Custom world generation options (uses defaults if `nil`).
-    *   `serverdata` (table) – Server configuration (e.g., game mode, cluster settings).
-    *   `onsavedcb` (function?) – Callback after saving completes.
-*   **Returns:** Nothing.
+* **Description:** Initializes a new survival mode save slot with world generation options and server data.
+* **Parameters:**
+  - `saveslot` -- slot number to initialize
+  - `customoptions` -- custom world generation options (optional)
+  - `serverdata` -- server configuration data
+  - `onsavedcb` -- callback after save completes
+* **Returns:** None
+* **Error states:** None
 
 ### `IsSlotEmpty(slot)`
-*   **Description:** Checks if a slot is empty (no `session_id`).
-*   **Parameters:** `slot` (number?) – Slot index (defaults to current slot).
-*   **Returns:** `boolean` – `true` if the slot has no active session.
+* **Description:** Checks if a save slot is empty (nil, no data, or no session ID).
+* **Parameters:** `slot` -- slot number to check
+* **Returns:** Boolean `true` if slot is empty
+* **Error states:** None
 
 ### `IsSlotMultiLevel(slot)`
-*   **Description:** Checks if a slot contains multiple worlds (Master + Caves) in a non-dedicated environment.
-*   **Parameters:** `slot` (number?) – Slot index (defaults to current slot).
-*   **Returns:** `boolean`.
+* **Description:** Checks if a save slot contains multiple levels (e.g., Forest and Caves).
+* **Parameters:** `slot` -- slot number to check
+* **Returns:** Boolean `true` if slot has multiple levels
+* **Error states:** None
 
 ### `GetLastUsedSlot()`
-*   **Description:** Returns the last-used slot index, or `-1` if none.
-*   **Parameters:** None.
-*   **Returns:** `number`.
+* **Description:** Returns the index of the last accessed save slot.
+* **Parameters:** None
+* **Returns:** Slot number (integer, defaults to `-1` if not set)
+* **Error states:** None
 
 ### `SetLastUsedSlot(slot)`
-*   **Description:** Sets the last-used slot index.
-*   **Parameters:** `slot` (number) – Slot index to record.
-*   **Returns:** Nothing.
+* **Description:** Sets the last used slot index.
+* **Parameters:** `slot` -- slot number to record
+* **Returns:** None
+* **Error states:** None
 
 ### `GetSlotServerData(slot)`
-*   **Description:** Returns the server configuration data for a slot (empty table if not found).
-*   **Parameters:** `slot` (number?) – Slot index (defaults to current slot).
-*   **Returns:** `table`.
+* **Description:** Returns the server configuration data for a specific slot.
+* **Parameters:** `slot` -- slot number to query
+* **Returns:** Server data table (empty table if slot is nil or invalid)
+* **Error states:** None
 
 ### `GetSlotGenOptions(slot)`
-*   **Description:** Returns a deep copy of the world generation options for a slot.
-*   **Parameters:** `slot` (number?) – Slot index (defaults to current slot).
-*   **Returns:** `table` – World generation options (array of level data tables).
+* **Description:** Returns a deep copy of world generation options for a slot.
+* **Parameters:** `slot` -- slot number (defaults to current slot if nil)
+* **Returns:** Table of world generation options
+* **Error states:** None
 
 ### `GetSlotSession(slot, caves_session)`
-*   **Description:** Returns the session ID for a slot, handling multi-level (Master + Caves) cases.
-*   **Parameters:** 
-    *   `slot` (number?) – Slot index.
-    *   `caves_session` (boolean?) – If true, returns the Caves shard session.
-*   **Returns:** `string?` – Session ID or `nil`.
+* **Description:** Returns the session ID for a slot, handling multi-level cluster saves.
+* **Parameters:**
+  - `slot` -- slot number (defaults to current slot if nil)
+  - `caves_session` -- boolean to fetch Caves shard session instead of Master
+* **Returns:** Session ID string or `nil`
+* **Error states:** None
 
 ### `BuildSlotDayAndSeasonText(slotnum)`
-*   **Description:** Returns a localized string describing the current day and season for a slot (e.g., `"Day 3, Early Summer"`).
-*   **Parameters:** `slotnum` (number) – Slot index.
-*   **Returns:** `string` – Formatted day/season string.
+* **Description:** Builds display text showing day count and season for a save slot.
+* **Parameters:** `slotnum` -- slot number to query
+* **Returns:** Formatted string (e.g., `"Summer Day 15"`)
+* **Error states:** None
 
 ### `CheckWorldFile(slot)`
-*   **Description:** Checks whether the world save file exists for the given slot.
-*   **Parameters:** `slot` (number?) – Slot index (defaults to current slot).
-*   **Returns:** `boolean` – `true` if the session exists and the file path resolves.
+* **Description:** Checks if a world save file exists for a slot.
+* **Parameters:** `slot` -- slot number to check
+* **Returns:** Boolean `true` if world file exists
+* **Error states:** None
 
 ### `LoadSlotCharacter(slot)`
-*   **Description:** Loads the player character prefab name from a slot's user session. Supports multi-shard sessions.
-*   **Parameters:** `slot` (number?) – Slot index (defaults to current slot).
-*   **Returns:** `string?` – Character prefab name (e.g., `"wx78"`), or `nil`.
+* **Description:** Loads the character prefab name from a save slot's user session data.
+* **Parameters:** `slot` -- slot number (defaults to current slot if nil)
+* **Returns:** Character prefab name string or `nil`
+* **Error states:** None
 
 ### `LoadServerEnabledModsFromSlot(slot)`
-*   **Description:** Applies and enables server-side mods stored in the slot's `enabled_mods` data.
-*   **Parameters:** `slot` (number?) – Slot index (defaults to current slot).
-*   **Returns:** Nothing.
+* **Description:** Loads and enables server mods from a save slot's stored mod configuration.
+* **Parameters:** `slot` -- slot number (defaults to current slot if nil)
+* **Returns:** None
+* **Error states:** None
 
 ### `SetServerEnabledMods(slot)`
-*   **Description:** Saves the currently enabled server mods and their configuration options to a slot.
-*   **Parameters:** `slot` (number?) – Slot index (defaults to current slot).
-*   **Returns:** Nothing.
+* **Description:** Saves currently enabled server mods and their configuration to a save slot.
+* **Parameters:** `slot` -- slot number (defaults to current slot if nil)
+* **Returns:** None
+* **Error states:** None
 
 ### `GetEnabledMods(slot)`
-*   **Description:** Returns the stored enabled mods data for a slot.
-*   **Parameters:** `slot` (number?) – Slot index (defaults to current slot).
-*   **Returns:** `table` – Map of modname → moddata.
+* **Description:** Returns the enabled mods data for a save slot.
+* **Parameters:** `slot` -- slot number (defaults to current slot if nil)
+* **Returns:** Table of enabled mod data
+* **Error states:** None
 
 ## Events & listeners
 None.

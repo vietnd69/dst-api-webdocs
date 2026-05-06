@@ -1,161 +1,344 @@
 ---
 id: sanity
 title: Sanity
-description: Manages sanity value, mode (Insanity/Lunacy), and related mechanics for an entity, including dynamic rate calculation from environmental and aura sources.
-tags: [sanity, player, entity, aura, environment]
+description: Manages sanity state, drainage rates, and mode transitions for entities including insanity and lunacy modes.
+tags: [sanity, mental, status]
 sidebar_position: 10
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: 963ceb73
+source_hash: 41e8e2a2
 system_scope: entity
 ---
+
 # Sanity
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-The `Sanity` component tracks and updates an entity's sanity level (a float value between `0` and `max`), determines its mental state (`SANITY_MODE_INSANITY` or `SANITY_MODE_LUNACY`), and calculates net sanity change rate based on dapperness, moisture, light, entity auras, and ghost presence. It synchronizes state with clients via replica properties and integrates with multiple other components (e.g., `health`, `inventory`, `moisture`, `rider`, `sanityaura`, `shard_players`) to compute dynamic effects. Key behaviors include sanity threshold transitions (become insane/enlightened) and penalty support that caps maximum sanity for players.
+`Sanity` manages an entity's mental state, tracking current sanity value, maximum capacity, and drainage/gain rates. It supports two modes: Insanity (traditional sanity system) and Lunacy (enlightenment system). The component calculates sanity changes from multiple sources including dapperness from equipped items, moisture exposure, ambient light levels, sanity auras from nearby entities, and ghost player penalties. Sanity state changes trigger events that other systems can listen to for visual effects, audio cues, and gameplay modifications.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
 inst:AddComponent("sanity")
-
--- Set max sanity and initialize
-inst.components.sanity:SetMax(100)
-
--- Add a sanity penalty (e.g., from eating too many monster treats)
-inst.components.sanity:AddSanityPenalty("monster_treat", 0.3)
-
--- Force entity into lunacy mode
-inst.components.sanity:EnableLunacy(true, "custom_source")
-
--- Trigger an immediate sanity change
-inst.components.sanity:DoDelta(-10)
-
--- Check current mental state
-if inst.components.sanity:IsSane() then
-    print("Entity is sane")
-else
-    print("Entity is not sane")
-end
+inst.components.sanity:SetMax(200)
+inst.components.sanity:SetPercent(0.5)
+inst.components.sanity:EnableLunacy(true, "moonstone_effect")
+inst.components.sanity:AddSanityPenalty("wetness", 0.2)
 ```
 
 ## Dependencies & tags
-**Components used:**  
-`health` (via `:IsInvincible()`), `inventory` (via `equipslots`), `moisture` (via `GetMoisture`, `GetMaxMoisture`), `rider` (via `GetMount`, `IsRiding`), `sanityaura` (via `GetAura`), `shard_players` (via `GetNumGhosts`, `GetNumAlive`)
+**External dependencies:**
+- `easing` -- used for moisture penalty interpolation
+- `util/sourcemodifierlist` -- manages stacked modifiers from multiple sources
 
-**Tags:** Checks tags for aura immunity and entity filtering (`sanityaura`, `FX`, `NOCLICK`, `DECOR`, `INLIMBO`). Adds no new tags.
+**Components used:**
+- `health` -- checks `IsInvincible()` to pause sanity drain during invincibility
+- `inventory` -- accesses `equipslots` for dapperness calculation from equipped items
+- `moisture` -- calls `GetMoisture()` and `GetMaxMoisture()` for wetness penalty
+- `rider` -- checks `IsRiding()` and `GetMount()` for mount sanity aura
+- `sanityaura` -- calls `GetAura()` on nearby entities and mounted creatures
+- `equippable` -- calls `GetDapperness()` on equipped items
+- `shard_players` -- calls `GetNumGhosts()` and `GetNumAlive()` for ghost drain calculation
+
+**Tags:**
+- None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `max` | number | `100` | Maximum sanity value. |
-| `current` | number | `100` | Current sanity value. |
-| `mode` | number | `SANITY_MODE_INSANITY` | Current sanity mode (`SANITY_MODE_INSANITY` or `SANITY_MODE_LUNACY`). |
-| `rate` | number | `0` | Net sanity change per second. |
-| `ratescale` | number | `RATE_SCALE.NEUTRAL` | Rate scaling factor used for UI indicators. |
-| `sane` | boolean | `true` | Player's current sanity state (before induced modifiers). |
-| `penalty` | number | `0` | Fractional sanity penalty (reduces max effective sanity). |
-| `inducedinsanity` | boolean or nil | `nil` | True if sanity is forced to `0` by external sources (e.g., nightmare fuel). |
-| `inducedlunacy` | boolean or nil | `nil` | True if entity is in forced lunacy state (base sanity scaled by `(1 - penalty)`). |
-| `ghost_drain_mult` | number | `0` | Multiplier for sanity drain caused by nearby ghosts. |
-| `neg_aura_absorb` | number | `0` | Passive absorption of negative auras (reduces drain from negative sources). |
-| `neg_aura_immune_sources` | SourceModifierList | (constructor) | Tracks sources granting immunity to negative auras. |
-| `sanity_aura_immune_sources` | SourceModifierList | (constructor) | Tracks sources granting immunity to all auras. |
-| `player_ghost_immune_sources` | SourceModifierList | (constructor) | Tracks sources granting immunity to ghost-driven sanity drain. |
-| `light_drain_immune_sources` | SourceModifierList | (constructor) | Tracks sources granting immunity to light-based sanity drain. |
-| `sanity_penalties` | table | `{}` | Key-modifier map for additive penalties applied to max sanity. |
-| `externalmodifiers` | SourceModifierList | (constructor) | Additive modifiers to the sanity rate. |
-| `neg_aura_modifiers` | SourceModifierList | (constructor) | Multipliers to negative aura effects. |
-| `dapperness` | number | `0` | Base dapperness (sanity gain) from the entity itself. |
-| `dapperness_mult` | number | `1` | Multiplier for dapperness effects. |
-| `night_drain_mult` | number | `1` | Multiplier for night light-based sanity drain. |
-| `custom_rate_fn` | function or nil | `nil` | Optional callback `(inst, dt) -> rate_delta`. |
+| `max` | number | `100` | Maximum sanity capacity for this entity. |
+| `current` | number | `self.max` | Current sanity value. |
+| `mode` | constant | `SANITY_MODE_INSANITY` | Current sanity mode (INSANITY or LUNACY). |
+| `_lunacy_sources` | SourceModifierList | `new SourceModifierList` | Tracks sources that enable lunacy mode. |
+| `rate` | number | `0` | Current sanity change rate per second. |
+| `ratescale` | constant | `RATE_SCALE.NEUTRAL` | Visual scale indicator for rate magnitude. |
+| `rate_modifier` | number | `1` | Multiplier applied to final rate calculation. |
+| `sane` | boolean | `true` | Whether entity is currently in sane state. |
+| `fxtime` | number | `0` | Time accumulator for sanity-related effects. |
+| `dapperness` | number | `0` | Base dapperness value from the entity itself. |
+| `externalmodifiers` | SourceModifierList | `new SourceModifierList` | External rate modifiers from other sources. |
+| `inducedinsanity` | boolean | `nil` | Whether insanity is forcibly induced. |
+| `inducedinsanity_sources` | table | `nil` | Tracks sources inducing insanity. |
+| `inducedlunacy` | boolean | `nil` | Whether lunacy is forcibly induced. |
+| `inducedlunacy_sources` | table | `nil` | Tracks sources inducing lunacy. |
+| `night_drain_mult` | number | `1` | Multiplier for night-time sanity drain. |
+| `neg_aura_mult` | number | `1` | Multiplier for negative aura effects (deprecated). |
+| `neg_aura_modifiers` | SourceModifierList | `new SourceModifierList` | Modifiers for negative aura absorption. |
+| `neg_aura_absorb` | number | `0` | Amount of negative aura to absorb. |
+| `neg_aura_immune_sources` | SourceModifierList | `new SourceModifierList` | Sources granting negative aura immunity. |
+| `dapperness_mult` | number | `1` | Multiplier for dapperness calculations. |
+| `penalty` | number | `0` | Current sanity penalty as a fraction (0-1). |
+| `sanity_penalties` | table | `{}` | Key-value store of active sanity penalties. |
+| `ghost_drain_mult` | number | `0` | Multiplier for ghost player sanity drain. |
+| `custom_rate_fn` | function | `nil` | Custom function to modify sanity rate calculation. |
+| `sanity_aura_immune_sources` | SourceModifierList | `new SourceModifierList` | Sources granting sanity aura immunity. |
+| `player_ghost_immune_sources` | SourceModifierList | `new SourceModifierList` | Sources granting ghost player drain immunity. |
+| `light_drain_immune_sources` | SourceModifierList | `new SourceModifierList` | Sources granting light drain immunity. |
 
 ## Main functions
 ### `IsSane()`
-* **Description:** Returns whether the entity is currently considered *sane* under the current mode and induced states. Logic differs between `SANITY_MODE_INSANITY` and `SANITY_MODE_LUNACY`.
-* **Parameters:** None.
-* **Returns:** `boolean` — `true` if the entity is sane; otherwise `false`.
-* **Error states:** Returns `false` when `inducedinsanity` is `true` in Insanity mode (sanity is zeroed), or `inducedlunacy` is `true` in Lunacy mode (sanity is scaled but considered "insane" for transition logic).
+* **Description:** Returns whether the entity is currently in a sane state, accounting for mode and induced states.
+* **Parameters:** None
+* **Returns:** Boolean indicating sane status.
+* **Error states:** None
 
-### `DoDelta(delta, overtime)`
-* **Description:** Applies a sanity delta to `current`, clamps it to `[0, max * (1 - penalty)]`, and handles state transitions (e.g., `goinsane`, `goenlightened`). Also updates the `sanitydelta` event.
-* **Parameters:**  
-  `delta` (number) — amount to add to current sanity.  
-  `overtime` (boolean) — if `true`, ignores invincibility/sleep flags (used for time-based recalculations); otherwise may skip updates under protection.  
-* **Returns:** Nothing.
-* **Error states:** Early exit if `self.redirect` or `self.ignore` is set. Uses `TUNING` values for threshold transitions (e.g., `SANITY_BECOME_INSANE_THRESH`).
+### `IsInsane()`
+* **Description:** Returns whether the entity is currently insane (Insanity mode only).
+* **Parameters:** None
+* **Returns:** Boolean indicating insane status.
+* **Error states:** None
 
-### `SetMax(amount)`
-* **Description:** Sets the maximum sanity value and resets `current` to the new maximum. Triggers `DoDelta(0)` to sync replica and events.
-* **Parameters:** `amount` (number) — new maximum sanity.
-* **Returns:** Nothing.
+### `IsEnlightened()`
+* **Description:** Returns whether the entity is currently enlightened (Lunacy mode only).
+* **Parameters:** None
+* **Returns:** Boolean indicating enlightened status.
+* **Error states:** None
 
-### `GetPercent()`
-* **Description:** Returns sanity as a fraction of maximum, adjusted for `inducedinsanity` (returns `0`) or `inducedlunacy` (returns `(1 - penalty)`).
-* **Parameters:** None.
-* **Returns:** `number` — sanity percentage (`0` to `1`).
-* **Error states:** Always returns a numeric value (never `nil`).
+### `IsCrazy()`
+* **Description:** Deprecated alias for `IsInsane()`.
+* **Parameters:** None
+* **Returns:** Boolean indicating insane status.
+* **Error states:** None
 
-### `GetPercentWithPenalty()`
-* **Description:** Returns sanity as a fraction of *penalty-adjusted* maximum (`current / (max - max * penalty)`). Useful for UI where the effective max matters.
-* **Parameters:** None.
-* **Returns:** `number` — sanity percentage relative to effective max.
+### `SetSanityMode(mode)`
+* **Description:** Deprecated. Mode is now controlled via `EnableLunacy()`.
+* **Parameters:** `mode` -- sanity mode constant.
+* **Returns:** None
+* **Error states:** None
 
-### `SetInducedInsanity(src, val)`
-* **Description:** Sets or removes an induced insanity source. When active, sanity is clamped to `0`. Updates replica and fires `inducedinsanity` event.
-* **Parameters:**  
-  `src` (any) — identifier for the source (e.g., entity instance or string).  
-  `val` (boolean) — whether to apply the source.  
-* **Returns:** Nothing.
+### `IsInsanityMode()`
+* **Description:** Returns whether the current mode is Insanity mode.
+* **Parameters:** None
+* **Returns:** Boolean.
+* **Error states:** None
+
+### `IsLunacyMode()`
+* **Description:** Returns whether the current mode is Lunacy mode.
+* **Parameters:** None
+* **Returns:** Boolean.
+* **Error states:** None
+
+### `GetSanityMode()`
+* **Description:** Returns the current sanity mode constant.
+* **Parameters:** None
+* **Returns:** Mode constant (`SANITY_MODE_INSANITY` or `SANITY_MODE_LUNACY`).
+* **Error states:** None
+
+### `UpdateMode_Internal()`
+* **Description:** Updates sanity mode based on lunacy sources and pushes event if changed.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `EnableLunacy(enable, source)`
-* **Description:** Enables or disables lunacy mode. If enabled, mode becomes `SANITY_MODE_LUNACY`; otherwise defaults to `SANITY_MODE_INSANITY`.
-* **Parameters:**  
-  `enable` (boolean) — whether to enter lunacy mode.  
-  `source` (any) — identifier for the source.  
-* **Returns:** Nothing.
-
-### `Recalc(dt)`
-* **Description:** Computes the current net sanity rate (`rate`) from dapperness, moisture, light, auras, ghosts, and modifiers. Calls `DoDelta(rate * dt, true)`.
-* **Parameters:** `dt` (number) — time delta in seconds.
-* **Returns:** Nothing.
-* **Error states:** Skips light and aura calculations if respective immunities are active.
-
-### `OnUpdate(dt)`
-* **Description:** Main update loop called periodically. If the entity is not invincible or protected, calls `Recalc(dt)`; otherwise resets rate to `0`.
-* **Parameters:** `dt` (number) — time delta in seconds.
-* **Returns:** Nothing.
-
-### `GetAuraMultipliers()`
-* **Description:** Computes the combined multiplier applied to negative aura effects.
-* **Parameters:** None.
-* **Returns:** `number` — `neg_aura_mult * neg_aura_modifiers:Get()`.
+* **Description:** Enables or disables lunacy mode from a specific source.
+* **Parameters:**
+  - `enable` -- boolean to enable or disable lunacy
+  - `source` -- entity or identifier representing the source
+* **Returns:** None
+* **Error states:** None
 
 ### `AddSanityPenalty(key, mod)`
-* **Description:** Adds an additive penalty (0 to 1) to the entity's max sanity. Used for items/abilities that reduce sanity cap (e.g., monster treats).
-* **Parameters:**  
-  `key` (string/any) — unique identifier for the penalty source.  
-  `mod` (number) — penalty fraction to apply.  
-* **Returns:** Nothing.
-* **Error states:** Effective penalty is clamped to `1 - (5/self.max)` for players (max sanity cannot go below 5).
+* **Description:** Adds a sanity penalty that reduces maximum sanity capacity.
+* **Parameters:**
+  - `key` -- string identifier for this penalty
+  - `mod` -- number penalty value to add
+* **Returns:** None
+* **Error states:** None
 
 ### `RemoveSanityPenalty(key)`
-* **Description:** Removes a sanity penalty by key and recalculates the total penalty.
-* **Parameters:** `key` (string/any) — identifier of the penalty source.
-* **Returns:** Nothing.
+* **Description:** Removes a sanity penalty by key.
+* **Parameters:** `key` -- string identifier of penalty to remove.
+* **Returns:** None
+* **Error states:** None
+
+### `RecalculatePenalty()`
+* **Description:** Recalculates total penalty from all active sanity penalties and clamps to maximum allowed.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `AddSanityAuraImmunity(tag, source)`
+* **Description:** Grants immunity to sanity auras from entities with the specified tag.
+* **Parameters:**
+  - `tag` -- string tag to be immune against
+  - `source` -- entity or identifier granting the immunity (optional, defaults to self.inst)
+* **Returns:** None
+* **Error states:** None
+
+### `RemoveSanityAuraImmunity(tag, source)`
+* **Description:** Removes sanity aura immunity for a specific tag and source.
+* **Parameters:**
+  - `tag` -- string tag to remove immunity from
+  - `source` -- entity or identifier to remove (optional, defaults to self.inst)
+* **Returns:** None
+* **Error states:** None
+
+### `SetFullAuraImmunity(immunity, source)`
+* **Description:** Sets immunity to all sanity auras.
+* **Parameters:**
+  - `immunity` -- boolean enabling or disabling full immunity
+  - `source` -- entity or identifier granting the immunity (optional, defaults to self.inst)
+* **Returns:** None
+* **Error states:** None
+
+### `SetNegativeAuraImmunity(immunity, source)`
+* **Description:** Sets immunity to negative sanity auras only.
+* **Parameters:**
+  - `immunity` -- boolean enabling or disabling negative aura immunity
+  - `source` -- entity or identifier granting the immunity (optional, defaults to self.inst)
+* **Returns:** None
+* **Error states:** None
+
+### `SetPlayerGhostImmunity(immunity, source)`
+* **Description:** Sets immunity to ghost player sanity drain.
+* **Parameters:**
+  - `immunity` -- boolean enabling or disabling ghost drain immunity
+  - `source` -- entity or identifier granting the immunity (optional, defaults to self.inst)
+* **Returns:** None
+* **Error states:** None
+
+### `SetLightDrainImmune(immunity, source)`
+* **Description:** Sets immunity to light-based sanity drain.
+* **Parameters:**
+  - `immunity` -- boolean enabling or disabling light drain immunity
+  - `source` -- entity or identifier granting the immunity (optional, defaults to self.inst)
+* **Returns:** None
+* **Error states:** None
+
+### `OnSave()`
+* **Description:** Returns save data for sanity state.
+* **Parameters:** None
+* **Returns:** Table containing `current`, `sane`, and `mode` values.
+* **Error states:** None
+
+### `OnLoad(data)`
+* **Description:** Loads sanity state from save data.
+* **Parameters:** `data` -- table containing saved sanity state.
+* **Returns:** None
+* **Error states:** None
+
+### `GetPenaltyPercent()`
+* **Description:** Returns the current sanity penalty as a fraction.
+* **Parameters:** None
+* **Returns:** Number between 0 and 1.
+* **Error states:** None
+
+### `GetRealPercent()`
+* **Description:** Returns current sanity as a fraction of max without induced state modifications.
+* **Parameters:** None
+* **Returns:** Number between 0 and 1.
+* **Error states:** None
+
+### `GetPercent()`
+* **Description:** Returns current sanity percentage accounting for induced insanity and lunacy states.
+* **Parameters:** None
+* **Returns:** Number between 0 and 1. Returns 0 if induced insanity, returns `1 - penalty` if induced lunacy.
+* **Error states:** None
+
+### `GetPercentWithPenalty()`
+* **Description:** Returns sanity percentage with penalty applied to denominator.
+* **Parameters:** None
+* **Returns:** Number representing percentage with penalty consideration.
+* **Error states:** None
+
+### `SetPercent(per, overtime)`
+* **Description:** Sets sanity to a specific percentage of max.
+* **Parameters:**
+  - `per` -- number target percentage (0-1)
+  - `overtime` -- boolean whether to apply change over time (optional)
+* **Returns:** None
+* **Error states:** None
+
+### `GetDebugString()`
+* **Description:** Returns formatted debug string with current sanity state information.
+* **Parameters:** None
+* **Returns:** String with current/max sanity, rate, penalty, and mode.
+* **Error states:** None
+
+### `SetMax(amount)`
+* **Description:** Sets maximum sanity capacity and resets current to match.
+* **Parameters:** `amount` -- number new maximum sanity value.
+* **Returns:** None
+* **Error states:** None
+
+### `GetMaxWithPenalty()`
+* **Description:** Returns maximum sanity accounting for active penalties.
+* **Parameters:** None
+* **Returns:** Number representing effective maximum sanity.
+* **Error states:** None
+
+### `GetRateScale()`
+* **Description:** Returns the current rate scale constant.
+* **Parameters:** None
+* **Returns:** `RATE_SCALE` constant indicating rate magnitude.
+* **Error states:** None
+
+### `SetInducedInsanity(src, val)`
+* **Description:** Sets induced insanity state from a specific source.
+* **Parameters:**
+  - `src` -- entity or identifier representing the source
+  - `val` -- boolean enabling or disabling induced insanity
+* **Returns:** None
+* **Error states:** None
+
+### `SetInducedLunacy(src, val)`
+* **Description:** Sets induced lunacy state from a specific source.
+* **Parameters:**
+  - `src` -- entity or identifier representing the source
+  - `val` -- boolean enabling or disabling induced lunacy
+* **Returns:** None
+* **Error states:** None
+
+### `DoDelta(delta, overtime)`
+* **Description:** Applies a sanity change delta and handles state transitions between sane/insane/enlightened.
+* **Parameters:**
+  - `delta` -- number amount to change sanity by (positive gains, negative drains)
+  - `overtime` -- boolean whether change is applied over time
+* **Returns:** None
+* **Error states:** None
+
+### `OnUpdate(dt)`
+* **Description:** Called each frame to update sanity state. Skips recalculation during invincibility, spawn protection, sleep, or teleportation.
+* **Parameters:** `dt` -- number delta time in seconds.
+* **Returns:** None
+* **Error states:** None
+
+### `RecalcGhostDrain()`
+* **Description:** Recalculates ghost player sanity drain multiplier based on server ghost/alive player ratio.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if `TheWorld.shard.components.shard_players` is nil.
+
+### `GetAuraMultipliers()`
+* **Description:** Returns combined multiplier for negative aura effects.
+* **Parameters:** None
+* **Returns:** Number multiplier value.
+* **Error states:** None
+
+### `Recalc(dt)`
+* **Description:** Recalculates sanity rate from all sources including dapperness, moisture, light, auras, and ghosts.
+* **Parameters:** `dt` -- number delta time in seconds.
+* **Returns:** None
+* **Error states:** Errors if `self.inst.components.inventory`, `self.inst.components.moisture`, or `self.inst.LightWatcher` is nil.
+
+### `TransferComponent(newinst)`
+* **Description:** Transfers sanity state to a new entity instance.
+* **Parameters:** `newinst` -- entity instance to transfer sanity to.
+* **Returns:** None
+* **Error states:** Errors if `newinst.components.sanity` is nil.
 
 ## Events & listeners
-- **Listens to:** None directly (but uses event infrastructure via `inst:PushEvent`).
-- **Pushes:**  
-  - `sanitydelta` — fired when `current` or state changes. Includes `oldpercent`, `newpercent`, `overtime`, `sanitymode`.  
-  - `sanitymodechanged` — fired when `mode` switches between Insanity/Lunacy. Includes `mode`.  
-  - `inducedinsanity` — fired when `inducedinsanity` changes. Payload is the new value (`true`/`false`).  
-  - `inducedlunacy` — fired when `inducedlunacy` changes. Payload is the new value.  
-  - `gosane` — fired when transitioning *to* a sane state.  
-  - `goinsane` — fired when transitioning *to* Insanity mode's insane state.  
-  - `goenlightened` — fired when transitioning *to* Lunacy mode's insane state.  
+**Listens to:** None identified
+
+**Pushes:**
+- `sanitymodechanged` -- fired when sanity mode changes between Insanity and Lunacy. Data: `{ mode = mode }`
+- `inducedinsanity` -- fired when induced insanity state changes. Data: boolean value
+- `inducedlunacy` -- fired when induced lunacy state changes. Data: boolean value
+- `sanitydelta` -- fired when sanity value changes. Data: `{ oldpercent, newpercent, overtime, sanitymode }`
+- `gosane` -- fired when entity transitions to sane state
+- `goinsane` -- fired when entity transitions to insane state (Insanity mode only)
+- `goenlightened` -- fired when entity transitions to enlightened state (Lunacy mode only)

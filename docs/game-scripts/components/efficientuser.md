@@ -1,72 +1,88 @@
 ---
 id: efficientuser
 title: Efficientuser
-description: Manages action-specific multipliers using source-modifiable lists to support flexible, multi-source efficiency calculations.
-tags: [inventory, crafting, modifier, network]
+description: Manages action efficiency multipliers for an entity, tracking modifiers per action type.
+tags: [utility, actions, modifiers]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-27
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: b479acab
+source_hash: 45236f2f
 system_scope: entity
 ---
 
 # Efficientuser
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-27
 
 ## Overview
-`EfficientUser` is a lightweight component that tracks and computes action-specific efficiency multipliers. It delegates actual value storage and modification logic to `SourceModifierList` instances per action, enabling multiple sources to contribute or override a base multiplier (e.g., `1.0`). This pattern supports additive stacking, priority-based overrides, or clean removal per source—common in crafting, inventory, or ability systems where efficiency can be modified by equipment, buffs, or skills.
+`EfficientUser` manages efficiency multipliers for actions performed by an entity. It stores a collection of `SourceModifierList` instances keyed by action type, allowing multiple sources to modify the efficiency of a specific action (e.g., mining speed). This component is typically added to characters or tools to handle buff/debuff logic for action execution rates.
 
-The component is designed to be attached to entities (e.g., characters or devices) that perform configurable actions, and it provides simple interface methods to set, query, and remove multipliers by source and action key.
+Notably, modifications applied to `ACTIONS.MINE` automatically propagate to `ACTIONS.REMOVELUNARBUILDUP`, ensuring consistent efficiency between mining and lunar cleanup tasks.
 
 ## Usage example
 ```lua
-local inst = TheOwnerEntity()
+local inst = CreateEntity()
 inst:AddComponent("efficientuser")
 
--- Increase cooking efficiency by 0.2 from a "tool" source
-inst.components.efficientuser:AddMultiplier("cook", 1.2, "tool_iron_kettle")
+-- Add a 50% efficiency bonus from a specific source
+inst.components.efficientuser:AddMultiplier(ACTIONS.MINE, 1.5, "buff_source")
 
--- Retrieve current multiplier for cooking
-local multiplier = inst.components.efficientuser:GetMultiplier("cook")
+-- Retrieve the current multiplier (defaults to 1 if no modifiers)
+local multiplier = inst.components.efficientuser:GetMultiplier(ACTIONS.MINE)
 
--- Remove the tool-specific modifier when unequipped
-inst.components.efficientuser:RemoveMultiplier("cook", "tool_iron_kettle")
+-- Remove the modifier when the buff expires
+inst.components.efficientuser:RemoveMultiplier(ACTIONS.MINE, "buff_source")
 ```
 
 ## Dependencies & tags
-**Components used:** None  
-**Tags:** None identified  
+**External dependencies:**
+- `util/sourcemodifierlist` -- Used to create modifier lists for each action type (`SourceModifierList`).
+
+**Components used:**
+- None identified.
+
+**Tags:**
+- None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `actions` | table | `{}` | A dictionary mapping action names to `SourceModifierList` instances. Keys are action identifiers (strings), values are `SourceModifierList` objects. |
+| `inst` | entity | --- | The owning entity instance. |
+| `actions` | table | `{}` | Maps action enums to `SourceModifierList` instances. |
 
 ## Main functions
+### `OnRemoveFromEntity()`
+*   **Description:** Lifecycle hook called when the component is removed from the entity. Iterates through all stored action modifiers and calls `Reset()` on each `SourceModifierList` to clean up state.
+*   **Parameters:** None
+*   **Returns:** nil
+*   **Error states:** Errors if any value in `self.actions` is not a valid `SourceModifierList` instance lacking a `Reset` method.
+
 ### `GetMultiplier(action)`
-* **Description:** Returns the computed combined multiplier for a given action, based on all active modifiers. Defaults to `1` if no modifiers exist for the action.
-* **Parameters:** `action` (string) — the action name to query.
-* **Returns:** `number` — the final multiplier (e.g., `1.0`, `0.8`, `1.5`).
-* **Error states:** Returns `1` when no modifiers are defined for the action.
+*   **Description:** Retrieves the current efficiency multiplier for the specified action. Returns `1` if no modifiers are registered for the action.
+*   **Parameters:** `action` -- Action enum (e.g., `ACTIONS.MINE`).
+*   **Returns:** number -- The calculated multiplier, or `1` if none exist.
+*   **Error states:** None. Safely handles missing action keys via `and` check.
 
 ### `AddMultiplier(action, multiplier, source)`
-* **Description:** Registers a new multiplier source for an action. If no `SourceModifierList` exists yet for the action, it is created. The multiplier is applied under the given `source` identifier.
-* **Parameters:**  
-  - `action` (string) — the action name to modify.  
-  - `multiplier` (number) — the value to add as a modifier (e.g., `1.2`, `0.9`).  
-  - `source` (string or any hashable identifier) — the unique name/ID of the modifier source (e.g., `"perk_winter_coat"`, `"equipped_clothing"`).
-* **Returns:** Nothing.
+*   **Description:** Adds a efficiency modifier for the specified action. Creates a new `SourceModifierList` for the action if one does not exist.
+    *   **Side Effect:** If `action` is `ACTIONS.MINE`, this function recursively calls itself to apply the same multiplier to `ACTIONS.REMOVELUNARBUILDUP`.
+*   **Parameters:**
+    - `action` -- Action enum to modify.
+    - `multiplier` -- number -- The efficiency multiplier value.
+    - `source` -- string -- Identifier for the modifier source (used for removal).
+*   **Returns:** nil
+*   **Error states:** Errors if `self.inst` is nil when constructing `SourceModifierList` (no nil guard before `SourceModifierList(self.inst)` call).
 
 ### `RemoveMultiplier(action, source)`
-* **Description:** Removes a previously registered modifier for the given `source` on the specified `action`. If the `SourceModifierList` for the action becomes empty after removal, it is retained but should return a base value of `1` via its `Get()` method.
-* **Parameters:**  
-  - `action` (string) — the action name.  
-  - `source` (string or any hashable identifier) — the modifier source to remove.
-* **Returns:** Nothing.
+*   **Description:** Removes a specific modifier source from the specified action. Does not delete the `SourceModifierList` instance if other modifiers remain.
+    *   **Side Effect:** If `action` is `ACTIONS.MINE`, this function recursively calls itself to remove the modifier from `ACTIONS.REMOVELUNARBUILDUP`.
+*   **Parameters:**
+    - `action` -- Action enum to modify.
+    - `source` -- string -- Identifier for the modifier source to remove.
+*   **Returns:** nil
+*   **Error states:** None
 
 ## Events & listeners
-None identified
+None identified.

@@ -5,11 +5,11 @@ description: This file defines and registers cosmetic skin prefab configurations
 tags: [skins, cosmetics, prefabs, items]
 sidebar_position: 10
 
-last_updated: 2026-04-11
-build_version: 719586
-change_status: stable
+last_updated: 2026-04-21
+build_version: 722832
+change_status: data_patched
 category_type: prefabs
-source_hash: c9f03c13
+source_hash: f954b157
 system_scope: inventory
 ---
 

@@ -1,129 +1,535 @@
 ---
 id: inventory_classified
 title: Inventory Classified
-description: Manages client-side preview and server-side synchronization of inventory and equipment state for networked entities, enabling responsive UI updates during item interactions.
-tags: [inventory, network, ui, entity]
+description: Client-side classified prefab that manages inventory state prediction and synchronization between client and server for player inventory operations.
+tags: [inventory, network, player, ui, sync]
 sidebar_position: 10
-
-last_updated: 2026-03-05
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 0a603f07
+source_hash: fad42627
 system_scope: inventory
 ---
 
 # Inventory Classified
 
-> Based on game build **714014** | Last updated: 2026-03-05
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`inventory_classified` is a prefabricated entity component that acts as a *classified* data container for inventory-related state, primarily used on the client to decouple UI responsiveness from server latency. It mirrors an inventory’s active item, slots, and equipment via networked proxies and supports optimistic UI updates (preview state) while waiting for RPC confirmations. On the server, it provides low-level setters (`SetActiveItem`, `SetSlotItem`, `SetSlotEquip`) to update the underlying networked values. It integrates closely with `PlayerController`, `PlayerActionPicker`, and `ConstructionBuilderUIData`, and is typically attached to an inventory’s parent entity (e.g., a player or container).
+`inventory_classified` is a classified prefab that handles client-side inventory state prediction and synchronization. It attaches to player entities and manages local preview states for inventory items, equipment slots, and active item operations while waiting for server confirmation. The prefab maintains separate server-authoritative state (via net_entity variables) and client preview state (via `_itemspreview`, `_equipspreview` tables) to provide responsive UI feedback during inventory interactions.
 
 ## Usage example
 ```lua
--- On the server, attach a classified entity to an inventory owner:
-local owner = TheEntity
-owner:AddComponent("inventory")
-owner.inventory_classified = CreateEntity()
-owner.inventory_classified:AddTag("CLASSIFIED")
-owner.inventory_classified.entity:AddNetwork()
--- ( Typically handled by the inventory prefab’s internal logic )
+-- This prefab is automatically created and attached to player entities
+-- Access via player entity's classified reference:
+local player = ThePlayer
+local inv_classified = player.inventory_classified
 
--- On the client, use the classified methods for item actions:
-local classified = ThePlayer.inventory_classified
-if classified then
-    classified:PutAllOfActiveItemInSlot(3)  -- Move active item to slot 3
-    -- ... or retrieve items from crafting containers ...
-    local has, count = classified:Has("twigs", 2, true)
+-- Check if inventory is busy (processing sync)
+if not inv_classified:IsBusy() then
+    -- Get item in specific slot
+    local item = inv_classified:GetItemInSlot(1)
+    
+    -- Check if player has specific prefab
+    local has, count = inv_classified:Has("log", 5)
+    
+    -- Find item by predicate function
+    local food = inv_classified:FindItem(function(item)
+        return item:HasTag("food")
+    end)
 end
 ```
 
 ## Dependencies & tags
-**Components used:** `inventory` (via `inst._parent.inventory_classified`), `playercontroller`, `playeractionpicker`, `constructionbuilderuidata`, `spellbook`.  
-**Tags:** Adds `CLASSIFIED` to the classified entity. Does *not* modify tags on the owner.
+**External dependencies:**
+- `equipslotutil` -- provides EquipSlot utility functions and EQUIPSLOTS constants
+
+**Components used:**
+- `playercontroller` -- handles remote inventory actions via RPC calls
+- `playeractionpicker` -- determines available actions for inventory items
+- `spellbook` -- enables spell casting from inventory
+- `constructionbuilderuidata` -- supports construction ingredient slot targeting
+- `container` -- manages overflow container access and item transfers
+- `inventoryitem` -- serializes usage state and pickup positions
+- `stackable` -- handles stack size tracking and preview synchronization
+- `equippable` -- manages equipment slot assignments
+
+**Tags:**
+- `CLASSIFIED` -- added to the classified entity itself
+- `busy` -- checked on parent entity to prevent actions during sync
+- `inspectable` -- checked before allowing item inspection
+- `nocrafting` -- excluded from crafting ingredient counts when present
+- `heavy` -- prevents certain inventory operations when equipped
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `ignoreoverflow` | boolean | `false` | If true, ignores the overflow container (e.g., body slot’s inventory) for `Has` and `GetOverflowContainer`. |
-| `_refreshtask` | Task | `nil` | Client-side timer task used to batch refresh events. |
-| `_busy` | boolean | `true` (initial) | Indicates if a preview operation is pending or a refresh task is queued. |
-| `_activeitem` | Entity or nil | `nil` | Local preview of the currently active item. |
-| `_returncontainer`, `_returnslot` | Entity or nil, number or nil | `nil` | Used to track where the active item should be returned on completion of an operation. |
-| `_itemspreview`, `_equipspreview` | table or nil | `nil` | Local preview arrays of items and equipment, used during optimistic updates. |
+| `_refreshtask` | task | `nil` | Scheduled refresh task handle for inventory state updates. |
+| `_busy` | boolean | `true` | Whether inventory is currently processing synchronization. |
+| `_activeitem` | entity | `nil` | Currently active/held item in cursor (client preview). |
+| `_returningitem` | entity | `nil` | Item being returned to container during operation. |
+| `_returncontainer` | entity | `nil` | Container to return active item to after operation. |
+| `_returnslot` | number | `nil` | Slot index to return active item to. |
+| `_itemspreview` | table | `nil` | Client-side preview state for inventory slots. |
+| `_equipspreview` | table | `nil` | Client-side preview state for equipment slots. |
+| `ignoreoverflow` | boolean | `false` | Whether to ignore overflow container when checking space. |
+| `visible` | net_bool | `false` | Network variable for inventory visibility state. |
+| `heavylifting` | net_bool | `false` | Network variable for heavy lifting state. |
+| `floaterheld` | net_bool | `false` | Network variable for floater held state. |
+| `_active` | net_entity | `nil` | Network variable for active item entity reference. |
+| `_items` | table | `{}` | Array of net_entity variables for inventory slots. |
+| `_equips` | table | `{}` | Table of net_entity variables for equipment slots. |
+| `_slottasks` | table | `nil` | Task handles for slot dirty event debouncing. |
 
 ## Main functions
-### `Has(prefab, amount, checkallcontainers)`
-* **Description:** Checks whether the inventory (and optionally open containers and overflow) contains at least `amount` of `prefab`. Accounts for stack sizes, crafting exclusion tags, and preview state.
-* **Parameters:** `prefab` (string), `amount` (number), `checkallcontainers` (boolean) – if true, includes open containers (e.g., backpacks) in the search.
-* **Returns:** `(has: boolean, count: number)` – whether the amount is met and the exact count found.
+### `SetActiveItem(inst, item)`
+* **Description:** Server-side function that sets the active item and serializes its usage state. Clears active item if validation fails. **Server-only:** Only available when `TheWorld.ismastersim` is true.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `item` -- item entity or nil to clear
+* **Returns:** None
+* **Error states:** None
 
-### `IsBusy()`
-* **Description:** Determines if the classified is currently in a preview state (waiting for a refresh or RPC) and thus should block further optimistic actions.
-* **Parameters:** None.
-* **Returns:** `boolean` – true if `inst._busy` or `inst._parent` is nil.
+### `SetSlotItem(inst, slot, item, src_pos)`
+* **Description:** Server-side function that sets an item in a specific inventory slot and serializes usage with pickup position. **Server-only:** Only available when `TheWorld.ismastersim` is true.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+  - `item` -- item entity or nil to clear
+  - `src_pos` -- vector3 pickup position
+* **Returns:** None
+* **Error states:** None
 
-### `GetItemInSlot(slot)`
-* **Description:** Returns the item in the given inventory slot, preferring preview state if active.
-* **Parameters:** `slot` (number) – 1-based slot index.
-* **Returns:** `Entity or nil`.
+### `SetSlotEquip(inst, eslot, item)`
+* **Description:** Server-side function that sets an item in a specific equipment slot and serializes usage state. **Server-only:** Only available when `TheWorld.ismastersim` is true.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `eslot` -- equipment slot constant (e.g., EQUIPSLOTS.HANDS)
+  - `item` -- item entity or nil to clear
+* **Returns:** None
+* **Error states:** None
 
-### `GetEquippedItem(eslot)`
-* **Description:** Returns the equipped item in the given equipment slot, preferring preview state if active.
-* **Parameters:** `eslot` (string) – e.g., `EQUIPSLOTS.HANDS`, `EQUIPSLOTS.BODY`.
-* **Returns:** `Entity or nil`.
 
-### `GetItems()` and `GetEquips()`
-* **Description:** Returns copies of the inventory items and equipment arrays, excluding the active item (unless preview arrays exist). Used for iteration and UI rendering.
-* **Parameters:** None.
-* **Returns:** `table` – array of items or equipment entities.
 
-### `GetNextAvailableSlot(item)`
-* **Description:** Determines where an item should be placed in the inventory, checking equipment slots first for stacking, then inventory slots, and finally the overflow container.
-* **Parameters:** `item` (Entity) – the item to place.
-* **Returns:** `(slot: number or nil, container: "invslots" or "equips" or "overflow", useoverflow: boolean)`. Returns `nil` if no slot is available.
 
-### `ReceiveItem(item, count)`
-* **Description:** Attempts to place `item` into the inventory, handling stacking and overflow. Optimistically updates preview state and sends an RPC on success. Can be called recursively (via internal loop flag).
-* **Parameters:** `item` (Entity), `count` (number or nil) – amount to receive; defaults to full stack.
-* **Returns:** `number or nil` – the number of items remaining (not placed), or `nil` if fully received.
 
-### `RemoveIngredients(recipe, ingredientmod)`
-* **Description:** Consumes items required by `recipe`, applying `ingredientmod` to amounts. Returns false if any ingredient cannot be consumed (e.g., due to busy state).
-* **Parameters:** `recipe` (table), `ingredientmod` (number) – multiplier for ingredient amounts.
-* **Returns:** `boolean` – true if all ingredients were removed; false otherwise.
 
-### `QueueRefresh(delay)`
-* **Description:** Schedules a refresh event after `delay` seconds (often 0), preventing duplicate tasks by canceling pending ones. Sets `_busy = true` while queued.
-* **Parameters:** `delay` (number) – seconds to wait before refreshing.
 
-### `PushNewActiveItem(data, returncontainer, returnslot)`
-* **Description:** Sets a local preview of the active item, triggering `"newactiveitem"` events and scheduling a refresh. Used when splitting or moving items.
-* **Parameters:** `data` (table or nil) – event payload, `returncontainer` (Entity or nil), `returnslot` (number or nil).
+### `IsBusy(inst)`
+* **Description:** Checks if inventory is currently busy processing synchronization or parent is nil.
+* **Parameters:** `inst` -- classified entity instance
+* **Returns:** boolean -- true if busy or parent is nil
+* **Error states:** None
 
-### `PutOneOfActiveItemInSlot(slot)`, `PutAllOfActiveItemInSlot(slot)`, `TakeActiveItemFromCountOfSlot(slot, count)`
-* **Description:** Optimistic UI wrappers for common inventory slot interactions (e.g., stacking, splitting stacks, moving whole items). Each updates preview state, pushes events, and sends the appropriate RPC. Checks `IsBusy` before acting.
+### `IsHolding(inst, item, checkcontainer)`
+* **Description:** Checks if inventory is holding an item in active slot, inventory slots, equipment slots, or preview states.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `item` -- item entity to search for
+  - `checkcontainer` -- boolean whether to check container holdings
+* **Returns:** boolean -- true if item is held anywhere in inventory
+* **Error states:** None
 
-### `EquipActionItem(item)`
-* **Description:** Equips `item` if it matches the active or cursor item, handling replacement of currently equipped items in the same slot.
-* **Parameters:** `item` (Entity).
-* **Returns:** Does not return, but pushes `"equip"`/`"unequip"` events and sends RPC.
+### `GetActiveItem(inst)`
+* **Description:** Returns the currently active/held item in cursor.
+* **Parameters:** `inst` -- classified entity instance
+* **Returns:** Entity instance or nil
+* **Error states:** None
 
-### `UseItemFromInvTile(item)`
-* **Description:** Initiates an item use action from an inventory tile, fetching actions via `PlayerActionPicker` and dispatching via `PlayerController:RemoteUseItemFromInvTile`.
-* **Parameters:** `item` (Entity).
-* **Returns:** Does not return; may fail silently if `IsBusy()`.
+### `GetItemInSlot(inst, slot)`
+* **Description:** Returns item in specified inventory slot, using preview state if available.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+* **Returns:** Entity instance or nil
+* **Error states:** None
+
+### `GetEquippedItem(inst, eslot)`
+* **Description:** Returns item in specified equipment slot, using preview state if available.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `eslot` -- equipment slot constant
+* **Returns:** Entity instance or nil
+* **Error states:** None
+
+
+
+### `GetItems(inst)`
+* **Description:** Returns array of actual items in inventory slots, excluding active item.
+* **Parameters:** `inst` -- classified entity instance
+* **Returns:** Table of entity instances
+* **Error states:** None
+
+### `GetEquips(inst)`
+* **Description:** Returns table of actual items in equipment slots, excluding active item.
+* **Parameters:** `inst` -- classified entity instance
+* **Returns:** Table of entity instances keyed by equipment slot
+* **Error states:** None
+
+### `GetOverflowContainer(inst)`
+* **Description:** Returns overflow container from body equipment if ignoreoverflow is false.
+* **Parameters:** `inst` -- classified entity instance
+* **Returns:** Container component replica or nil
+* **Error states:** None
+
+### `IsFull(inst)`
+* **Description:** Checks if all inventory slots are occupied.
+* **Parameters:** `inst` -- classified entity instance
+* **Returns:** boolean -- true if all slots are filled
+* **Error states:** None
+
+
+
+### `Has(inst, prefab, amount, checkallcontainers)`
+* **Description:** Checks if inventory has required amount of prefab, optionally including open containers.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `prefab` -- string prefab name
+  - `amount` -- required quantity
+  - `checkallcontainers` -- boolean whether to include open containers
+* **Returns:** boolean has, number count -- whether requirement met and total count found
+* **Error states:** None
+
+### `HasItemWithTag(inst, tag, amount)`
+* **Description:** Checks if inventory has required amount of items with specific tag.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `tag` -- string tag to search for
+  - `amount` -- required quantity
+* **Returns:** boolean has, number count -- whether requirement met and total count found
+* **Error states:** None
+
+### `FindItem(inst, fn)`
+* **Description:** Finds first item matching predicate function in inventory, active item, or overflow.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `fn` -- function(item) returning boolean
+* **Returns:** Entity instance or nil
+* **Error states:** None
+
+### `QueueRefresh(inst, delay)`
+* **Description:** Schedules inventory refresh task and sets busy state. Cancels crafting refresh on player if delay is 0.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `delay` -- number seconds to wait before refresh
+* **Returns:** None
+* **Error states:** None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### `PushNewActiveItem(inst, data, returncontainer, returnslot)`
+* **Description:** Sets new active item with proxy and pushes newactiveitem event to parent.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `data` -- table with item reference
+  - `returncontainer` -- container to return item to
+  - `returnslot` -- slot to return item to
+* **Returns:** None
+* **Error states:** None
+
+### `UseActiveItemProxy(inst)`
+* **Description:** Creates proxy for active item if it doesn't have preview context set.
+* **Parameters:** `inst` -- classified entity instance
+* **Returns:** None
+* **Error states:** None
+
+### `PushItemGet(inst, data, ignoresound)`
+* **Description:** Updates preview state for item received in slot and pushes gotnewitem/itemget events.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `data` -- table with item and slot
+  - `ignoresound` -- boolean whether to skip sound event
+* **Returns:** None
+* **Error states:** None
+
+### `PushItemLose(inst, data)`
+* **Description:** Updates preview state for item lost from slot and pushes itemlose event.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `data` -- table with slot index
+* **Returns:** None
+* **Error states:** None
+
+### `PushEquip(inst, data)`
+* **Description:** Updates preview state for equipped item and pushes equip event.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `data` -- table with item and eslot
+* **Returns:** None
+* **Error states:** None
+
+### `PushUnequip(inst, data)`
+* **Description:** Updates preview state for unequipped item and pushes unequip event.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `data` -- table with eslot
+* **Returns:** None
+* **Error states:** None
+
+### `PushStackSize(inst, item, stacksize, animatestacksize, activestacksize, animateactivestacksize, selfonly, sounddata)`
+* **Description:** Updates preview stack size for item and pushes stacksizepreview event. Handles complex stack splitting scenarios.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `item` -- item entity
+  - `stacksize` -- new stack size or nil
+  - `animatestacksize` -- boolean whether to animate change
+  - `activestacksize` -- active item stack size or nil
+  - `animateactivestacksize` -- boolean whether to animate active change
+  - `selfonly` -- boolean whether update is local only
+  - `sounddata` -- optional sound event data
+* **Returns:** None
+* **Error states:** None
+
+### `ReturnActiveItem(inst)`
+* **Description:** Returns active item to its original container slot. Sends RPC to server.
+* **Parameters:** `inst` -- classified entity instance
+* **Returns:** None
+* **Error states:** None
+
+### `ReturnActiveItemToSlot(inst, slot)`
+* **Description:** Returns active item to specific slot, handling stacking if slot has compatible item.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+* **Returns:** None
+* **Error states:** None
+
+### `PutOneOfActiveItemInSlot(inst, slot)`
+* **Description:** Moves one item from active stack to specified slot. Sends RPC to server.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+* **Returns:** None
+* **Error states:** None
+
+### `PutAllOfActiveItemInSlot(inst, slot)`
+* **Description:** Moves entire active item stack to specified slot. Sends RPC to server.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+* **Returns:** None
+* **Error states:** None
+
+### `TakeActiveItemFromHalfOfSlot(inst, slot)`
+* **Description:** Takes half of stack from slot into active item. Sends RPC to server.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+* **Returns:** None
+* **Error states:** None
+
+### `TakeActiveItemFromCountOfSlot(inst, slot, count)`
+* **Description:** Takes specified count from slot into active item. Sends RPC to server.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+  - `count` -- number of items to take
+* **Returns:** None
+* **Error states:** None
+
+### `TakeActiveItemFromAllOfSlot(inst, slot)`
+* **Description:** Takes entire stack from slot into active item. Sends RPC to server.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+* **Returns:** None
+* **Error states:** None
+
+### `AddOneOfActiveItemToSlot(inst, slot)`
+* **Description:** Adds one item from active stack to existing slot stack. Sends RPC to server.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+* **Returns:** None
+* **Error states:** None
+
+### `AddAllOfActiveItemToSlot(inst, slot)`
+* **Description:** Adds entire active stack to existing slot stack, respecting max size. Sends RPC to server.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+* **Returns:** None
+* **Error states:** None
+
+### `SwapActiveItemWithSlot(inst, slot)`
+* **Description:** Swaps active item with item in specified slot. Sends RPC to server.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+* **Returns:** None
+* **Error states:** None
+
+
+
+### `UseItemFromInvTile(inst, item)`
+* **Description:** Uses item from inventory tile with active item as target. Determines actions via playeractionpicker.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `item` -- target item entity
+* **Returns:** None
+* **Error states:** None
+
+### `ControllerUseItemOnItemFromInvTile(inst, item, active_item)`
+* **Description:** Controller input handler for using item on another item from inventory.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `item` -- target item entity
+  - `active_item` -- active/held item entity
+* **Returns:** None
+* **Error states:** None
+
+### `ControllerUseItemOnSelfFromInvTile(inst, item)`
+* **Description:** Controller input handler for using item on self from inventory (equip/unequip).
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `item` -- item entity to use
+* **Returns:** None
+* **Error states:** None
+
+### `ControllerUseItemOnSceneFromInvTile(inst, item)`
+* **Description:** Controller input handler for using item on scene target from inventory.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `item` -- item entity to use
+* **Returns:** None
+* **Error states:** None
+
+### `InspectItemFromInvTile(inst, item)`
+* **Description:** Sends inspect action for item from inventory tile. Only proceeds if item has "inspectable" tag and parent has `playercontroller` component.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `item` -- item entity to inspect
+* **Returns:** None
+* **Error states:** None
+
+### `DropItemFromInvTile(inst, item, single)`
+* **Description:** Drops item from inventory tile. Sends RPC to server.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `item` -- item entity to drop
+  - `single` -- boolean whether to drop single item or stack
+* **Returns:** None
+* **Error states:** None
+
+### `CastSpellBookFromInv(inst, item)`
+* **Description:** Casts spell from spellbook item in inventory. Only proceeds if item has `spellbook` component and parent has `playercontroller` component.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `item` -- spellbook item entity
+* **Returns:** None
+* **Error states:** None
+
+### `EquipActiveItem(inst)`
+* **Description:** Equips active item to its designated equipment slot. Sends RPC to server.
+* **Parameters:** `inst` -- classified entity instance
+* **Returns:** None
+* **Error states:** Errors if active item has no equippable replica component (accesses EquipSlot() on inst._activeitem.replica.equippable without component existence check).
+
+### `EquipActionItem(inst, item)`
+* **Description:** Equips item as action item, handling cursor inventory interactions. Sends RPC to server.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `item` -- item entity to equip
+* **Returns:** None
+* **Error states:** Errors if item has no equippable replica component (accesses EquipSlot() on item.replica.equippable without component existence check).
+
+### `SwapEquipWithActiveItem(inst)`
+* **Description:** Swaps active item with currently equipped item in same slot. Sends RPC to server.
+* **Parameters:** `inst` -- classified entity instance
+* **Returns:** None
+* **Error states:** Errors if active item has no equippable replica component (accesses EquipSlot() on inst._activeitem.replica.equippable without component existence check).
+
+### `TakeActiveItemFromEquipSlot(inst, eslot)`
+* **Description:** Takes equipped item from slot into active item. Sends RPC to server.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `eslot` -- equipment slot constant
+* **Returns:** None
+* **Error states:** None
+
+### `MoveItemFromAllOfSlot(inst, slot, container)`
+* **Description:** Moves entire stack from inventory slot to target container. Handles construction builder targeting.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+  - `container` -- target container entity
+* **Returns:** None
+* **Error states:** None
+
+### `MoveItemFromHalfOfSlot(inst, slot, container)`
+* **Description:** Moves half of stack from inventory slot to target container.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+  - `container` -- target container entity
+* **Returns:** None
+* **Error states:** None
+
+### `MoveItemFromCountOfSlot(inst, slot, container, count)`
+* **Description:** Moves specified count from inventory slot to target container.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `slot` -- integer slot index
+  - `container` -- target container entity
+  - `count` -- number of items to move
+* **Returns:** None
+* **Error states:** None
+
+
+
+### `ReceiveItem(inst, item, count)`
+* **Description:** Receives item into inventory, handling stacking and overflow. Supports recursive calls via internalloop flag.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `item` -- item entity to receive
+  - `count` -- number of items to receive (optional)
+* **Returns:** number remainder -- items that couldn't be placed, or nil if all placed
+* **Error states:** Errors if item has no replica table (accesses item.replica without nil guard at function start).
+
+
+
+### `RemoveIngredients(inst, recipe, ingredientmod)`
+* **Description:** Removes recipe ingredients from inventory for crafting. Checks all open containers.
+* **Parameters:**
+  - `inst` -- classified entity instance
+  - `recipe` -- recipe table with ingredients array
+  - `ingredientmod` -- number multiplier for ingredient amounts
+* **Returns:** boolean -- true if ingredients were successfully removed
+* **Error states:** Returns false if inventory is busy or overflow container is busy (early return, not an error). Returns false if open containers lack classified references.
+
+
 
 ## Events & listeners
-- **Listens to:**
-  - `"activedirty"` – updates preview of active item, schedules `OnActiveDirty`.
-  - `"items[i]dirty"` (for each slot `i`) – updates slot preview, schedules `OnItemsDirty`.
-  - `"equips[slot]dirty"` – updates equipment preview, schedules `OnEquipsDirty`.
-  - `"stackitemdirty"` (from `TheWorld`) – if holding the item, schedules `OnStackItemDirty`.
-- **Pushes:**
-  - `"refreshinventory"` – after `Refresh`, to update HUD.
-  - `"newactiveitem"` – when active item changes.
-  - `"gotnewitem"` – on item acquisition or stack size change.
-  - `"itemlose"` – on item removal from a slot.
-  - `"equip"`, `"unequip"` – on equipment changes.
+**Listens to:**
+- `activedirty` -- triggers OnActiveDirty handler for active item changes
+- `items[i]dirty` -- triggers OnItemsDirty handler for inventory slot changes (per slot)
+- `equips[k]dirty` -- triggers OnEquipsDirty handler for equipment slot changes (per slot)
+- `stackitemdirty` (TheWorld) -- triggers OnStackItemDirty handler for stack size changes
+
+**Pushes:**
+- `refreshinventory` -- fired when inventory state is refreshed
+- `newactiveitem` -- fired when active item changes
+- `gotnewitem` -- fired when item is received in slot
+- `itemget` -- fired when item is acquired
+- `itemlose` -- fired when item is lost from slot
+- `equip` -- fired when item is equipped
+- `unequip` -- fired when item is unequipped
+- `stacksizechange` -- fired when stack size changes
+- `stacksizepreview` -- fired for preview stack size updates

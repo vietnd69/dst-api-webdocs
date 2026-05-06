@@ -1,212 +1,281 @@
 ---
 id: builder_replica
 title: Builder Replica
-description: Synchronizes server-side crafting logic and tech tree state to the client for UI and validation.
-tags: [crafting, network, replica, player]
+description: Client-side replica of the builder component that mirrors crafting state, tech tree levels, and recipe knowledge to clients via classified netvars.
+tags: [crafting, network, replication]
 sidebar_position: 10
-
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
-category_type: replicas
-source_hash: 26b62f9f
+category_type: replica
+source_hash: d9c62ccb
 system_scope: crafting
 ---
 
 # Builder Replica
 
-> Based on game build **718694** | Last updated: 2026-04-04
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-The `builder` replica is the client-side mirror of the server-side `builder` component. It manages networked variables stored in `player_classified` to synchronize crafting capabilities, tech tree progression, and recipe knowledge from the server to the client. This allows the client UI to accurately display crafting availability, ingredient requirements, and prototyping status without requiring constant server round-trips for validation. Actual crafting actions are delegated to the `playercontroller` for remote execution or the server-side `builder` component if running on the host. Access this replica via `inst.replica.builder`, not through the component system.
+`Builder_Replica` is the client-side mirror of the master `builder` component. It provides read-only access to crafting-related state (tech tree levels, known recipes, ingredient modifiers) via netvars stored on the player's `classified` entity. On the client, it forwards build actions back to the master through `playercontroller` RPCs. On the master, it delegates directly to the master `builder` component.
+
+This replica enables clients to display accurate crafting menu state without requiring round-trip queries to the server for every ingredient check or recipe unlock status.
 
 ## Usage example
 ```lua
--- Note: inst must be a player entity with initialized replicas
-local inst = ThePlayer
+-- Client-side: check if player can craft a recipe
 local builder = inst.replica.builder
-
--- Check if the player knows a specific recipe
-local can_craft = builder:KnowsRecipe("axe")
-
--- Verify ingredient availability before attempting to build
-if builder:HasIngredients("axe") then
-    builder:BufferBuild("axe")
+if builder ~= nil then
+    local recipe = GetValidRecipe("axe")
+    if builder:KnowsRecipe(recipe) and builder:HasIngredients(recipe) then
+        builder:BufferBuild("axe")
+    end
 end
+
+-- Master-side: set tech bonus (only valid on server)
+if TheWorld.ismastersim then
+    inst.replica.builder:SetTechBonus("SCIENCE", 2)
+end
+
+-- Check current prototyper
+local prototyper = inst.replica.builder:GetCurrentPrototyper()
 ```
 
 ## Dependencies & tags
-**Components used:** `builder`, `playercontroller`, `skilltreeupdater`, `inventory` (replica), `health` (replica), `sanity` (replica).
-**Tags:** Checks `health_as_oldage`, `builder_tag`, `no_builder_tag` (via recipe data). Does not add or remove tags directly.
+**External dependencies:**
+- `techtree` -- provides TechTree constants for bonus/tech level lookups
+
+**Components used:**
+- `builder` -- master component; replica delegates to this on server
+- `playercontroller` -- forwards build RPCs to server on client
+- `inventory` (replica) -- checks ingredient availability via `replica.inventory`
+- `health` (replica) -- checks health ingredient requirements
+- `sanity` (replica) -- checks sanity ingredient requirements
+- `skilltreeupdater` -- checks builder skill requirements for recipe access
+
+**Tags:**
+- None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | Entity | `nil` | The entity instance that owns this replica. |
-| `classified` | Table | `nil` | Reference to `player_classified` containing networked variables. |
-| `ondetachclassified` | Function | `nil` | Callback function triggered when the classified object is removed. |
+| `inst` | entity | --- | The entity instance that owns this component. |
+| `classified` | entity | `nil` | The player_classified entity holding netvars for crafting state. Set in constructor or via `AttachClassified()`. |
+| `ondetachclassified` | function | `nil` | Callback registered when classified is attached; fires on classified removal to call `DetachClassified()`. |
 
 ## Main functions
 ### `AttachClassified(classified)`
-*   **Description:** Links the replica to the `player_classified` networked data container and sets up event listeners for detachment.
-*   **Parameters:** `classified` (Table) - The classified data container instance.
-*   **Returns:** Nothing.
+* **Description:** Attaches a classified entity to this replica and registers an `onremove` listener to auto-detach when classified is removed. Called automatically on client if `player_classified` exists.
+* **Parameters:** `classified` -- entity instance (player_classified)
+* **Returns:** nil
+* **Error states:** None
 
 ### `DetachClassified()`
-*   **Description:** Detaches the classified data container and clears references.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Clears the classified reference and removes the onremove listener callback. Called automatically when classified entity is removed.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None
 
 ### `GetTechBonuses()`
-*   **Description:** Retrieves a table of current technology bonuses, combining permanent bonuses and temporary bonuses.
-*   **Parameters:** None.
-*   **Returns:** `table` - A map of tech types to their bonus values. Returns empty table if data is unavailable.
+* **Description:** Returns a table of all tech bonus values. On master, delegates to `builder:GetTechBonuses()`. On client, reads from classified netvars for each tech type in `TechTree.BONUS_TECH`.
+* **Parameters:** None
+* **Returns:** table -- bonus values keyed by tech name (e.g., `{ SCIENCE = 2, MAGIC = 1 }`)
+* **Error states:** None
 
 ### `SetTechBonus(tech, bonus)`
-*   **Description:** Sets a permanent technology bonus for a specific tech type.
-*   **Parameters:** `tech` (string) - The technology type identifier. `bonus` (number) - The bonus value to set.
-*   **Returns:** Nothing.
+* **Description:** Sets a permanent tech bonus level. **Master only** — writes to classified netvar which syncs to clients. No-op if classified is nil.
+* **Parameters:**
+  - `tech` -- string tech name (e.g., `"SCIENCE"`, `"MAGIC"`)
+  - `bonus` -- number bonus level to set
+* **Returns:** nil
+* **Error states:** None (silently no-ops if classified is nil)
 
 ### `SetTempTechBonus(tech, bonus)`
-*   **Description:** Sets a temporary technology bonus for a specific tech type.
-*   **Parameters:** `tech` (string) - The technology type identifier. `bonus` (number) - The bonus value to set.
-*   **Returns:** Nothing.
+* **Description:** Sets a temporary tech bonus level (consumed on craft). **Master only** — writes to classified netvar which syncs to clients. No-op if classified is nil.
+* **Parameters:**
+  - `tech` -- string tech name (e.g., `"SCIENCE"`, `"MAGIC"`)
+  - `bonus` -- number bonus level to set
+* **Returns:** nil
+* **Error states:** None (silently no-ops if classified is nil)
 
 ### `SetIngredientMod(ingredientmod)`
-*   **Description:** Sets the ingredient modifier (e.g., for discounts or increased costs).
-*   **Parameters:** `ingredientmod` (string|number) - The ingredient modifier identifier (key for INGREDIENT_MOD table).
-*   **Returns:** Nothing.
+* **Description:** Sets the ingredient modifier index. **Master only** — writes to classified netvar. Valid indices are looked up from `INGREDIENT_MOD` table.
+* **Parameters:** `ingredientmod` -- string or number ingredient modifier identifier
+* **Returns:** nil
+* **Error states:** None (silently no-ops if classified is nil)
 
 ### `IngredientMod()`
-*   **Description:** Returns the current ingredient modifier multiplier (e.g., for discounts or increased costs).
-*   **Parameters:** None.
-*   **Returns:** `number` - The modifier value (default `1`).
+* **Description:** Returns the current ingredient modifier multiplier. On master, reads from `builder.ingredientmod`. On client, looks up from classified netvar via `INGREDIENT_MOD_LOOKUP`.
+* **Parameters:** None
+* **Returns:** number -- multiplier value (default `1` if unavailable)
+* **Error states:** None
 
 ### `SetIsFreeBuildMode(isfreebuildmode)`
-*   **Description:** Sets whether the player is in free build mode (ignores ingredient costs).
-*   **Parameters:** `isfreebuildmode` (boolean) - Whether to enable free build mode.
-*   **Returns:** Nothing.
+* **Description:** Enables or disables free build mode (no ingredient cost). **Master only** — writes to classified netvar.
+* **Parameters:** `isfreebuildmode` -- boolean
+* **Returns:** nil
+* **Error states:** None (silently no-ops if classified is nil)
 
 ### `IsFreeBuildMode()`
-*   **Description:** Checks if the player is currently in free build mode (ignores ingredient costs).
-*   **Parameters:** None.
-*   **Returns:** `boolean` - `true` if free build mode is active.
-
-### `GetTechTrees()`
-*   **Description:** Retrieves the accessible technology tree levels.
-*   **Parameters:** None.
-*   **Returns:** `table|number` - The tech tree data structure. Returns `TECH.NONE` if unavailable.
-
-### `GetTechTreesNoTemp()`
-*   **Description:** Retrieves accessible technology tree levels excluding temporary bonuses.
-*   **Parameters:** None.
-*   **Returns:** `table|number` - The tech tree data structure without temp bonuses. Returns `TECH.NONE` if unavailable.
+* **Description:** Returns whether free build mode is active. Reads from classified netvar on client.
+* **Parameters:** None
+* **Returns:** boolean
+* **Error states:** None
 
 ### `SetCurrentPrototyper(prototyper)`
-*   **Description:** Sets the current prototyper entity reference.
-*   **Parameters:** `prototyper` (Entity|string) - The prototyper entity or identifier.
-*   **Returns:** Nothing.
+* **Description:** Sets the current prototyping station entity. **Master only** — writes to classified netvar.
+* **Parameters:** `prototyper` -- entity instance or `nil` to clear
+* **Returns:** nil
+* **Error states:** None (silently no-ops if classified is nil)
 
 ### `GetCurrentPrototyper()`
-*   **Description:** Retrieves the current prototyper entity reference.
-*   **Parameters:** None.
-*   **Returns:** `string|number` - The current prototyper.
+* **Description:** Returns the current prototyping station entity. On master, reads from `builder.current_prototyper`. On client, reads from classified netvar.
+* **Parameters:** None
+* **Returns:** entity or `nil`
+* **Error states:** None
 
 ### `OpenCraftingMenu()`
-*   **Description:** Pushes the opencraftingmenuevent to signal the UI to open the crafting menu.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Pushes the `opencraftingmenuevent` on classified to trigger crafting menu open on client. **Master only** — clients cannot open menu via this method.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None (silently no-ops if classified is nil)
 
 ### `SetTechTrees(techlevels)`
-*   **Description:** Sets the accessible technology tree levels.
-*   **Parameters:** `techlevels` (table) - A table mapping tech types to their levels.
-*   **Returns:** Nothing.
+* **Description:** Sets all tech tree levels at once. **Master only** — iterates `TechTree.AVAILABLE_TECH` and writes each level to classified netvars.
+* **Parameters:** `techlevels` -- table of tech levels keyed by tech name
+* **Returns:** nil
+* **Error states:** None (silently no-ops if classified is nil)
+
+### `GetTechTrees()`
+* **Description:** Returns accessible tech tree levels. On master, returns `builder.accessible_tech_trees`. On client, returns classified `techtrees` table.
+* **Parameters:** None
+* **Returns:** table -- tech levels keyed by tech name
+* **Error states:** None
+
+### `GetTechTreesNoTemp()`
+* **Description:** Returns accessible tech tree levels excluding temporary bonuses. On master, returns `builder.accessible_tech_trees_no_temp`. On client, returns classified `techtrees_no_temp` table.
+* **Parameters:** None
+* **Returns:** table -- tech levels keyed by tech name
+* **Error states:** None
 
 ### `AddRecipe(recipename)`
-*   **Description:** Marks a specific recipe as known/unlocked for the player.
-*   **Parameters:** `recipename` (string) - The name of the recipe to unlock.
-*   **Returns:** Nothing.
+* **Description:** Marks a recipe as known/unlocked. **Master only** — sets classified recipe netvar to `true`. No-op if recipe not in classified recipes table.
+* **Parameters:** `recipename` -- string recipe name
+* **Returns:** nil
+* **Error states:** None (silently no-ops if classified is nil or recipe not tracked)
 
 ### `RemoveRecipe(recipename)`
-*   **Description:** Marks a specific recipe as unknown/locked for the player.
-*   **Parameters:** `recipename` (string) - The name of the recipe to lock.
-*   **Returns:** Nothing.
+* **Description:** Marks a recipe as unknown/locked. **Master only** — sets classified recipe netvar to `false`. No-op if recipe not in classified recipes table.
+* **Parameters:** `recipename` -- string recipe name
+* **Returns:** nil
+* **Error states:** None (silently no-ops if classified is nil or recipe not tracked)
 
 ### `SetRecipeCraftingLimit(index, recipename, amount)`
-*   **Description:** Sets a crafting limit for a specific recipe at the given index.
-*   **Parameters:** `index` (number) - The limit slot index. `recipename` (string) - The recipe name. `amount` (number) - The crafting limit amount.
-*   **Returns:** Nothing.
+* **Description:** Sets a crafting limit for a recipe at a specific slot index. **Master only** — writes recipe ID and amount to classified crafting limit netvars. If recipe is not in `CRAFTINGSTATION_LIMITED_RECIPES_LOOKUPS`, amount is forced to `0`.
+* **Parameters:**
+  - `index` -- number slot index (1 to `CRAFTINGSTATION_LIMITED_RECIPES_COUNT`)
+  - `recipename` -- string recipe name
+  - `amount` -- number maximum craftable amount
+* **Returns:** nil
+* **Error states:** None (silently no-ops if classified is nil)
 
 ### `GetAllRecipeCraftingLimits()`
-*   **Description:** Retrieves all recipe crafting limits.
-*   **Parameters:** None.
-*   **Returns:** `table` - A map of recipe names to their limit amounts.
-
-### `KnowsRecipe(recipe, ignore_tempbonus, cached_tech_trees)`
-*   **Description:** Determines if the player can prototype or already knows a recipe. Checks tech levels, tags, skills, and skin unlocks. Returns `true` immediately if Free Build Mode is active (unless recipe is restricted by skin selection rules).
-*   **Parameters:** `recipe` (string|table) - Recipe name or recipe table. `ignore_tempbonus` (boolean, optional) - If true, ignores temporary tech bonuses. `cached_tech_trees` (table, optional) - Cache for tech tree lookups.
-*   **Returns:** `boolean` - `true` if the recipe is known or prototypeable.
-
-### `HasIngredients(recipe)`
-*   **Description:** Verifies if the player possesses all required ingredients, including character stats (health/sanity) and tech levels.
-*   **Parameters:** `recipe` (string|table) - The recipe to check.
-*   **Returns:** `boolean` - `true` if all ingredients are available.
-
-### `CanBuild(recipe_name)`
-*   **Description:** Checks if the player can build a recipe. **Deprecated:** Use `HasIngredients` instead.
-*   **Parameters:** `recipe_name` (string) - The name of the recipe to check.
-*   **Returns:** `boolean` - `true` if the player can build the recipe.
-
-### `CanLearn(recipename)`
-*   **Description:** Checks if the player can learn a recipe based on builder_tag and builder_skill requirements.
-*   **Parameters:** `recipename` (string) - The recipe name to check.
-*   **Returns:** `boolean` - `true` if the recipe can be learned.
-
-### `CanBuildAtPoint(pt, recipe, rot)`
-*   **Description:** Checks if a recipe can be deployed at a specific world position via TheWorld.Map.
-*   **Parameters:** `pt` (Vector3) - The position to check. `recipe` (table) - The recipe object. `rot` (number) - The rotation.
-*   **Returns:** `boolean` - `true` if the recipe can be built at the specified location.
-
-### `HasCharacterIngredient(ingredient)`
-*   **Description:** Checks if the player meets character-specific ingredient requirements (e.g., health cost, sanity cost).
-*   **Parameters:** `ingredient` (table) - The ingredient definition containing type and amount.
-*   **Returns:** `boolean`, `number` - Success status and relevant metric value (e.g., current health or remaining penalty ratio).
-
-### `HasTechIngredient(ingredient)`
-*   **Description:** Checks if the player meets technology-based ingredient requirements.
-*   **Parameters:** `ingredient` (table) - The tech ingredient definition.
-*   **Returns:** `boolean`, `number` - Success status and current tech level.
+* **Description:** Returns all recipe crafting limits. Combines classified limits with externally handled limits from `EXTERNALLY_HANDLED_LIMITED_RECIPES` (queried via `recipe:getlimitedrecipecount()`).
+* **Parameters:** None
+* **Returns:** table -- recipe names keyed to remaining craftable amounts
+* **Error states:** None
 
 ### `BufferBuild(recipename)`
-*   **Description:** Buffers a build action to be executed. Delegates to server `builder` or classified logic.
-*   **Parameters:** `recipename` (string) - The name of the recipe to buffer.
-*   **Returns:** Nothing.
+* **Description:** Buffers a build action. On master, delegates to `builder:BufferBuild()`. On client, calls `classified:BufferBuild()` which triggers the build RPC.
+* **Parameters:** `recipename` -- string recipe name
+* **Returns:** nil
+* **Error states:** None
 
 ### `SetIsBuildBuffered(recipename, isbuildbuffered)`
-*   **Description:** Sets whether a specific build action is buffered.
-*   **Parameters:** `recipename` (string) - The recipe name. `isbuildbuffered` (boolean) - Whether the build is buffered.
-*   **Returns:** Nothing.
+* **Description:** Sets the buffered state for a recipe. **Master only** — writes to classified `bufferedbuilds` netvar.
+* **Parameters:**
+  - `recipename` -- string recipe name
+  - `isbuildbuffered` -- boolean
+* **Returns:** nil
+* **Error states:** None (silently no-ops if classified is nil)
 
 ### `IsBuildBuffered(recipename)`
-*   **Description:** Checks if a specific build action is currently buffered.
-*   **Parameters:** `recipename` (string) - The recipe name to check.
-*   **Returns:** `boolean` - `true` if the build is buffered.
+* **Description:** Returns whether a recipe is currently buffered for building. On master, delegates to `builder:IsBuildBuffered()`. On client, checks classified `bufferedbuilds` netvar and `_bufferedbuildspreview` table.
+* **Parameters:** `recipename` -- string recipe name
+* **Returns:** boolean
+* **Error states:** None
+
+### `HasCharacterIngredient(ingredient)`
+* **Description:** Checks if the player has sufficient character-specific ingredients (health, sanity, max health, max sanity). On client, reads from `replica.health` and `replica.sanity`. Rounds values up to match UI display. For health ingredients, checks `health_as_oldage` tag to apply `TUNING.OLDAGE_HEALTH_SCALE`.
+* **Parameters:** `ingredient` -- table with `type` and `amount` fields
+* **Returns:** boolean, number -- has ingredient, current value (or penalty ratio for max stats)
+* **Error states:** None (returns `false, 0` if replica components unavailable)
+
+### `HasTechIngredient(ingredient)`
+* **Description:** Checks if the player has sufficient tech level for a tech ingredient. On master, delegates to `builder:HasTechIngredient()`. On client, reads from classified `techtrees` netvar.
+* **Parameters:** `ingredient` -- table with `type` (e.g., `"science_material"`) and `amount` fields
+* **Returns:** boolean, number -- has ingredient, current tech level
+* **Error states:** None
+
+### `KnowsRecipe(recipe, ignore_tempbonus, cached_tech_trees)`
+* **Description:** Returns whether the player knows/unlocks a recipe. Checks free build mode, skin unlocks, builder tags, builder skills, recipe unlock status, and tech tree levels. On master, delegates to `builder:KnowsRecipe()`. On client, evaluates all conditions against classified netvars.
+* **Parameters:**
+  - `recipe` -- string recipe name or recipe table
+  - `ignore_tempbonus` -- boolean (optional) -- if true, excludes temp bonuses from tech level check
+  - `cached_tech_trees` -- table (optional) -- cache for tech tree results
+* **Returns:** boolean
+* **Error states:** None
+
+### `HasIngredients(recipe)`
+* **Description:** Returns whether the player has all ingredients for a recipe. Checks inventory items, character ingredients (health/sanity), and tech ingredients. Returns `true` immediately if free build mode is active. Returns `false` if limited recipe count is `<= 0`.
+* **Parameters:** `recipe` -- string recipe name or recipe table
+* **Returns:** boolean
+* **Error states:** None (returns `false` if classified is nil)
+
+### `CanBuild(recipe_name)`
+* **Description:** **Deprecated.** Legacy wrapper for `HasIngredients()`.
+* **Parameters:** `recipe_name` -- string recipe name
+* **Returns:** boolean
+* **Error states:** None
+
+### `CanLearn(recipename)`
+* **Description:** Returns whether the player can learn a recipe (ignores ingredient availability). Checks builder tags and builder skills only. On master, delegates to `builder:CanLearn()`. On client, evaluates against classified state.
+* **Parameters:** `recipename` -- string recipe name
+* **Returns:** boolean
+* **Error states:** None
+
+### `CanBuildAtPoint(pt, recipe, rot)`
+* **Description:** Returns whether a recipe can be deployed at the given point. Delegates to `TheWorld.Map:CanDeployRecipeAtPoint()`.
+* **Parameters:**
+  - `pt` -- Vector3 world position
+  - `recipe` -- recipe table
+  - `rot` -- number rotation in radians
+* **Returns:** boolean
+* **Error states:** None
 
 ### `MakeRecipeFromMenu(recipe, skin)`
-*   **Description:** Initiates crafting a recipe from the UI menu. Delegates to server `builder` or `playercontroller` for remote execution.
-*   **Parameters:** `recipe` (table) - The recipe object. `skin` (string, optional) - The skin to apply.
-*   **Returns:** Nothing.
+* **Description:** Crafts a recipe from the crafting menu. On master, delegates to `builder:MakeRecipeFromMenu()`. On client, forwards via `playercontroller:RemoteMakeRecipeFromMenu()` RPC.
+* **Parameters:**
+  - `recipe` -- recipe table
+  - `skin` -- string skin name (optional)
+* **Returns:** nil
+* **Error states:** None (silently no-ops if neither builder nor playercontroller available)
 
 ### `MakeRecipeAtPoint(recipe, pt, rot, skin)`
-*   **Description:** Initiates crafting a structure at a specific world position. Delegates to server `builder` or `playercontroller` for remote execution.
-*   **Parameters:** `recipe` (table) - The recipe object. `pt` (Vector3) - The position to build. `rot` (number) - The rotation. `skin` (string, optional) - The skin to apply.
-*   **Returns:** Nothing.
+* **Description:** Crafts a recipe at a world position (for placers). On master, delegates to `builder:MakeRecipeAtPoint()`. On client, forwards via `playercontroller:RemoteMakeRecipeAtPoint()` RPC.
+* **Parameters:**
+  - `recipe` -- recipe table
+  - `pt` -- Vector3 world position
+  - `rot` -- number rotation in radians
+  - `skin` -- string skin name (optional)
+* **Returns:** nil
+* **Error states:** None (silently no-ops if neither builder nor playercontroller available)
 
 ### `IsBusy()`
-*   **Description:** Checks if the player's inventory is currently busy, which would prevent crafting actions.
-*   **Parameters:** None.
-*   **Returns:** `boolean` - `true` if the inventory is busy.
+* **Description:** Returns whether the builder is currently busy (inventory or overflow container is busy). Returns `false` on master. On client, checks `inventory.classified:IsBusy()` and overflow container classified.
+* **Parameters:** None
+* **Returns:** boolean
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:** `onremove` (on `classified` object) - Triggers `DetachClassified` when the classified data is removed.
-- **Pushes:** `opencraftingmenuevent` (on `classified` object) - Signals the UI to open the crafting menu.
+- **Listens to:** `onremove` (on classified entity) — triggers `DetachClassified()` when classified is removed (client only)

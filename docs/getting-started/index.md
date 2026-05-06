@@ -3,552 +3,333 @@ title: Getting Started with DST Lua
 description: Complete guide to Don't Starve Together modding and API usage
 sidebar_position: 1
 
-last_updated: 2023-06-15
+last_updated: 2026-05-04
 build_version: 676042
 change_status: stable
 ---
 
 # Getting Started with DST Lua
 
-Welcome to the Don't Starve Together (DST) Lua documentation! This comprehensive guide will take you from basic understanding to creating advanced mods for the game.
-
-## Version History
-
-| Date | Build | Changes |
-|------|-------|---------|
-| 2023-06-15 | 675312 | Initial documentation |
-
-## Introduction to DST Modding
-
-Don't Starve Together is a multiplayer survival game developed by Klei Entertainment. The game is highly moddable, allowing players and developers to create custom content and modify gameplay through Lua scripting.
-
-### What is the DST Lua API?
-
-The DST Lua API is a comprehensive set of functions, components, and systems that allow modders to interact with the game's core functionality. Through this API, you can:
-
-- Create new items, characters, creatures, and structures
-- Modify existing game mechanics and behaviors
-- Add new gameplay features and systems
-- Create custom UI elements and screens
-- Change world generation and environmental features
+Welcome to the Don't Starve Together (DST) Lua API documentation. This guide covers everything from setting up your first mod to advanced scripting patterns.
 
 ## Prerequisites
 
-Before diving into DST modding, you should have:
+- Basic Lua programming knowledge
+- Familiarity with DST gameplay mechanics
+- Don't Starve Together installed via Steam
 
-- Basic programming knowledge
-- Familiarity with Lua programming language
-- Understanding of Don't Starve Together gameplay mechanics
-- A copy of Don't Starve Together on Steam
-- Text editor for code development
-- Steam Workshop access for distribution
+## Setting Up Your Mod Environment
 
-## Setting Up Your Modding Environment
+### Mods Directory
 
-### Find Your Mods Directory
+| Platform | Path |
+|----------|------|
+| Windows  | `C:\Users\[Username]\Documents\Klei\DoNotStarveTogether\mods\` |
+| macOS    | `~/Documents/Klei/DoNotStarveTogether/mods/` |
+| Linux    | `~/.klei/DoNotStarveTogether/mods/` |
 
-1. **Windows**: `C:\Users\[YourUsername]\Documents\Klei\DoNotStarveTogether\mods\`
-2. **Mac**: `~/Documents/Klei/DoNotStarveTogether/mods/`
-3. **Linux**: `~/.klei/DoNotStarveTogether/mods/`
-
-### Basic Mod Structure
+### Mod Directory Structure
 
 ```
-my_first_mod/
-├── modinfo.lua       # Mod metadata and configuration
-├── modmain.lua       # Main entry point for your mod
-├── scripts/          # Custom scripts folder
-│   ├── prefabs/      # Custom entity definitions
-│   └── components/   # Custom component definitions
-├── anim/             # Custom animations
-└── images/           # Images and icons
-    └── inventoryimages/  # Item icons
+my_mod/
+├── modinfo.lua          # Required: metadata and workshop configuration
+├── modmain.lua          # Required: entry point, runs on mod load
+├── scripts/
+│   ├── prefabs/         # Custom entity definitions
+│   └── components/      # Custom component definitions
+├── anim/                # Custom animations (.zip)
+└── images/
+    └── inventoryimages/ # Item icons (.tex + .xml)
 ```
 
-## Understanding the Core Systems
-
-DST's codebase is organized around several core systems:
+## Core Concepts
 
 ### Entity-Component System
 
-The game uses an entity-component architecture:
+DST uses a composition-based entity model:
 
-- **Entities**: Base objects in the world (players, creatures, items)
-- **Components**: Modular pieces of functionality attached to entities
-- **Prefabs**: Templates for creating entities with predefined components
+- **Entities**: Everything in the world — players, creatures, items, structures
+- **Components**: Modular behaviors attached to entities (`health`, `combat`, `inventory`, etc.)
+- **Prefabs**: Factory functions that create entities with a predefined set of components
 
-### Script Organization
+### Server / Client Split
 
-The API scripts are organized in several key directories:
-
-- **actions.lua**: Defines player actions like chopping, mining, etc.
-- **behaviours/**: AI behavior scripts
-- **brains/**: AI decision-making scripts
-- **components/**: Entity component definitions
-- **prefabs/**: Entity template definitions
-- **stategraphs/**: State machine definitions for entities
-
-## Your First Mod: Complete Tutorial
-
-### Step 1: Create Mod Directory Structure
-
-Create your mod folder structure in the game's mods directory:
-
-```
-mods/
-└── your_first_mod/
-    ├── modinfo.lua          # Mod metadata and configuration
-    ├── modmain.lua          # Main mod entry point
-    ├── scripts/
-    │   └── prefabs/
-    │       └── myitem.lua   # Custom item definition
-    └── images/
-        └── inventoryimages/
-            └── myitem.tex   # Item icon
-```
-
-### Step 2: Create modinfo.lua
+DST runs a server simulation alongside a client renderer. All gameplay logic lives on the server:
 
 ```lua
--- modinfo.lua - Mod metadata and configuration
-name = "My First Mod"
-description = "A simple example mod for learning DST modding"
-author = "Your Name"
-version = "1.0.0"
+local function fn()
+    local inst = CreateEntity()
 
-forumthread = ""
-api_version = 10
+    -- Client + server: visual setup
+    inst.entity:AddTransform()
+    inst.entity:AddAnimState()
+    inst.entity:AddNetwork()
+    inst.entity:SetPristine()
 
-dst_compatible = true
-dont_starve_compatible = false
-reign_of_giants_compatible = false
+    if not TheWorld.ismastersim then
+        return inst  -- client stops here
+    end
 
+    -- Server only: gameplay components
+    inst:AddComponent("health")
+    inst:AddComponent("inventory")
+
+    return inst
+end
+```
+
+Never add gameplay components before `SetPristine()` or without the `ismastersim` guard — they will fail to replicate correctly.
+
+## Your First Mod: A Custom Tool
+
+### Step 1: `modinfo.lua`
+
+```lua
+name          = "My First Mod"
+description   = "A simple custom tool"
+author        = "Your Name"
+version       = "1.0.0"
+api_version   = 10
+
+dst_compatible          = true
+dont_starve_compatible  = false
 all_clients_require_mod = true
-client_only_mod = false
+client_only_mod         = false
 
 icon_atlas = "modicon.xml"
-icon = "modicon.tex"
+icon       = "modicon.tex"
 
--- Mod configuration options
 configuration_options = {
     {
-        name = "item_durability",
-        label = "Item Durability",
+        name    = "item_durability",
+        label   = "Item Durability",
         options = {
-            {description = "Low", data = 50},
+            {description = "Low",    data = 50},
             {description = "Normal", data = 100},
-            {description = "High", data = 150},
+            {description = "High",   data = 150},
         },
         default = 100,
     }
 }
 ```
 
-### Step 3: Create modmain.lua
+### Step 2: `modmain.lua`
 
 ```lua
--- modmain.lua - Main mod entry point
--- This file is executed when the mod loads
+PrefabFiles = { "mytool" }
 
--- Add your custom item to the prefab files list
-PrefabFiles = {
-    "myitem",
-}
-
--- Add item to inventory images
 Assets = {
-    Asset("ATLAS", "images/inventoryimages/myitem.xml"),
-    Asset("IMAGE", "images/inventoryimages/myitem.tex"),
+    Asset("ATLAS", "images/inventoryimages/mytool.xml"),
+    Asset("IMAGE", "images/inventoryimages/mytool.tex"),
 }
 
--- Add recipe for your item
-AddRecipe2("myitem", 
-    {Ingredient("twigs", 2), Ingredient("flint", 1)}, 
-    TECH.NONE, 
+AddRecipe2("mytool",
+    {Ingredient("twigs", 2), Ingredient("flint", 1)},
+    TECH.NONE,
     {
-        placer = "myitem_placer",
-        min_spacing = 0,
-        atlas = "images/inventoryimages/myitem.xml",
-        image = "myitem.tex",
+        atlas = "images/inventoryimages/mytool.xml",
+        image = "mytool.tex",
     }
 )
 
--- Example of using mod configuration
-local config_durability = GetModConfigData("item_durability") or 100
-TUNING.MYITEM_DURABILITY = config_durability
-
--- Debug print to confirm mod loading
-modprint("My First Mod loaded successfully!")
+TUNING.MYTOOL_DURABILITY = GetModConfigData("item_durability") or 100
 ```
 
-### Step 4: Create Custom Item Prefab
+### Step 3: `scripts/prefabs/mytool.lua`
 
 ```lua
--- scripts/prefabs/myitem.lua - Custom item definition
 local assets = {
-    Asset("ANIM", "anim/myitem.zip"),
-    Asset("ATLAS", "images/inventoryimages/myitem.xml"),
-    Asset("IMAGE", "images/inventoryimages/myitem.tex"),
+    Asset("ANIM",  "anim/mytool.zip"),
+    Asset("ATLAS", "images/inventoryimages/mytool.xml"),
+    Asset("IMAGE", "images/inventoryimages/mytool.tex"),
 }
 
 local function fn()
     local inst = CreateEntity()
-    
-    -- Add standard entity components
+
     inst.entity:AddTransform()
     inst.entity:AddAnimState()
     inst.entity:AddNetwork()
-    
-    -- Set up visual appearance
-    inst.AnimState:SetBank("myitem")
-    inst.AnimState:SetBuild("myitem")
+
+    inst.AnimState:SetBank("mytool")
+    inst.AnimState:SetBuild("mytool")
     inst.AnimState:PlayAnimation("idle")
-    
-    -- Add to inventory item group
+
     MakeInventoryPhysics(inst)
-    
-    -- Network entity setup
+
     inst.entity:SetPristine()
-    
-    if not TheWorld.ismastersim then
-        return inst
-    end
-    
-    -- Add inventory item component
+    if not TheWorld.ismastersim then return inst end
+
     inst:AddComponent("inventoryitem")
-    inst.components.inventoryitem.imagename = "myitem"
-    inst.components.inventoryitem.atlasname = "images/inventoryimages/myitem.xml"
-    
-    -- Add inspectable component
+    inst.components.inventoryitem.imagename = "mytool"
+    inst.components.inventoryitem.atlasname = "images/inventoryimages/mytool.xml"
+
     inst:AddComponent("inspectable")
-    
-    -- Add tool functionality (example: axe)
+
     inst:AddComponent("tool")
     inst.components.tool:SetAction(ACTIONS.CHOP)
-    
-    -- Add finite uses
+
     inst:AddComponent("finiteuses")
-    inst.components.finiteuses:SetMaxUses(TUNING.MYITEM_DURABILITY or 100)
-    inst.components.finiteuses:SetUses(TUNING.MYITEM_DURABILITY or 100)
+    inst.components.finiteuses:SetMaxUses(TUNING.MYTOOL_DURABILITY)
+    inst.components.finiteuses:SetUses(TUNING.MYTOOL_DURABILITY)
     inst.components.finiteuses:SetOnFinished(inst.Remove)
-    
+
     return inst
 end
 
-return Prefab("myitem", fn, assets)
+return Prefab("mytool", fn, assets)
 ```
 
-### Step 5: Testing Your Mod
+### Step 4: Test In-Game
 
-1. **Enable Debug Mode**: Set `CHEATS_ENABLED = true` in settings
-2. **Load the Game**: Start DST and enable your mod
-3. **Spawn Test Item**: Use console command `c_give("myitem", 1)`
-4. **Test Functionality**: Verify the item works as expected
-
-### Step 6: Common Debugging Commands
+Enable your mod in the DST mod list, then use the in-game console (`~`):
 
 ```lua
--- Console commands for mod debugging
-c_give("myitem", 1)                    -- Give yourself the item
-c_spawn("myitem", 5)                   -- Spawn items on ground
-c_find("myitem")                       -- Find instances in world
-print(TUNING.MYITEM_DURABILITY)       -- Check configuration values
+c_give("mytool", 1)         -- spawn into your inventory
+c_spawn("mytool", 5)        -- drop on ground at cursor
+c_dumptable(inst.components) -- inspect a selected entity's components
 ```
 
-## Common Modding Scenarios
+## Common Modding Patterns
 
-### Scenario 1: Creating a Custom Character
+### Custom Character
 
 ```lua
--- modmain.lua for character mod
-local require = GLOBAL.require
-local STRINGS = GLOBAL.STRINGS
-
--- Character assets
+-- modmain.lua
 Assets = {
     Asset("ANIM", "anim/mycharacter.zip"),
     Asset("ANIM", "anim/ghost_mycharacter_build.zip"),
 }
 
--- Add character to game
-AddModCharacter("mycharacter", "FEMALE", {
-    { type = "normal_skin", play_emotes = true },
-    { type = "ghost_skin", anim_bank = "ghost", idle_anim = "idle" }
-})
+AddModCharacter("mycharacter", "FEMALE")
 
--- Character strings
-STRINGS.CHARACTER_NAMES.mycharacter = "My Character"
-STRINGS.CHARACTER_DESCRIPTIONS.mycharacter = "A unique character with special abilities"
-STRINGS.CHARACTER_QUOTES.mycharacter = "\"I have my own way of doing things.\""
+STRINGS.CHARACTER_NAMES.mycharacter       = "Aria"
+STRINGS.CHARACTER_DESCRIPTIONS.mycharacter = "She knows things others don't."
+STRINGS.CHARACTER_QUOTES.mycharacter      = [["Knowledge is survival."]]
 
--- Character-specific stats
 AddPlayerPostInit(function(inst)
-    if inst.prefab == "mycharacter" then
-        -- Custom starting items
-        inst.components.inventory:GiveItem(SpawnPrefab("mystartingitem"))
-        
-        -- Custom stats
-        inst.components.health:SetMaxHealth(120)
-        inst.components.sanity:SetMax(180)
-        inst.components.hunger:SetMax(140)
-    end
+    if inst.prefab ~= "mycharacter" then return end
+
+    inst.components.health:SetMaxHealth(120)
+    inst.components.sanity:SetMax(200)
+    inst.components.hunger:SetMax(140)
 end)
 ```
 
-### Scenario 2: Adding Custom Recipes and Crafting
+### Custom Component
 
 ```lua
--- Custom crafting station
-AddRecipe2("mycraftingstation",
-    {Ingredient("boards", 4), Ingredient("rope", 2)},
-    TECH.SCIENCE_ONE,
-    {
-        placer = "mycraftingstation_placer",
-        atlas = "images/inventoryimages/mycraftingstation.xml",
-        image = "mycraftingstation.tex",
-    },
-    {"STRUCTURES", "CRAFTING"}
-)
-
--- Recipe that requires custom station
-AddRecipe2("advanceditem",
-    {Ingredient("gold", 2), Ingredient("gears", 1)},
-    TECH.MYCUSTOMTECH,
-    {
-        builder_tag = "mycraftingstation",  -- Requires being near custom station
-        atlas = "images/inventoryimages/advanceditem.xml",
-        image = "advanceditem.tex",
-    }
-)
-
--- Add new tech level
-TECH.MYCUSTOMTECH = {MYCUSTOMTECH = 1}
-```
-
-### Scenario 3: World Generation Modifications
-
-```lua
--- Add custom world generation content
-AddRoomPreInit("Forest", function(room)
-    -- Add custom prefab to forest rooms
-    room.contents.distributeprefabs = room.contents.distributeprefabs or {}
-    table.insert(room.contents.distributeprefabs, "mycustomprefab")
-end)
-
--- Add custom biome
-AddLevel({
-    id = "MYCUSTOMLEVEL",
-    name = "My Custom World",
-    desc = "A world with custom features",
-    location = "forest",
-    version = 2,
-    overrides = {
-        {"world_size", "default"},
-        {"season_start", "autumn"},
-        {"mycustomsetting", "enabled"}
-    }
-})
-```
-
-### Scenario 4: Custom Components and Behaviors
-
-```lua
--- scripts/components/mycustomcomponent.lua
-local MyCustomComponent = Class(function(self, inst)
-    self.inst = inst
+-- scripts/components/tracker.lua
+local Tracker = Class(function(self, inst)
+    self.inst  = inst
     self.value = 0
-    self.max_value = 100
+    self.max   = 100
 end)
 
-function MyCustomComponent:SetValue(value)
-    self.value = math.max(0, math.min(value, self.max_value))
-    self.inst:PushEvent("valuechanged", {value = self.value})
+function Tracker:SetValue(v)
+    self.value = math.clamp(v, 0, self.max)
+    self.inst:PushEvent("trackerchanged", {value = self.value})
 end
 
-function MyCustomComponent:OnSave()
+function Tracker:OnSave()
     return {value = self.value}
 end
 
-function MyCustomComponent:OnLoad(data)
-    if data and data.value then
-        self.value = data.value
-    end
+function Tracker:OnLoad(data)
+    if data then self.value = data.value or 0 end
 end
 
-return MyCustomComponent
+return Tracker
+```
 
--- Using the component in modmain.lua
-AddComponentPostInit("inventoryitem", function(self)
-    -- Add custom functionality to all inventory items
-    if self.inst.prefab == "myspecialitem" then
-        self.inst:AddComponent("mycustomcomponent")
+### Event Communication
+
+Components coordinate through events rather than direct calls:
+
+```lua
+-- Producer: fires event when state changes
+inst.components.health:SetOnDelta(function(inst, data)
+    inst:PushEvent("healthchanged", data)
+end)
+
+-- Consumer: reacts without coupling to health directly
+inst:ListenForEvent("healthchanged", function(inst, data)
+    if data.newpercent < 0.25 then
+        inst:AddTag("lowhealth")
+        inst.components.talker:Say("I need healing!")
     end
 end)
 ```
 
-## Steam Workshop Integration
-
-### Preparing Your Mod for Workshop
-
-#### Mod Validation Checklist
-- [ ] **modinfo.lua complete**: All required fields filled correctly
-- [ ] **Assets optimized**: Images compressed, animations efficient
-- [ ] **Code tested**: No error messages in console
-- [ ] **Compatibility verified**: Works with base game and common mods
-- [ ] **Description written**: Clear explanation of mod features
-
-#### Workshop Upload Process
-
-1. **In-Game Upload**:
-   ```
-   Main Menu → Workshop → Upload Mod → Select your mod folder
-   ```
-
-2. **Steam Workshop Page**:
-   - Add detailed description
-   - Include screenshots/videos
-   - Set appropriate tags
-   - Choose visibility settings
-
-### Workshop Best Practices
-
-#### Naming Conventions
-```lua
--- Clear, descriptive mod names
-name = "Enhanced Farming Tools"  -- Good
-name = "AwesomeMod123"          -- Avoid
-
--- Consistent prefab naming
-"enhanced_hoe"     -- Mod-specific prefix
-"enhanced_watering_can"
-"enhanced_fertilizer"
-```
-
-## Debugging and Troubleshooting
-
-### Essential Debugging Tools
-
-#### Console Commands for Mod Development
+### World Generation Hook
 
 ```lua
--- Basic mod debugging commands
-c_give("myitem", 1)                    -- Give item to player
-c_spawn("myitem", 10)                  -- Spawn items at cursor
-c_find("myitem")                       -- Find all instances in world
-c_sel()                                -- Select entity under mouse
-c_reset()                              -- Reset selected entity
-
--- Advanced debugging
-c_findnext("myitem")                   -- Find next instance
-c_gonext("myitem")                     -- Teleport to next instance
-c_regenerateworld()                    -- Regenerate world with mods
-c_dumptable(inst.components)           -- Dump component data
+AddRoomPreInit("Forest", function(room)
+    room.contents.distributeprefabs = room.contents.distributeprefabs or {}
+    table.insert(room.contents.distributeprefabs, "mycustomprefab")
+end)
 ```
 
-#### Mod-Specific Debug Functions
+## Debugging
+
+### Console Commands
 
 ```lua
--- Error handling and debug output
-modprint("Debug message:", variable)   -- Debug-only print
-moderror("Error occurred!")            -- Mod error reporting
-modassert(condition, "Must be true")   -- Mod assertion
-
--- Configuration debugging
-local config = GetModConfigData("setting_name")
-print("Config value:", config)
-
--- Component inspection
-local function DebugEntity(inst)
-    print("Entity:", inst.prefab)
-    print("Valid:", inst:IsValid())
-    print("Components:", table.concat(inst.components, ", "))
-    
-    if inst.components.health then
-        print("Health:", inst.components.health.currenthealth)
-    end
-end
+c_give("prefab", n)         -- give item to player
+c_spawn("prefab", n)        -- spawn at cursor
+c_find("prefab")            -- list all instances
+c_sel()                     -- select entity under cursor
+c_gonext("prefab")          -- teleport to next instance
+c_regenerateworld()         -- force world regen (tests world gen hooks)
 ```
 
-### Common Issues and Solutions
-
-#### Issue 1: Mod Not Loading
-
-**Symptoms:** Mod doesn't appear in mod list, no debug output
-
-**Solutions:**
-1. Fix modinfo.lua syntax - ensure all required fields are present
-2. Check file permissions - ensure mod files are readable
-3. Verify directory structure - follow exact naming conventions
-4. Review console errors - look for Lua syntax errors
-
-#### Issue 2: Items Not Working
-
-**Symptoms:** c_give() fails, items have no functionality, recipes don't work
-
-**Solutions:**
-1. Verify prefab files are in PrefabFiles list
-2. Check component setup - validate all required components
-3. Test recipe ingredients - ensure all exist and are available
-4. Review asset paths - verify all references are correct
-
-#### Issue 3: Multiplayer Problems
-
-**Symptoms:** Works in single-player but not multiplayer
-
-**Solutions:**
-1. Proper network setup - use inst.entity:SetPristine() correctly
-2. Server-client separation - check TheWorld.ismastersim appropriately  
-3. RPC implementation - use proper mod RPC handlers for custom data
-
-## Performance Optimization
-
-### Efficient Entity Management
+### Mod Debug Helpers
 
 ```lua
--- Pool pattern for frequently spawned/removed entities
-local entity_pool = {}
-
-local function GetPooledEntity(prefab)
-    if entity_pool[prefab] and #entity_pool[prefab] > 0 then
-        return table.remove(entity_pool[prefab])
-    else
-        return SpawnPrefab(prefab)
-    end
-end
+modprint("value:", myvar)          -- prints only when mod debug is on
+moderror("something went wrong")   -- logs as mod error
+modassert(condition, "message")    -- crashes loudly on bad state
 ```
 
-### Memory-Efficient Data Structures
+### Common Issues
+
+| Symptom | Likely Cause | Fix |
+|---------|-------------|-----|
+| Mod not in list | `modinfo.lua` syntax error | Check for missing commas, unclosed strings |
+| `c_give()` fails | Prefab not in `PrefabFiles` | Add prefab name to `PrefabFiles` table in `modmain.lua` |
+| Works offline, breaks online | Component added outside `ismastersim` guard | Move all gameplay components after `SetPristine()` + `ismastersim` check |
+| Recipe not appearing | Wrong `TECH` level or missing tech unlock | Verify `TECH.*` values and station requirements |
+
+## Steam Workshop
+
+### Pre-Upload Checklist
+
+- [ ] All `modinfo.lua` required fields are filled
+- [ ] No Lua errors in the in-game console
+- [ ] Tested in both single-player and multiplayer
+- [ ] Images are compressed and assets are correctly referenced
+- [ ] `all_clients_require_mod` set correctly for your mod type
+
+### Upload
+
+```
+Main Menu → Mods → Upload Mod → Select your mod folder
+```
+
+Name your prefabs with a mod-specific prefix to avoid conflicts with other mods:
 
 ```lua
--- Use weak references for temporary data
-local temporary_data = setmetatable({}, {__mode = "k"})
+-- Good: unique prefix prevents collisions
+"mymod_enhanced_hoe"
+"mymod_water_barrel"
 
--- Efficient caching with limits
-local cache = {}
-local cache_limit = 100
-
-local function CacheData(key, data)
-    if #cache >= cache_limit then
-        table.remove(cache, 1)
-    end
-    cache[key] = data
-end
+-- Avoid: generic names that other mods may also use
+"hoe"
+"barrel"
 ```
 
-## Resources and Community
+## Resources
 
-- [Klei Forums](https://forums.kleientertainment.com/forums/forum/26-dont-starve-together-mods-and-tools/): Official forums for DST modding
-- [DST Modding Wiki](https://dontstarvemodding.fandom.com/wiki/Don%27t_Starve_Modding_Wiki): Community-maintained wiki with modding resources
-- [Steam Workshop](https://steamcommunity.com/app/322330/workshop/): Browse existing mods for inspiration
-
-## API Documentation Structure
-
-This documentation is organized by system and functionality:
-
-- **Getting Started**: Introduction, setup guides, and comprehensive tutorials
-- **Core Systems**: Fundamental game systems including mod support infrastructure
-- **Components**: Entity components and their functionality
-- **Game Mechanics**: Key gameplay systems like health, hunger, and sanity
-- **World Management**: World generation, seasons, and environment
-
-Use the sidebar navigation to explore the different sections of the API documentation.
+- [Klei Forums — Mods & Tools](https://forums.kleientertainment.com/forums/forum/26-dont-starve-together-mods-and-tools/)
+- [Steam Workshop](https://steamcommunity.com/app/322330/workshop/)
+- [DST Scripts Fork](https://github.com/vietnd69/dst-scripts) — cleaned-up, regularly updated source reference

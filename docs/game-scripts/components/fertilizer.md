@@ -1,83 +1,94 @@
 ---
 id: fertilizer
 title: Fertilizer
-description: Stores nutrient data and handles application logic for fertilizer items, including usage consumption and cleanup upon depletion.
-tags: [inventory, crafting, environment, interaction]
+description: Manages fertilizer properties and application logic for farm soil items.
+tags: [farming, items, soil]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: d755912a
-system_scope: inventory
+source_hash: 2c28b4d1
+system_scope: entity
 ---
 
 # Fertilizer
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-17
 
 ## Overview
-`Fertilizer` is a lightweight component that encapsulates fertilizer-specific metadata—namely nutrient values and application behavior—for entities representing fertilizer items (e.g., Bone Meal, Compost). It integrates with the `finiteuses` and `stackable` components to handle usage depletion and item removal, and it signals application via a customizable callback (`onappliedfn`). The component also marks the entity with the `fertilizer` tag upon initialization.
+`Fertilizer` is a component attached to items used to enrich farm soil. It tracks nutrient values, soil cycles, and withered cycles to determine the effectiveness of the fertilizer when applied. The component handles usage counting via `finiteuses` and manages item removal or stack splitting upon application through `stackable`. It automatically adds the `fertilizer` tag upon initialization.
 
 ## Usage example
 ```lua
-local inst = SpawnPrefab("bonemeal")
+local inst = CreateEntity()
 inst:AddComponent("fertilizer")
-inst.components.fertilizer:SetNutrients(10, 5, 0)
-inst.components.fertilizer.onappliedfn = function(fertilizer, is_final_use, doer, target)
-    -- Custom logic on application, e.g., soil enrichment
-    target.components.grower:Fertilize(fertilizer.components.fertilizer.nutrients)
+
+-- Set specific nutrient values (growth, water, season)
+inst.components.fertilizer:SetNutrients(5, 2, 0)
+
+-- Assign a callback for when fertilizer is applied
+inst.components.fertilizer.onappliedfn = function(inst, final_use, doer, target)
+    print("Fertilizer applied to target")
 end
+
+-- Simulate application logic
+inst.components.fertilizer:OnApplied(ThePlayer, target_crop)
 ```
 
 ## Dependencies & tags
-**Components used:** `finiteuses`, `stackable`  
-**Tags:** Adds `fertilizer` on construction; removes `heal_fertilize` on removal from entity.
+**Components used:**
+- `finiteuses` -- checks remaining uses and decrements count during `OnApplied`
+- `stackable` -- handles item removal or stack splitting when uses are exhausted
+
+**Tags:**
+- `fertilizer` -- added on initialization, removed in `OnRemoveFromEntity`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `fertilizervalue` | number | `1` | Legacy field; no longer used in current logic. |
-| `soil_cycles` | number | `1` | Legacy field; no longer used in current logic. |
-| `withered_cycles` | number | `1` | Legacy field; no longer used in current logic. |
-| `fertilize_sound` | string | `"dontstarve/common/fertilize"` | Sound path used on application (not currently referenced in the component). |
-| `nutrients` | table of three numbers | `{0, 0, 0}` | Nutrient composition: `{nitrogen, phosphorus, potassium}`. |
-| `onappliedfn` | function or `nil` | `nil` | Optional callback invoked during `OnApplied()`. Signature: `(fertilizer, final_use, doer, target)`. |
+| `fertilizervalue` | number | `1` | General value multiplier for the fertilizer. |
+| `soil_cycles` | number | `1` | Number of soil cycles this fertilizer supports. |
+| `withered_cycles` | number | `1` | Number of withered cycles this fertilizer supports. |
+| `fertilize_sound` | string | `"dontstarve/common/fertilize"` | Sound path played when fertilizer is applied. |
+| `nutrients` | table | `{ 0, 0, 0 }` | Table containing nutrient values (growth, water, season). |
+| `onappliedfn` | function | `nil` | Callback function triggered when fertilizer is applied. |
 
 ## Main functions
+### `OnRemoveFromEntity()`
+*   **Description:** Cleans up the component when removed from an entity by removing the `fertilizer` tag.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** None
+
+### `SetHealingAmount(health)`
+*   **Description:** Deprecated function. Previously used to set healing amount, now empty.
+*   **Parameters:** `health` -- number value (ignored)
+*   **Returns:** None
+*   **Error states:** None
+
 ### `SetNutrients(nutrient1, nutrient2, nutrient3)`
-* **Description:** Sets the nutrient values for the fertilizer. Accepts either three separate numeric arguments or a single table containing three numbers.
-* **Parameters:**  
-  `nutrient1` (number or table) — First nutrient (nitrogen) or a table `{n1, n2, n3}`.  
-  `nutrient2` (number, optional) — Second nutrient (phosphorus), only used when first argument is a number.  
-  `nutrient3` (number, optional) — Third nutrient (potassium), only used when first argument is a number.  
-* **Returns:** Nothing.
+*   **Description:** Sets the nutrient values for the fertilizer. Accepts either three individual numbers or a single table containing the values.
+*   **Parameters:**
+    - `nutrient1` -- number or table of nutrients
+    - `nutrient2` -- number (ignored if nutrient1 is table)
+    - `nutrient3` -- number (ignored if nutrient1 is table)
+*   **Returns:** None
+*   **Error states:** None
 
 ### `OnApplied(doer, target)`
-* **Description:** Handles item consumption upon application. Decrements finite uses (if applicable), triggers a user-defined callback, and removes the item once depleted.
-* **Parameters:**  
-  `doer` (entity or `nil`) — The entity that applied the fertilizer.  
-  `target` (entity or `nil`) — The target of the application (e.g., soil or plant).  
-* **Returns:** Nothing.
-* **Error states:**  
-  - If `finiteuses` is absent, no usage decrement occurs.  
-  - If `stackable` is absent, the entire `inst` is removed when depleted; otherwise, `stackable:Get():Remove()` is used to remove just the applied instance.
+*   **Description:** Executes the logic when fertilizer is applied to a target. Decrements uses via `finiteuses`, triggers `onappliedfn`, and removes the item if no uses remain.
+*   **Parameters:**
+    - `doer` -- entity applying the fertilizer
+    - `target` -- entity receiving the fertilizer
+*   **Returns:** None
+*   **Error states:** None
 
-### `OnRemoveFromEntity()`
-* **Description:** Cleanup method invoked when the component is removed from its entity. Removes the `heal_fertilize` tag if present.
-* **Parameters:** None.
-* **Returns:** Nothing.
-
-### `SetHealingAmount(health)` — *Deprecated*
-* **Description:** No-op placeholder for legacy healing functionality. No effect.
-* **Parameters:** `health` (number) — Ignored.
-* **Returns:** Nothing.
-
-### `Heal(target)` — *Deprecated*
-* **Description:** Always returns `false`. Legacy healing support, unused.
-* **Parameters:** `target` (entity) — Ignored.
-* **Returns:** `false`.
+### `Heal(target)`
+*   **Description:** Deprecated function. Previously used to heal a target, now returns false.
+*   **Parameters:** `target` -- entity to heal (ignored)
+*   **Returns:** `false`
+*   **Error states:** None
 
 ## Events & listeners
-None identified.
+None.

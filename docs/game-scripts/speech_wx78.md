@@ -5,11 +5,11 @@ description: Provides static speech data and localization strings for the Wx78 c
 tags: [audio, speech, data, character, localization]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-21
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: 6f1348f6
+source_hash: b0493954
 system_scope: audio
 ---
 

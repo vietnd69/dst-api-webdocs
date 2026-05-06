@@ -5,11 +5,11 @@ description: Contains declarative language data for the Waxwell speech system, u
 tags: [language, dialogue, speech]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-28
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: 5a65a955
+source_hash: a0525ed4
 system_scope: ui
 ---
 

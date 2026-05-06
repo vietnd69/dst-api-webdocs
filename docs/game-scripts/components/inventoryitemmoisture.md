@@ -1,152 +1,171 @@
 ---
 id: inventoryitemmoisture
-title: Inventoryitemmoisture
-description: Manages moisture level and wet state for inventory items, synchronizing them with environmental conditions, owner state, or external control.
-tags: [inventory, moisture, environment, networking]
+title: InventoryItemMoisture
+description: Manages moisture and wetness state for inventory items, synchronizing with owner or world conditions.
+tags: [inventory, moisture, wetness]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-22
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: 7411d04b
+source_hash: 47873fdf
 system_scope: inventory
 ---
 
-# Inventoryitemmoisture
+# InventoryItemMoisture
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-22
 
 ## Overview
-`InventoryItemMoisture` extends `inventoryitem` to simulate realistic moisture behavior for held or stored items. It dynamically adjusts an item's `moisture` and `iswet` state based on environmental factors (e.g., rain, ocean submersion) and owner moisture (e.g., player wetness), while supporting external control and callbacks. It relies on replication via `_replica` (set by `inventoryitem`) for network sync and integrates with `floater`, `rideable`, `container`, `rainimmunity`, and `moisture` components.
+`InventoryItemMoisture` extends the `inventoryitem` component to track and update moisture levels for items in inventory. It calculates target moisture based on owner state, world rain, or floating status, and updates the item's wetness accordingly. This component should not be used standalone—it is designed to work alongside `inventoryitem`.
+
+Moisture updates occur via periodic tasks that adjust the item's moisture toward a target value. The component supports network replication through a replica object and handles entity sleep/wake cycles to minimize unnecessary updates.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
 inst:AddComponent("inventoryitem")
 inst:AddComponent("inventoryitemmoisture")
--- Note: The inventoryitemmoisture component is internally wired by inventoryitem during attachment
--- To manually configure behavior:
+inst.components.inventoryitemmoisture:AttachReplica(inst.replica.inventoryitemmoisture)
+inst.components.inventoryitemmoisture:SetMoisture(50)
 inst.components.inventoryitemmoisture:SetOnlyWetWhenSaturated(true)
-inst.components.inventoryitemmoisture:SetExternallyControlled(true)
-inst.components.inventoryitemmoisture:SetOnMoistureDeltaCallback(function(entity, old, new)
-    print(entity:GetName(), "moisture changed from", old, "to", new)
-end)
 ```
 
 ## Dependencies & tags
-**Components used:** `inventoryitem`, `floater`, `container`, `rideable`, `rainimmunity`, `moisture`, `stackable`  
-**Tags:** Checks: `inventoryitem`, `floater`, `container`, `rideable`, `rainimmunity`, `moisture`, `stackable` — none added or removed.
+**Components used:**
+- `inventoryitem` -- accesses `owner` property to determine moisture source
+- `stackable` -- reads `stacksize` for moisture dilution calculations
+- `floater` -- checks `showing_effect` to apply max wetness when floating
+- `rainimmunity` -- checked to determine if entity is protected from rain
+- `rideable` -- calls `GetRider()` to traverse rider chain for moisture source
+- `container` -- checks `isexposed` to determine if container contents are exposed to elements
+- `moisture` -- calls `GetMoisture()` on owner to inherit moisture value
+
+**Tags:**
+- None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | (inherited) | Entity owning this component. |
-| `_replica` | `ReplicaInventoryItemMoisture` or `nil` | `nil` | Network replica; initialized via `AttachReplica`. |
-| `moisture` | number | `0` (after `AttachReplica`) | Current moisture level, clamped to `[0, MAX_WETNESS]`. |
-| `iswet` | boolean | `false` (after `AttachRepque`) | Whether the item is considered wet. |
-| `externallycontrolled` | boolean | `false` | If true, `GetTargetMoisture()` returns `moisture` directly (no environmental updates). |
-| `onlywetwhensaturated` | boolean | `nil` | If true, `iswet` is set only when `moisture == MAX_WETNESS`; otherwise, thresholds are used. |
-| `onmoisturedeltacallback` | function or `nil` | `nil` | Callback fired when `moisture` changes: `fn(entity, old_moisture, new_moisture)`. |
-| `moistureupdatetask` | `PeriodicTask` or `nil` | `nil` | Task managing periodic moisture updates; starts/stops based on proximity to target. |
-| `_entitysleeptime` | number or `nil` | `nil` | Timestamp used to compute elapsed time during entity sleep/wake cycles. |
+| `inst` | entity | `nil` | The entity instance that owns this component. |
+| `lastUpdate` | number | `GetTime()` | Timestamp of the last moisture update. |
+| `_replica` | table | `nil` | Network replica object for state synchronization. |
+| `moisture` | number | `0` | Current moisture value (0 to `TUNING.MAX_WETNESS`). |
+| `iswet` | boolean | `false` | Whether the item is currently considered wet. |
+| `moistureupdatetask` | task | `nil` | Reference to the periodic update task. |
+| `_entitysleeptime` | number | `nil` | Timestamp when the entity went to sleep. |
+| `externallycontrolled` | boolean | `nil` | If true, moisture is not automatically updated toward target. |
+| `onlywetwhensaturated` | boolean | `nil` | If true, item is only wet when moisture equals `TUNING.MAX_WETNESS`. |
+| `onmoisturedeltacallback` | function | `nil` | Callback fired when moisture changes. |
 
 ## Main functions
 ### `AttachReplica(replica)`
-* **Description:** Called internally by `inventoryitem` to link to the network replica and initialize `moisture`/`iswet`.
-* **Parameters:** `replica` (`ReplicaInventoryItemMoisture`) — the networked replica object.
-* **Returns:** Nothing.
+* **Description:** Links the network replica object and initializes moisture properties. Called internally by the `inventoryitem` component during setup.
+* **Parameters:** `replica` -- network replica table for state synchronization.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `OnRemoveFromEntity()`
-* **Description:** Cleans up state when component is removed (e.g., item destroyed).
+* **Description:** Resets moisture state and cancels the update task when the component is removed from an entity.
 * **Parameters:** None.
-* **Returns:** Nothing.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `OnEntitySleep()`
-* **Description:** Cancels the moisture update task when the entity goes to sleep (e.g., inside a container or bag).
+* **Description:** Cancels the update task and records the sleep time when the entity goes to sleep.
 * **Parameters:** None.
-* **Returns:** Nothing.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `OnEntityWake()`
-* **Description:** Recomputes elapsed sleep time and updates moisture; resumes periodic updates if needed.
+* **Description:** Updates moisture based on time slept and restarts the periodic update task with a random initial delay.
 * **Parameters:** None.
-* **Returns:** Nothing.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `InheritMoisture(moisture, iswet)`
-* **Description:** Sets moisture and wetness based on an external source (e.g., from another item during stacking or transfer), respecting `onlywetwhensaturated`.
-* **Parameters:** `moisture` (number), `iswet` (boolean).
-* **Returns:** Nothing.
-* **Error states:** Clamps `moisture` to `[0, TUNING.MAX_WETNESS]`.
+* **Description:** Sets moisture from an external source, clamping to valid range and updating wetness state based on configuration.
+* **Parameters:**
+  - `moisture` -- number, the moisture value to inherit.
+  - `iswet` -- boolean, whether the source is wet.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `DiluteMoisture(item, count)`
-* **Description:** Blends moisture levels with another item stack (e.g., adding damp items to a dry stack). Only active if both items are stackable and the target has `inventoryitem`.
-* **Parameters:** `item` (`Entity`), `count` (number) — number of items from the source stack to dilute with.
-* **Returns:** Nothing.
-* **Error states:** No effect if either item lacks `stackable` or the source lacks `inventoryitem`.
+* **Description:** Averages moisture when stacking with another item, weighted by stack sizes.
+* **Parameters:**
+  - `item` -- entity, the item being stacked with.
+  - `count` -- number, the stack count of the other item.
+* **Returns:** None.
+* **Error states:** None
 
 ### `MakeMoistureAtLeast(min)`
-* **Description:** Raises `moisture` to at least `min` without reducing it.
-* **Parameters:** `min` (number).
-* **Returns:** Nothing.
-* **Error states:** Updates `iswet` if `min > MOISTURE_DRY_THRESHOLD`; does not reduce `iswet` once wet.
+* **Description:** Ensures moisture is at least the specified minimum value, updating wetness state accordingly.
+* **Parameters:** `min` -- number, the minimum moisture value.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `DoDelta(delta)`
-* **Description:** Applies a relative moisture change (e.g., for evaporation or absorption).
-* **Parameters:** `delta` (number) — amount to add to current moisture.
-* **Returns:** Nothing.
+* **Description:** Applies a moisture change by calling `SetMoisture` with the current value plus delta.
+* **Parameters:** `delta` -- number, the moisture change amount (can be negative).
+* **Returns:** None.
+* **Error states:** None.
 
 ### `SetMoisture(moisture)`
-* **Description:** Directly sets moisture and updates `iswet`. This is the canonical setter used by all other moisture-modifying methods.
-* **Parameters:** `moisture` (number).
-* **Returns:** Nothing.
-* **Error states:** Clamps input to `[0, TUNING.MAX_WETNESS]`. Wet/dry thresholds: `MOISTURE_WET_THRESHOLD` and `MOISTURE_DRY_THRESHOLD`; `iswet` is unchanged when moisture is between them.
+* **Description:** Sets the moisture value, clamping to valid range and updating wetness state based on thresholds. Triggers the moisture delta callback if set.
+* **Parameters:** `moisture` -- number, the moisture value to set.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `SetExternallyControlled(externallycontrolled)`
-* **Description:** Toggles external control mode. When enabled, target moisture is ignored; item moisture remains static unless manually set.
-* **Parameters:** `externallycontrolled` (boolean).
-* **Returns:** Nothing.
+* **Description:** Toggles whether moisture is automatically updated toward target or controlled externally.
+* **Parameters:** `externallycontrolled` -- boolean, true to disable automatic updates.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `SetOnlyWetWhenSaturated(onlywetwhensaturated)`
-* **Description:** Configures wetness logic. When true, `iswet` is only `true` if `moisture == MAX_WETNESS`.
-* **Parameters:** `onlywetwhensaturated` (boolean).
-* **Returns:** Nothing.
+* **Description:** Configures whether the item is only considered wet when fully saturated (at `TUNING.MAX_WETNESS`).
+* **Parameters:** `onlywetwhensaturated` -- boolean, true to require full saturation for wet state.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `SetOnMoistureDeltaCallback(fn)`
-* **Description:** Registers a callback invoked every time `moisture` changes (via `SetMoisture`, `DoDelta`, etc.).
-* **Parameters:** `fn` (function) — signature: `fn(entity, old_moisture, new_moisture)`.
-* **Returns:** Nothing.
+* **Description:** Sets a callback function that fires when moisture changes. Used to avoid event overhead for entities that need moisture change notifications.
+* **Parameters:** `fn` -- function, callback with signature `fn(inst, oldMoisture, newMoisture)`.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `GetTargetMoisture()`
-* **Description:** Computes the *desired* moisture level based on environment/owner:
-  - If `externallycontrolled`: returns current `moisture`.
-  - If floating (`floater.showing_effect`): returns `MAX_WETNESS`.
-  - If exposed to rain and not immune: returns current world `wetness`.
-  - If owned by an entity with `moisture` component: returns that component's moisture.
-  - Otherwise (e.g., in a dry container): returns `0`.
+* **Description:** Calculates the target moisture value based on owner state, world rain, floating status, or container exposure. Traverses owner/container/rideable chain to find the appropriate moisture source.
 * **Parameters:** None.
-* **Returns:** `number` — target moisture value.
+* **Returns:** Number representing the target moisture value.
+* **Error states:** None
 
 ### `UpdateMoisture(dt)`
-* **Description:** Advances `moisture` toward `GetTargetMoisture()` over `dt` seconds. Updates speed: approach at `0.5 * dt` when increasing; `dt` when decreasing.
-* **Parameters:** `dt` (number) — elapsed time in seconds.
-* **Returns:** `true` if `moisture` changed; `false` if no update occurred.
-* **Error states:** Returns `false` only when `targetMoisture == current moisture`.
+* **Description:** Updates the current moisture toward the target value over time. Returns whether a change occurred.
+* **Parameters:** `dt` -- number, the time delta in seconds.
+* **Returns:** Boolean — `true` if moisture changed, `false` if already at target.
+* **Error states:** None.
 
 ### `OnSave()`
-* **Description:** Serializes moisture state for world save.
+* **Description:** Serializes moisture state for persistence. Returns nil if no data needs saving.
 * **Parameters:** None.
-* **Returns:** `table?` — e.g., `{ moisture = 10.5, wet = true }`, or `nil` if both are zero/false.
+* **Returns:** Table with `moisture` and `wet` keys, or `nil` if both are at default values.
+* **Error states:** None.
 
 ### `OnLoad(data)`
-* **Description:** Deserializes moisture state from world save.
-* **Parameters:** `data` (`table?`) — optional save data with `moisture` (number) and/or `wet` (boolean).
-* **Returns:** Nothing.
+* **Description:** Restores moisture state from saved data. Triggers the moisture delta callback if set.
+* **Parameters:** `data` -- table, saved data from `OnSave()`.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `GetDebugString()`
-* **Description:** Returns a human-readable debug string (e.g., `"moisture: 12.50 target: 0.00"`), appending `" WET"` if applicable.
+* **Description:** Returns a formatted debug string showing current moisture, target moisture, and wet status.
 * **Parameters:** None.
-* **Returns:** `string`.
+* **Returns:** String in format `"moisture: X.XX target: X.XX WET"`.
+* **Error states:** None.
 
 ## Events & listeners
-- **Listens to:** None (no `inst:ListenForEvent` calls are present in this file).
-- **Pushes:** None (no `inst:PushEvent` calls are present in this file).
+- **Listens to:** None identified.
+- **Pushes:** None identified.
+- **Net variable handlers:** `moisture` and `iswet` net variables trigger `onmoisture` and `oniswet` functions to update the replica state.

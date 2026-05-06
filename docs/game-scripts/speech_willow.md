@@ -5,11 +5,11 @@ description: Contains static string data for Willow's dialogue and speech patter
 tags: [speech, character, dialogue, audio, willow]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-28
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: dc814421
+source_hash: 04784082
 system_scope: player
 ---
 

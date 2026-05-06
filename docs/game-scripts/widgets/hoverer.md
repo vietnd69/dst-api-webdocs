@@ -1,70 +1,113 @@
 ---
 id: hoverer
-title: Hoverer
-description: Renders and manages dynamic tooltip text near the mouse cursor, displaying contextual UI information such as item actions, entity names, and control hints.
-tags: [ui, hud, text]
+title: HoverText
+description: A UI widget that displays dynamic hover tooltips following the mouse cursor, constrained to screen bounds.
+tags: [widget, ui, tooltip]
 sidebar_position: 10
-
-last_updated: 2026-03-08
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
 category_type: widgets
-source_hash: 738a27f8
+source_hash: b0f25289
 system_scope: ui
 ---
 
-# Hoverer
+# HoverText
 
-> Based on game build **714014** | Last updated: 2026-03-08
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-`Hoverer` is a UI widget that displays contextual hover text and action hints beneath or near the mouse cursor. It is responsible for synthesizing and rendering tooltip strings based on game state—such as the currently hovered object, active left/right mouse actions, and wetness status—and displaying them as primary and secondary text lines. It integrates with the `playercontroller` and `HUD.controls` components to pulltooltip data, and it dynamically adjusts its screen position to stay within viewport bounds.
+`HoverText` is a UI widget extending `Widget`. It renders primary and secondary text strings that track the mouse position, automatically clamping to screen edges to prevent overflow. It integrates with the player's `HUD` and `PlayerController` to display context-sensitive action strings (LMB/RMB), tooltip data, and item status colors (e.g., wet vs. normal). Typically instantiated as a child of the player's HUD screen.
 
 ## Usage example
 ```lua
-local hoverer = HoverText(owner)
-owner.HUD.hoverer = hoverer
--- Hoverer automatically updates on `OnUpdate` and follows mouse position
--- Text content is derived from playercontroller and HUD state
+local HoverText = require("widgets/hoverer")
+
+-- Inside a HUD screen constructor:
+self.hover = self:AddChild(HoverText(ThePlayer))
+self.hover:SetPosition(0, 0, 0)
+self.hover:FollowMouseConstrained()
+
+-- Force text position settlement on move (optional hack for inspecting):
+self.hover:ForceSettleTextPositionOnMove(true)
 ```
 
 ## Dependencies & tags
-**Components used:** `playercontroller`, `inspectable`
-**Tags:** None identified.
+**External dependencies:**
+- `widgets/widget` -- Widget base class
+- `widgets/text` -- Text child widget for rendering strings
+- `constants` -- Defines `WET_TEXT_COLOUR`, `NORMAL_TEXT_COLOUR`, `CONTROL_PRIMARY`, etc.
+- `TheInput` -- Global input manager for mouse position and control bindings
+- `TheSim` -- Screen size retrieval for clamping logic
+
+**Components used:**
+- `playercontroller` (on owner) -- Accessed via `owner.components.playercontroller` for action strings and mouse state.
+- `inspectable` (on targets) -- Checked via `lmb.target.components.inspectable` for profile stats.
+- `stackable` (on targets) -- Accessed via `lmb.target.replica.stackable` for stack size display.
+
+**Tags:**
+None identified.
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `owner` | entity | `nil` | The entity (typically the player) that owns this hoverer. |
-| `isFE` | boolean | `false` | Flag indicating if this is a FE (Front End) tooltip source. |
-| `shown` | boolean | `nil` | Internal state tracking tooltip visibility (not explicitly initialized in constructor). |
-| `forcehide` | boolean | `nil` | Internal flag to override automatic show/hide behavior. |
-| `default_text_pos` | Vector3 | `Vector3(0, 40, 0)` | Default position offset for primary text. |
-| `text` | Text | instance | Primary text widget. |
-| `secondarytext` | Text | instance | Secondary text widget for RMB hints or extra context. |
-| `str`, `secondarystr`, `lastStr` | string | `""` / `nil` | Cached tooltip strings for change detection and delayed rendering. |
-| `strFrames` | number | `0` | Frame counter used to delay text updates for smooth transitions. |
-| `followhandler` | function | `nil` | Mouse move handler callback registered via `TheInput`. |
+| `owner` | entity | --- | The player entity owning this widget; source for HUD controls and actions. |
+| `text` | Text | --- | Primary text child widget; displays the main tooltip or action string. |
+| `secondarytext` | Text | --- | Secondary text child widget; displays RMB action or cancel hint. |
+| `isFE` | boolean | `false` | Toggles between Front End mode (uses `owner:GetTooltipPos`) and In-Game mode (uses `HUD.controls`). |
+| `default_text_pos` | Vector3 | `(0, 40, 0)` | Fallback position if tooltip position calculation fails. |
+| `force_settle_text` | boolean | `nil` | If true, `SettleTextPosition` is called during `UpdatePosition`. |
+| `followhandler` | handler | `nil` | Reference to the input move handler registered by `FollowMouseConstrained`. |
+| `str` | string | `nil` | Current primary string content being displayed. |
+| `secondarystr` | string | `nil` | Current secondary string content being displayed. |
+| `lastStr` | string | `""` | Tracks previous string to detect changes for throttling. |
+| `strFrames` | number | `0` | Frame counter for `SHOW_DELAY` throttling logic. |
+| `forcehide` | boolean | `nil` | If true, prevents `Show()` even if `OnUpdate` conditions are met. |
+| `YOFFSETUP` | constant (local) | `-80` | Vertical offset for upper screen bound clamping in UpdatePosition(). |
+| `YOFFSETDOWN` | constant (local) | `-50` | Vertical offset for lower screen bound clamping in UpdatePosition(). |
+| `XOFFSET` | constant (local) | `10` | Horizontal offset for screen edge clamping in UpdatePosition(). |
+| `SHOW_DELAY` | constant (local) | `0` | Frame delay threshold for text change throttling in OnUpdate(). |
 
 ## Main functions
+### `_ctor(owner)`
+*   **Description:** Initialises the widget, calls `Widget._ctor`, creates `text` and `secondarytext` children, and starts the update loop.
+*   **Parameters:**
+    - `owner` -- Player entity instance; used to access HUD controls and PlayerController.
+*   **Returns:** nil
+*   **Error states:** Errors if `owner` is nil or lacks required HUD/Component structure (unguarded access in `OnUpdate`).
+
 ### `OnUpdate()`
-* **Description:** Called each frame to update tooltip content, visibility, position, and appearance based on game state (mouse usage, hovered object, actions).
-* **Parameters:** None.
-* **Returns:** Nothing.
-* **Error states:** No explicit error handling; silently skips updates if `playercontroller` is missing or mouse is not in use.
+*   **Description:** **Widget lifecycle.** Called every frame while widget is active. Determines visibility, fetches tooltip/action strings from `owner`, calculates text colors based on target state (wet/normal), and updates text content. Throttles text changes via `strFrames` to prevent flickering.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** Errors if `owner.HUD` or `owner.HUD.controls` is nil in non-FE mode (no nil guard before access).
 
 ### `UpdatePosition(x, y)`
-* **Description:** Computes and sets widget position to clamp tooltip within screen bounds, accounting for text size and offsets.
-* **Parameters:**  
-  `x` (number) – Mouse X screen coordinate.  
-  `y` (number) – Mouse Y screen coordinate.  
-* **Returns:** Nothing.
+*   **Description:** Calculates the widget's screen position based on mouse coordinates `x, y`. Clamps position to ensure text bounds stay within screen edges (`TheSim:GetScreenSize`), accounting for text region size and scale. Calls `SettleTextPosition` if `force_settle_text` is true.
+*   **Parameters:**
+    - `x` -- number screen X coordinate
+    - `y` -- number screen Y coordinate
+*   **Returns:** None
+*   **Error states:** None
+
+### `SettleTextPosition()`
+*   **Description:** Updates the internal text child position based on `isFE` mode. In FE mode, uses `owner:GetTooltipPos()`; in Game mode, uses `owner.HUD.controls:GetTooltipPos()`.
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** Errors if `owner.HUD.controls` is nil in Game mode.
+
+### `ForceSettleTextPositionOnMove(boolval)`
+*   **Description:** Sets the `force_settle_text` flag. Used as a hack for specific UI states (e.g., `UpgradeModulesDisplay_Inspecting`) to override standard tooltip positioning logic during movement.
+*   **Parameters:**
+    - `boolval` -- boolean to enable or disable forced settling
+*   **Returns:** None
+*   **Error states:** None.
 
 ### `FollowMouseConstrained()`
-* **Description:** Registers a mouse-move handler to update position dynamically and immediately positions the widget at the current cursor location.
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Registers a global input move handler via `TheInput:AddMoveHandler` that calls `UpdatePosition` on mouse move. Initializes position immediately. Ensures only one handler is registered (`followhandler` check).
+*   **Parameters:** None
+*   **Returns:** None
+*   **Error states:** None.
 
 ## Events & listeners
-- **Listens to:** None.
-- **Pushes:** None.
+None — Widget uses global `TheInput` handlers instead of entity events.

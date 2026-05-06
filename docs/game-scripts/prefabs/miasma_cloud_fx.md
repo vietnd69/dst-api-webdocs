@@ -1,94 +1,121 @@
 ---
 id: miasma_cloud_fx
 title: Miasma Cloud Fx
-description: Manages client-side visual particle effects (smoke and embers) for miasma clouds, including dynamic attachment/detachment based on camera distance and orientation.
-tags: [fx, particle, client, visual]
+description: Defines the miasma cloud prefab and its associated visual effects for environmental hazard zones.
+tags: [environment, fx, hazard]
 sidebar_position: 10
-
-last_updated: 2026-03-06
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: e3ddaa7d
-system_scope: fx
+source_hash: 964acbc6
+system_scope: environment
 ---
 
 # Miasma Cloud Fx
 
-> Based on game build **714014** | Last updated: 2026-03-06
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`miasma_cloud_fx` is a client-side prefab component responsible for rendering the visual particle effects of miasma clouds — specifically, the smoke and ember emissions. It does not govern gameplay logic but handles all rendering behavior for the miasma fog effect, including dynamic camera-based particle attachment/detachment, orientation-sensitive semicircle emission, and diminishing effects when near fire. It works in coordination with `miasmamanager` and `miasmawatcher` (via the master entity) but is purely visual.
+`miasma_cloud_fx` defines a prefab system for miasma cloud environmental hazards and their visual particle effects. The main `miasma_cloud` entity handles server-side logic including player detection and miasma debuff application, while `miasma_cloud_fx` and `miasma_ember_fx` handle client-side visual effects. The system integrates with `miasmawatcher` components on players to apply debuffs when entities enter the cloud radius, and responds to nearby fire sources by entering a diminishing state.
 
 ## Usage example
 ```lua
--- This component is not added manually; it is instantiated via the Prefab system.
--- Example of triggering particle attachment on a miasma cloud entity:
-inst.AttachParticles(true) -- Attach front/back cloud FX and fast-forward initial particles
--- Later, to detach:
-inst.DetachParticles()
+-- Spawn a miasma cloud at a position
+local cloud = SpawnPrefab("miasma_cloud")
+cloud.Transform:SetPosition(x, y, z)
+
+-- Check if miasma clouds exist in the world
+if TheWorld.GetMiasmaCloudCount and TheWorld.GetMiasmaCloudCount() > 0 then
+    -- Miasma is active
+end
+
+-- Attach/detach particles on client (called internally)
+if not TheNet:IsDedicated() then
+    cloud:AttachParticles(true)
+    cloud:DetachParticles()
+end
 ```
 
 ## Dependencies & tags
-**Components used:** None directly (this is a client-only FX prefab).  
-**Tags added:** `FX`, `miasma` (on the main `miasma_cloud` entity).  
-**Tags added (FX prefabs):** `FX` on `miasma_cloud_fx` and `miasma_ember_fx`.
+**External dependencies:**
+- `TheWorld.components.miasmamanager` -- queries and sets miasma diminishing state at points
+- `TheCamera` -- listens for camera updates to optimize particle positioning
+
+**Components used:**
+- `edible` -- added on server; sets foodtype to MIASMA with sanity/hunger values
+- `miasmawatcher` -- accessed on nearby entities to add/remove miasma sources
+
+**Tags:**
+- `FX` -- added to all three prefabs; excludes from targeting
+- `miasma` -- added to main cloud; identifies as miasma source
+- `playerghost`, `ghost`, `shadow`, `notarget`, `invisible` -- excluded from watcher detection
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `smoke_max_scale` | number | `0.8` | Max scale for smoke particle textures. |
-| `ember_max_scale` | number | `0.7` | Max scale for ember particle textures. |
-| `SMOKE_MAX_LIFETIME` | number | `5.0` | Base lifetime (seconds) of smoke particles. |
-| `EMBER_MAX_LIFETIME` | number | `1.5` | Lifetime (seconds) of ember particles. |
-| `FIRE_DECAY_MULTIPLIER` | number | `0.25` | Multiplier applied to smoke lifetime when near fire. |
-| `MIASMA_RADIUS` | number | Calculated from `TUNING.MIASMA_SPACING` | Effective radius (in world units) for miasma influence detection. |
+| `_diminishing` | net_bool | `false` | Networked flag indicating if cloud is diminishing due to fire |
+| `_front_cloud_fx` | entity | `nil` | Front semicircle particle effect child entity |
+| `_back_cloud_fx` | entity | `nil` | Back semicircle particle effect child entity |
+| `watchers` | table | `{}` | Current entities inside miasma radius with miasmawatcher |
+| `watchers_exiting` | table | `{}` | Entities that were inside but are now exiting |
+| `watchers_toremove` | table | `{}` | Entities scheduled for removal from watchers |
+| `task` | task | `nil` | Periodic update task for watcher detection |
+| `_miasma_kill_task` | task | `nil` | Scheduled task to remove unmanaged diminishing cloud |
+| `camera_update_task` | task | `nil` | Client-side camera update task |
+| `ember_fx` | entity | `nil` | Ember effect child entity (when diminishing) |
 
 ## Main functions
 ### `AttachParticles(do_fast_forward)`
-* **Description:** Spawns and attaches two particle-emitting child FX entities (`_front_cloud_fx` and `_back_cloud_fx`) to display the miasma cloud. If `do_fast_forward` is `true`, it immediately emits particles and fast-forwards the effect to avoid pop-in.
-* **Parameters:** `do_fast_forward` (boolean) — whether to spawn initial particles and fast-forward the effect.
-* **Returns:** Nothing.
-* **Error states:** No-op if particles are already attached (`inst._front_cloud_fx` exists).
+* **Description:** Spawns front and back semicircle particle effect children and positions them relative to the cloud. Optionally fast-forwards particles for immediate visibility.
+* **Parameters:**
+  - `do_fast_forward` -- boolean; if true, spawns instant particles and fast-forwards VFX
+* **Returns:** None
+* **Error states:** None; returns early if `_front_cloud_fx` already exists
 
 ### `DetachParticles()`
-* **Description:** Removes the front and back smoke FX entities and their embers.
-* **Parameters:** None.
-* **Returns:** Nothing.
+* **Description:** Removes and clears both front and back particle effect children. Sets `_front_cloud_fx` and `_back_cloud_fx` to nil.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None; gracefully handles nil FX entities
 
 ### `SpawnInstantParticles()`
-* **Description:** Emits 10 initial particles immediately (used for fast-forwarding or immediate visual response).
-* **Parameters:** None.
-* **Returns:** Nothing.
+* **Description:** Immediately spawns `INSTANT_NUM_SPAWN` (10) particles for instant visual feedback when cloud becomes visible.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None; checks for valid player and parent before emitting
 
 ### `FastForwardParticles(fast_forward)`
-* **Description:** Advances the VFX effect timeline by `fast_forward` seconds to skip the fade-in.
-* **Parameters:** `fast_forward` (number) — seconds to fast-forward.
-* **Returns:** Nothing.
+* **Description:** Fast-forwards VFX effect particles by the specified time amount.
+* **Parameters:** `fast_forward` -- number; seconds to fast-forward
+* **Returns:** None
+* **Error states:** None
 
 ### `ClearParticles()`
-* **Description:** Clears all currently emitted particles from the VFX effect.
-* **Parameters:** None.
-* **Returns:** Nothing.
+* **Description:** Clears all particles from the VFX effect emitter.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `StartAllWatchers()`
-* **Description:** Begins the periodic task (`OnUpdate`) that checks which entities enter/exit the miasma radius and updates `miasmawatcher` components accordingly. Only called on the master simulation.
-* **Parameters:** None.
-* **Returns:** Nothing.
+* **Description:** Starts the periodic update task that detects entities entering/exiting the miasma radius.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None; returns early if task already exists
 
 ### `StopAllWatchers()`
-* **Description:** Cancels the periodic task and removes all entities from watcher lists, invoking `RemoveMiasmaSource` on each. Only called on the master simulation.
-* **Parameters:** None.
-* **Returns:** Nothing.
+* **Description:** Cancels the update task and clears all watcher tables, removing miasma sources from all tracked entities.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `ClearWatcherTable(tbl)`
-* **Description:** Clears all entries in a watcher table and invokes `RemoveMiasmaSource` for each valid entity.
-* **Parameters:** `tbl` (table) — map of `{ [entity] = true }`.
-* **Returns:** Nothing.
+* **Description:** Clears a watcher table and calls `RemoveMiasmaSource` on all valid entities with `miasmawatcher` components.
+* **Parameters:** `tbl` -- table; watcher table to clear
+* **Returns:** None
+* **Error states:** None; checks entity validity before accessing components
 
 ## Events & listeners
-- **Listens to:**  
-  - `"onremove"` — triggers `OnRemove_Client` to remove the FX from `_MiasmaCloudEntities`.  
-  - `"diminishingdirty"` — triggers `OnDiminishingDirty` to attach/detach ember effects based on fire proximity.  
-- **Pushes (via `TheWorld`):**  
-  - `"miasmacloudexists"` — fired with `true` when first miasma cloud spawns and `false` when the last one is removed.
+- **Listens to:** `onremove` -- triggers `OnRemove_Client` to remove from client entity cache
+- **Listens to:** `diminishingdirty` -- triggers `OnDiminishingDirty` to attach/detach ember effects
+- **Pushes:** `miasmacloudexists` -- fired on TheWorld when count changes to/from 1 (boolean value)

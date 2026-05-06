@@ -1,4683 +1,3663 @@
 ---
 id: prefabskin
 title: Prefabskin
-description: This component defines initialization and cleanup functions for applying and removing skins on various prefabs including structures, items, weapons, armor, hats, and pets, managing animation overrides, visual effects, sound effects, component states, and event listeners, with a factory function to register skin prefabs.
-tags: [skins, prefabs, visuals, animation, items]
+description: Defines initialization and cleanup functions for applying and removing skins on various prefabs including tools, structures, wearables, furniture, boats, walls, and decorative items, handling animation state changes, symbol swaps, visual effects, and sound effects.
+tags: [skins, prefabs, visuals, animation, audio]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
 category_type: root
-source_hash: b66dacf4
+source_hash: 23a0bac6
 system_scope: entity
 ---
 
 # Prefabskin
 
-> Based on game build **718694** | Last updated: 2026-04-04
+> Based on game build **722832** | Last updated: 2026-04-17
 
-The `prefabskin` module provides a framework for managing entity skins in Don't Starve Together. It defines static configuration tables for skin-related data including `BASE_TORSO_TUCK` (torso tucking options: "full", "none", "skirt"), `BASE_ALTERNATE_FOR_BODY`, `BASE_ALTERNATE_FOR_SKIRT`, `ONE_PIECE_SKIRT`, `BASE_LEGS_SIZE`, `BASE_FEET_SIZE`, `SKIN_FX_PREFAB`, and `SKIN_SOUND_FX`. These tables are accessed by other systems via `require("prefabskin")` to retrieve skin configuration constants and prefab references.
-
+## Overview
+`prefabskin.lua` is a data configuration module providing static lookup tables for skin-related prefab settings. External systems access these configurations by calling `local mod = require("prefabskin")`, which returns the module table containing exported fields. Key tables include `BASE_TORSO_TUCK` (torso tucking modes), `BASE_ALTERNATE_FOR_BODY` and `BASE_ALTERNATE_FOR_SKIRT` (alternate mesh configurations), `ONE_PIECE_SKIRT` (one-piece skirt definitions), `BASE_LEGS_SIZE` and `BASE_FEET_SIZE` (limb scaling), `SKIN_FX_PREFAB` (visual effect mappings), and `SKIN_SOUND_FX` (audio effect mappings). These tables are structured as key-value pairs where keys identify skin categories or IDs and values hold configuration strings or prefab names, enabling the skinning system to apply visual and audio properties without runtime component logic.
 ## Usage example
-
 ```lua
-local SkinUtils = require("modules.skinutils")
+local Prefabskin = require "prefabskin"
 
--- Initialize a skin on an entity
-local inst = SpawnPrefab("cane")
-SkinUtils.cane_init_fn(inst, "cane_skin_001")
+-- Initialize a spear skin on an entity
+local inst = SpawnPrefab("spear")
+Prefabskin.spear_init_fn(inst, "swap_spear_golden")
 
--- Remove the skin later
-SkinUtils.cane_clear_fn(inst)
+-- Clear the skin and restore default
+Prefabskin.spear_clear_fn(inst)
 
--- Register a custom skin prefab
-local function my_custom_init_fn(inst, build_name)
-    -- Custom initialization logic
-end
+-- Initialize a firepit with custom FX offset
+local firepit = SpawnPrefab("firepit")
+Prefabskin.firepit_init_fn(firepit, "firepit_marble", Vector3(0, 1, 0))
 
-local function my_custom_clear_fn(inst)
-    -- Custom cleanup logic
-end
-
-SkinUtils.CreatePrefabSkin("my_custom_skin", {
-    type = "base",
-    build_name = "custom_skin_build",
-    init_fn = my_custom_init_fn,
-    clear_fn = my_custom_clear_fn
+-- Create a custom prefab skin with metadata
+local skin = Prefabskin.CreatePrefabSkin("my_custom_skin", {
+    type = "inventory",
+    assets = { Asset("ANIM", "anim/my_skin.zip") },
+    skin_tags = { "rare" }
 })
 ```
 
 ## Dependencies & tags
-
 **External dependencies:**
-- `class` -- Required for class system
+- `class` -- Required for Class system
 - `prefabs` -- Required for prefab definitions
-- `TheWorld` -- Checked ismastersim to guard server-only logic
-- `dbui_no_package/debug_skins_data/hooks` -- Required for debug skin hooks
+- `TheWorld` -- ismastersim checked for server-side logic
 
 **Components used:**
-- `placer` -- Checked for nil, accessed linked entities for skin overrides
-- `inventoryitem` -- ChangeImageName called to update inventory icon
+- `blinkstaff` -- SetSoundFX and ResetSoundFX called for staff skin sounds
+- `inventoryitem` -- ChangeImageName called to update item image for skins
+- `floater` -- IsFloating, SwitchToDefaultAnim, SwitchToFloatAnim called for floating items
 - `container` -- IsOpen checked to append _open to skin name
-- `floater` -- IsFloating, SwitchToDefaultAnim, SwitchToFloatAnim called for floating items; do_bank_swap property read/written for bank swap animations
-- `blinkstaff` -- SetFX, SetSoundFX, and ResetSoundFX called for staff visual and teleport effects
-- `mightygym` -- Component reference retrieved
-- `symbolswapdata` -- Used in cavein_boulder_init_fn to set swap data
-- `saddler` -- Used in saddle_basic_init_fn to set swaps
-- `bundlemaker` -- Used in bundlewrap_init_fn/clear_fn to set skin data
-- `burnable` -- Used in firepit/campfire/coldfirepit init/clear to set FX offset or position FX children
-- `inspectable` -- Used by record to override inspection name
-- `locomotor` -- Used by cane to calculate trail position based on speed
-- `rider` -- Used by cane to adjust trail offset if owner is riding
-- `machine` -- Used by lantern to check if light is on
-- `equippable` -- Used in molehat to set OnEquip callback
+- `placer` -- linked table accessed for placer skin synchronization
+- `mightygym` -- SetLevelArt and CalcWeight called for gym skin updates
+- `symbolswapdata` -- SetData called in cavein_boulder_init_fn to configure symbol swapping
+- `bundlemaker` -- SetSkinData called in bundlewrap_init_fn and bundlewrap_clear_fn
+- `burnable` -- SetFXOffset called in firepit_init_fn and coldfirepit_init_fn; fxoffset and fxchildren properties accessed
+- `saddler` -- SetSwaps called in saddle_basic_init_fn and saddle_basic_clear_fn
+- `inspectable` -- SetNameOverride called to change displayed name for record skins
+- `locomotor` -- GetRunSpeed called in cane_do_trail for trail offset calculation
+- `rider` -- IsRiding called in cane_do_trail to adjust trail offset for mounted entities
+- `machine` -- ison property checked in lantern_init_fn to determine initial FX state
+- `equippable` -- SetOnEquip called for molehat to set equip callback
 
 **Tags:**
 - `nobundling` -- check
-- `regaljoker` -- remove
-- `open_top_hat` -- add/remove
+- `regaljoker` -- add
+- `open_top_hat` -- add
 - `burnt` -- check
-- `hermithouse_winter_ornament` -- remove
-
+- `hermithouse_winter_ornament` -- add
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
 | None | | | No properties are defined. |
 
 ## Main functions
-
 ### `basic_init_fn(inst, build_name, def_build, filter_fn)`
-* **Description:** Sets skin build, updates inventory image, and handles floater animation swaps.
+* **Description:** Core initialization function that sets the skin build on AnimState, updates inventory item image name (appending _open if container is open), and handles floater animation switching.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-  - `def_build` -- Default build name
-  - `filter_fn` -- Optional function to filter skin name
-* **Returns:** `nil`
-* **Error states:** Returns early if placer is nil and not mastersim
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Name of the skin build to apply
+  - `def_build` -- Default build name to use as fallback
+  - `filter_fn` -- Optional function to filter/modify skin name
+* **Returns:** nil
+* **Error states:** None
 
 ### `basic_clear_fn(inst, def_build)`
-* **Description:** Resets build to default, clears inventory image, and handles floater animation swaps.
+* **Description:** Core clear function that resets the build to default, clears inventory item image name, and handles floater animation switching.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `def_build` -- Default build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+  - `def_build` -- Default build name to restore
+* **Returns:** nil
 * **Error states:** None
 
 ### `backpack_init_fn(inst, build_name, fns)`
-* **Description:** Initializes backpack skin, runs custom initialize function, and triggers callback.
+* **Description:** Initializes backpack skin by calling basic_init_fn with swap_backpack, then runs custom initialize function if provided and triggers OnBackpackSkinChanged callback.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-  - `fns` -- Table of skin functions
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+  - `fns` -- Table of initialize/uninitialize functions
+* **Returns:** nil
+* **Error states:** None
 
 ### `backpack_clear_fn(inst)`
-* **Description:** Clears backpack skin, runs custom uninitialize function, and triggers callback.
+* **Description:** Clears backpack skin by calling basic_clear_fn, runs uninitialize function if exists, clears backpack_skin_fns, and triggers OnBackpackSkinChanged with nil.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `spicepack_init_fn(inst, build_name)`
-* **Description:** Initializes spicepack skin with swap_chefpack build.
+* **Description:** Initializes spice pack skin using basic_init_fn with swap_chefpack build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `spicepack_clear_fn(inst)`
-* **Description:** Clears spicepack skin.
+* **Description:** Clears spice pack skin using basic_clear_fn with swap_chefpack build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `krampus_sack_init_fn(inst, build_name)`
-* **Description:** Initializes krampus sack skin.
+* **Description:** Initializes Krampus sack skin using basic_init_fn with swap_krampus_sack build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `krampus_sack_clear_fn(inst)`
-* **Description:** Clears krampus sack skin.
+* **Description:** Clears Krampus sack skin using basic_clear_fn with swap_krampus_sack build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `piggyback_init_fn(inst, build_name)`
-* **Description:** Initializes piggyback skin.
+* **Description:** Initializes piggyback skin using basic_init_fn with swap_piggyback build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `piggyback_clear_fn(inst)`
-* **Description:** Clears piggyback skin.
+* **Description:** Clears piggyback skin using basic_clear_fn with swap_piggyback build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `icepack_init_fn(inst, build_name)`
-* **Description:** Initializes icepack skin.
+* **Description:** Initializes ice pack skin using basic_init_fn with swap_icepack build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `icepack_clear_fn(inst)`
-* **Description:** Clears icepack skin.
+* **Description:** Clears ice pack skin using basic_clear_fn with swap_icepack build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `ruins_bat_init_fn(inst, build_name)`
-* **Description:** Initializes ruins bat skin.
+* **Description:** Initializes ruins bat skin using basic_init_fn with swap_ruins_bat build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `ruins_bat_clear_fn(inst)`
-* **Description:** Clears ruins bat skin.
+* **Description:** Clears ruins bat skin using basic_clear_fn with swap_ruins_bat build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `hambat_init_fn(inst, build_name)`
-* **Description:** Initializes ham bat skin.
+* **Description:** Initializes ham bat skin using basic_init_fn with ham_bat build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `hambat_clear_fn(inst)`
-* **Description:** Clears ham bat skin.
+* **Description:** Clears ham bat skin using basic_clear_fn with ham_bat build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `batbat_init_fn(inst, build_name)`
-* **Description:** Initializes bat bat skin.
+* **Description:** Initializes bat bat skin using basic_init_fn with batbat build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `batbat_clear_fn(inst)`
-* **Description:** Clears bat bat skin.
+* **Description:** Clears bat bat skin using basic_clear_fn with batbat build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `boomerang_init_fn(inst, build_name)`
-* **Description:** Initializes boomerang skin.
+* **Description:** Initializes boomerang skin using basic_init_fn with boomerang build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `boomerang_clear_fn(inst)`
-* **Description:** Clears boomerang skin.
+* **Description:** Clears boomerang skin using basic_clear_fn with boomerang build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `mighty_gym_init_fn(inst, build_name)`
-* **Description:** Initializes mighty gym skin and updates level art.
+* **Description:** Initializes mighty gym skin and updates level art based on current weight and strongman character.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `mighty_gym_clear_fn(inst)`
-* **Description:** Clears mighty gym skin and updates level art.
+* **Description:** Clears mighty gym skin and updates level art based on current weight and strongman character.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `armor_bramble_init_fn(inst, build_name)`
-* **Description:** Initializes bramble armor skin.
+* **Description:** Initializes bramble armor skin using basic_init_fn with armor_bramble build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `armor_bramble_clear_fn(inst)`
-* **Description:** Clears bramble armor skin.
+* **Description:** Clears bramble armor skin using basic_clear_fn with armor_bramble build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `wood_table_round_init_fn(inst, build_name, facings)`
-* **Description:** Initializes round wood table skin and facings.
+* **Description:** Initializes round wood table skin and sets transform facings.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-  - `facings` -- Number of facings
-* **Returns:** `nil`
+  - `facings` -- Number of facings for transform
+* **Returns:** nil
 * **Error states:** None
 
 ### `wood_table_round_clear_fn(inst)`
-* **Description:** Clears round wood table skin and resets facings.
+* **Description:** Clears round wood table skin and resets transform to no-facing.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `wood_table_square_init_fn(inst, build_name)`
-* **Description:** Initializes square wood table skin.
+* **Description:** Initializes square wood table skin using basic_init_fn with wood_table_square build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `wood_table_square_clear_fn(inst)`
-* **Description:** Clears square wood table skin.
+* **Description:** Clears square wood table skin using basic_clear_fn with wood_table_square build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `wood_stool_init_fn(inst, build_name, facings)`
-* **Description:** Initializes wood stool skin and facings.
+* **Description:** Initializes wood stool skin and sets transform facings.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-  - `facings` -- Number of facings
-* **Returns:** `nil`
+  - `facings` -- Number of facings for transform
+* **Returns:** nil
 * **Error states:** None
 
 ### `wood_stool_clear_fn(inst)`
-* **Description:** Clears wood stool skin and resets facings.
+* **Description:** Clears wood stool skin and resets transform to no-facing.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `wood_chair_init_fn(inst, build_name)`
-* **Description:** Initializes wood chair skin and overrides back symbol if mastersim.
+* **Description:** Initializes wood chair skin and overrides chair01_parts symbol on back component if not on client.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+* **Returns:** nil
+* **Error states:** None
 
 ### `wood_chair_clear_fn(inst)`
-* **Description:** Clears wood chair skin and clears back symbol override.
+* **Description:** Clears wood chair skin and clears chair01_parts symbol override on back component if not on client.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+* **Returns:** nil
+* **Error states:** None
 
 ### `stone_table_round_init_fn(inst, build_name, facings)`
-* **Description:** Initializes round stone table skin and facings.
+* **Description:** Initializes round stone table skin and sets transform facings.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-  - `facings` -- Number of facings
-* **Returns:** `nil`
+  - `facings` -- Number of facings for transform
+* **Returns:** nil
 * **Error states:** None
 
 ### `stone_table_round_clear_fn(inst)`
-* **Description:** Clears round stone table skin and resets facings.
+* **Description:** Clears round stone table skin and resets transform to no-facing.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `stone_table_square_init_fn(inst, build_name)`
-* **Description:** Initializes square stone table skin.
+* **Description:** Initializes square stone table skin using basic_init_fn with stone_table_square build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `stone_table_square_clear_fn(inst)`
-* **Description:** Clears square stone table skin.
+* **Description:** Clears square stone table skin using basic_clear_fn with stone_table_square build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `stone_stool_init_fn(inst, build_name, facings)`
-* **Description:** Initializes stone stool skin and facings.
+* **Description:** Initializes stone stool skin and sets transform facings.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-  - `facings` -- Number of facings
-* **Returns:** `nil`
+  - `facings` -- Number of facings for transform
+* **Returns:** nil
 * **Error states:** None
 
 ### `stone_stool_clear_fn(inst)`
-* **Description:** Clears stone stool skin and sets four faced.
+* **Description:** Clears stone stool skin and resets transform to four-faced.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `stone_chair_init_fn(inst, build_name)`
-* **Description:** Initializes stone chair skin and overrides back symbol if mastersim.
+* **Description:** Initializes stone chair skin and overrides chair01_parts symbol on back component if not on client.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+* **Returns:** nil
+* **Error states:** None
 
 ### `stone_chair_clear_fn(inst)`
-* **Description:** Clears stone chair skin and clears back symbol override.
+* **Description:** Clears stone chair skin and clears chair01_parts symbol override on back component if not on client.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+* **Returns:** nil
+* **Error states:** None
 
 ### `decor_centerpiece_init_fn(inst, build_name)`
-* **Description:** Initializes decor centerpiece skin.
+* **Description:** Initializes decor centerpiece skin using basic_init_fn with decor_centerpiece build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `decor_centerpiece_clear_fn(inst)`
-* **Description:** Clears decor centerpiece skin.
+* **Description:** Clears decor centerpiece skin using basic_clear_fn with decor_centerpiece build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `decor_flowervase_init_fn(inst, build_name)`
-* **Description:** Initializes decor flowervase skin and refreshes image.
+* **Description:** Initializes decor flower vase skin and refreshes image if not on client.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+* **Returns:** nil
+* **Error states:** None
 
 ### `decor_flowervase_clear_fn(inst)`
-* **Description:** Clears decor flowervase skin and refreshes image.
+* **Description:** Clears decor flower vase skin and refreshes image if not on client.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+* **Returns:** nil
+* **Error states:** None
 
 ### `decor_lamp_init_fn(inst, build_name)`
-* **Description:** Initializes decor lamp skin.
+* **Description:** Initializes decor lamp skin using basic_init_fn with decor_lamp build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `decor_lamp_clear_fn(inst)`
-* **Description:** Clears decor lamp skin.
+* **Description:** Clears decor lamp skin using basic_clear_fn with decor_lamp build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `phonograph_init_fn(inst, build_name)`
-* **Description:** Initializes phonograph skin.
+* **Description:** Initializes phonograph skin using basic_init_fn with phonograph build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `phonograph_clear_fn(inst)`
-* **Description:** Clears phonograph skin.
+* **Description:** Clears phonograph skin using basic_clear_fn with phonograph build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `decor_pictureframe_init_fn(inst, build_name)`
-* **Description:** Initializes decor pictureframe skin and refreshes image.
+* **Description:** Initializes decor picture frame skin and refreshes image if not on client.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+* **Returns:** nil
+* **Error states:** None
 
 ### `decor_pictureframe_clear_fn(inst)`
-* **Description:** Clears decor pictureframe skin and refreshes image.
+* **Description:** Clears decor picture frame skin and refreshes image if not on client.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+* **Returns:** nil
+* **Error states:** None
 
 ### `decor_portraitframe_init_fn(inst, build_name)`
-* **Description:** Initializes decor portraitframe skin.
+* **Description:** Initializes decor portrait frame skin using basic_init_fn with decor_portraitframe build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `decor_portraitframe_clear_fn(inst)`
-* **Description:** Clears decor portraitframe skin.
+* **Description:** Clears decor portrait frame skin using basic_clear_fn with decor_portraitframe build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `magician_chest_init_fn(inst, build_name)`
-* **Description:** Initializes magician chest skin.
+* **Description:** Initializes magician chest skin using basic_init_fn with magician_chest build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `magician_chest_clear_fn(inst)`
-* **Description:** Clears magician chest skin.
+* **Description:** Clears magician chest skin using basic_clear_fn with magician_chest build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_lunarmothling_clear_fn(inst)`
-* **Description:** Clears lunarmothling critter build.
+* **Description:** Clears lunarmothling critter skin by setting build to lunarmoth_build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_lunarmothling_builder_clear_fn(inst)`
-* **Description:** Clears lunarmothling builder linked skinname.
+* **Description:** Clears lunarmothling builder by setting linked_skinname to nil.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `staff_tornado_init_fn(inst, build_name)`
-* **Description:** Initializes tornado staff skin and sets linked skinname.
+* **Description:** Initializes tornado staff skin and sets linked_skinname by removing stick_ prefix from build_name.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `staff_tornado_clear_fn(inst)`
-* **Description:** Clears tornado staff skin and linked skinname.
+* **Description:** Clears tornado staff skin and sets linked_skinname to nil.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `tornado_init_fn(inst, build_name)`
-* **Description:** Initializes tornado skin.
+* **Description:** Initializes tornado skin using basic_init_fn with tornado build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `tornado_clear_fn(inst)`
-* **Description:** Clears tornado skin.
+* **Description:** Clears tornado skin using basic_clear_fn with tornado build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `succulent_potted_init_fn(inst, build_name)`
-* **Description:** Initializes potted succulent skin and clears succulent symbol.
+* **Description:** Initializes potted succulent skin and clears succulent symbol override.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `succulent_potted_clear_fn(inst)`
-* **Description:** Clears potted succulent skin and setups plant.
+* **Description:** Clears potted succulent skin and calls SetupPlant.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `raincoat_init_fn(inst, build_name)`
-* **Description:** Initializes raincoat skin.
+* **Description:** Initializes raincoat skin using basic_init_fn with torso_rain build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `raincoat_clear_fn(inst)`
-* **Description:** Clears raincoat skin.
+* **Description:** Clears raincoat skin using basic_clear_fn with torso_rain build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `beef_bell_init_fn(inst, build_name)`
-* **Description:** Initializes beef bell skin and fixes icon.
+* **Description:** Initializes beef bell skin and fixes inventory icon.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `beef_bell_clear_fn(inst)`
-* **Description:** Clears beef bell skin and fixes icon.
+* **Description:** Clears beef bell skin and fixes inventory icon with nil.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `deserthat_init_fn(inst, build_name)`
-* **Description:** Initializes desert hat skin.
+* **Description:** Initializes desert hat skin using basic_init_fn with hat_desert build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `deserthat_clear_fn(inst)`
-* **Description:** Clears desert hat skin.
+* **Description:** Clears desert hat skin using basic_clear_fn with hat_desert build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `goggleshat_init_fn(inst, build_name)`
-* **Description:** Initializes goggles hat skin.
+* **Description:** Initializes goggles hat skin using basic_init_fn with hat_goggles build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `goggleshat_clear_fn(inst)`
-* **Description:** Clears goggles hat skin.
+* **Description:** Clears goggles hat skin using basic_clear_fn with hat_goggles build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `eyeturret_init_fn(inst, build_name)`
-* **Description:** Initializes eyeturret skin, overrides symbols, and fixes base skins.
+* **Description:** Initializes eyeball turret skin, clears horn symbol if placer, overrides multiple symbols, and calls FixupSkins on base.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `eyeturret_clear_fn(inst)`
-* **Description:** Clears eyeturret skin overrides and fixes base skins.
+* **Description:** Clears eyeball turret skin, clears symbol overrides, and calls FixupSkins on base.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `eyeturret_item_init_fn(inst, build_name)`
-* **Description:** Initializes eyeturret item skin and sets linked skinname.
+* **Description:** Initializes eyeball turret item skin and sets linked_skinname.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `eyeturret_item_clear_fn(inst)`
-* **Description:** Clears eyeturret item skin and linked skinname.
+* **Description:** Clears eyeball turret item skin and sets linked_skinname to nil.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `moondial_init_fn(inst, build_name)`
-* **Description:** Initializes moondial skin and overrides basin symbol.
+* **Description:** Initializes moondial skin by overriding basin symbol with item skin symbol.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `moondial_clear_fn(inst)`
-* **Description:** Clears moondial skin basin symbol override.
+* **Description:** Clears moondial skin by clearing basin symbol override.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `sewing_mannequin_init_fn(inst, build_name)`
-* **Description:** Initializes sewing mannequin skin.
+* **Description:** Initializes sewing mannequin skin using basic_init_fn with sewing_mannequin build.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `sewing_mannequin_clear_fn(inst)`
-* **Description:** Clears sewing mannequin skin.
+* **Description:** Clears sewing mannequin skin using basic_clear_fn with sewing_mannequin build.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_battery_high_init_fn(inst, build_name)`
-* **Description:** Initializes winona battery high skin, handles item/placer variants and symbol overrides.
+* **Description:** Initializes Winona high battery skin, handling item and placer variants with symbol overrides for linked entities.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_battery_high_clear_fn(inst)`
-* **Description:** Clears winona battery high skin symbol overrides.
+* **Description:** Clears Winona high battery skin, handling item variant or clearing symbol overrides.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_battery_high_item_init_fn(inst, build_name)`
-* **Description:** Initializes winona battery high item skin.
+* **Description:** Initializes Winona high battery item skin using basic_init_fn with filter function.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_battery_high_item_clear_fn(inst)`
-* **Description:** Clears winona battery high item skin.
+* **Description:** Clears Winona high battery item skin using basic_clear_fn.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_battery_low_init_fn(inst, build_name)`
-* **Description:** Initializes winona battery low skin, handles item/placer variants and symbol overrides.
+* **Description:** Initializes Winona low battery skin, handling item and placer variants with symbol overrides for linked entities.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_battery_low_clear_fn(inst)`
-* **Description:** Clears winona battery low skin symbol overrides.
+* **Description:** Clears Winona low battery skin, handling item variant or clearing symbol overrides.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_battery_low_item_init_fn(inst, build_name)`
-* **Description:** Initializes winona battery low item skin.
+* **Description:** Initializes Winona low battery item skin using basic_init_fn with filter function.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_battery_low_item_clear_fn(inst)`
-* **Description:** Clears winona battery low item skin.
+* **Description:** Clears Winona low battery item skin using basic_clear_fn.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_catapult_init_fn(inst, build_name)`
-* **Description:** Initializes winona catapult skin, handles item/placer variants and symbol overrides.
+* **Description:** Initializes Winona catapult skin, handling item and placer variants with symbol overrides and wire dummy on master sim.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_catapult_clear_fn(inst)`
-* **Description:** Clears winona catapult skin symbol overrides.
+* **Description:** Clears Winona catapult skin, handling item variant or clearing symbol overrides.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_catapult_item_init_fn(inst, build_name)`
-* **Description:** Initializes winona catapult item skin.
+* **Description:** Initializes Winona catapult item skin using basic_init_fn with filter function.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_catapult_item_clear_fn(inst)`
-* **Description:** Clears winona catapult item skin.
+* **Description:** Clears Winona catapult item skin using basic_clear_fn.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_spotlight_init_fn(inst, build_name)`
-* **Description:** Initializes winona spotlight skin, handles item/placer variants and symbol overrides.
+* **Description:** Initializes Winona spotlight skin, handling item and placer variants with symbol overrides, wire dummy on master sim, and head instance overrides.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_spotlight_clear_fn(inst)`
-* **Description:** Clears winona spotlight skin symbol overrides.
+* **Description:** Clears Winona spotlight skin, handling item variant or clearing symbol overrides including head instance.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_spotlight_item_init_fn(inst, build_name)`
-* **Description:** Initializes winona spotlight item skin.
+* **Description:** Initializes Winona spotlight item skin using basic_init_fn with filter function.
 * **Parameters:**
   - `inst` -- Entity instance
   - `build_name` -- Skin build name
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `winona_spotlight_item_clear_fn(inst)`
-* **Description:** Clears winona spotlight item skin.
+* **Description:** Clears Winona spotlight item skin using basic_clear_fn.
 * **Parameters:**
   - `inst` -- Entity instance
-* **Returns:** `nil`
+* **Returns:** nil
 * **Error states:** None
 
 ### `boat_grass_item_init_fn(inst, build_name)`
-* **Description:** Initializes boat grass item skin, setting linked skinname and anim state.
+* **Description:** Initializes boat grass item skin by setting linked_skinname, applying skin to AnimState, and updating inventory item image.
 * **Parameters:**
-  - `inst` -- Entity instance to initialize
-  - `build_name` -- Skin build name to apply
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `boat_grass_item_clear_fn(inst)`
-* **Description:** Clears boat grass item skin, resetting anim state and linked skinname.
+* **Description:** Clears boat grass item skin by resetting linked_skinname, restoring default build, and resetting inventory item image.
 * **Parameters:**
-  - `inst` -- Entity instance to clear
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `boat_grass_init_fn(inst, build_name)`
-* **Description:** Initializes boat grass skin, checking for placer component and mastersim. Returns early if no placer and not mastersim.
+* **Description:** Initializes boat grass skin with placer component check for client/server simulation.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `boat_grass_clear_fn(inst)`
-* **Description:** Clears boat grass skin build.
+* **Description:** Clears boat grass skin by restoring default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `walkingplank_grass_init_fn(inst, build_name)`
-* **Description:** Initializes walking plank grass skin. Returns early if no placer and not mastersim.
+* **Description:** Initializes walking plank grass skin with placer component check for client/server simulation.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `walkingplank_grass_clear_fn(inst, build_name)`
-* **Description:** Clears walking plank grass skin build.
+* **Description:** Clears walking plank grass skin by restoring default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name (unused)
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+  - `build_name` -- String name parameter (unused in body)
+* **Returns:** None
 * **Error states:** None
 
 ### `winch_init_fn(inst, build_name)`
-* **Description:** Initializes winch skin, handling placer and mastersim checks. Returns early under certain conditions.
+* **Description:** Initializes winch skin with placer and mastersim checks for client/server simulation.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `winch_clear_fn(inst)`
-* **Description:** Clears winch skin build.
+* **Description:** Clears winch skin by restoring default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `ocean_trawler_init_fn(inst, build_name)`
-* **Description:** Initializes ocean trawler skin, overriding water shadow symbol. Returns early if no placer and not mastersim.
+* **Description:** Initializes ocean trawler skin with water shadow symbol override and placer/mastersim checks.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `ocean_trawler_clear_fn(inst)`
-* **Description:** Clears ocean trawler skin and overrides.
+* **Description:** Clears ocean trawler skin by clearing water shadow override and restoring default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `ocean_trawler_kit_init_fn(inst, build_name)`
-* **Description:** Initializes ocean trawler kit skin, updating inventory image.
+* **Description:** Initializes ocean trawler kit skin by setting linked_skinname, applying skin, and updating inventory item image.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `ocean_trawler_kit_clear_fn(inst)`
-* **Description:** Clears ocean trawler kit skin.
+* **Description:** Clears ocean trawler kit skin by resetting linked_skinname, restoring default build, and resetting inventory item image.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `hammer_init_fn(inst, build_name)`
-* **Description:** Initializes hammer skin, disabling bank swap for invisible skins.
+* **Description:** Initializes hammer skin with invisible build check for floater bank swap, calls basic_init_fn, and adds skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `hammer_clear_fn(inst)`
-* **Description:** Clears hammer skin, re-enabling bank swap.
+* **Description:** Clears hammer skin by resetting floater bank swap, calling basic_clear_fn, and removing skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `torch_init_fn(inst, build_name)`
-* **Description:** Initializes torch skin.
+* **Description:** Initializes torch skin by calling basic_init_fn with swap_torch build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `torch_clear_fn(inst)`
-* **Description:** Clears torch skin.
+* **Description:** Clears torch skin by calling basic_clear_fn with swap_torch build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `lighter_init_fn(inst, build_name)`
-* **Description:** Initializes lighter skin.
+* **Description:** Initializes lighter skin by calling basic_init_fn with lighter build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `lighter_clear_fn(inst)`
-* **Description:** Clears lighter skin.
+* **Description:** Clears lighter skin by calling basic_clear_fn with lighter build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `spear_init_fn(inst, build_name)`
-* **Description:** Initializes spear skin.
+* **Description:** Initializes spear skin by calling basic_init_fn with swap_spear build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `spear_clear_fn(inst)`
-* **Description:** Clears spear skin.
+* **Description:** Clears spear skin by calling basic_clear_fn with swap_spear build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `spear_wathgrithr_init_fn(inst, build_name)`
-* **Description:** Initializes Wathgrithr spear skin.
+* **Description:** Initializes Wathgrithr spear skin by calling basic_init_fn with swap_spear_wathgrithr build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `spear_wathgrithr_clear_fn(inst)`
-* **Description:** Clears Wathgrithr spear skin.
+* **Description:** Clears Wathgrithr spear skin by calling basic_clear_fn with swap_spear_wathgrithr build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `spear_wathgrithr_lightning_init_fn(inst, build_name)`
-* **Description:** Initializes lightning spear skin.
+* **Description:** Initializes Wathgrithr lightning spear skin by calling basic_init_fn with spear_wathgrithr_lightning build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `spear_wathgrithr_lightning_clear_fn(inst)`
-* **Description:** Clears lightning spear skin.
+* **Description:** Clears Wathgrithr lightning spear skin by calling basic_clear_fn with spear_wathgrithr_lightning build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `spear_wathgrithr_lightning_charged_init_fn(inst, build_name)`
-* **Description:** Initializes charged lightning spear skin, setting FX owner. Returns early if not mastersim.
+* **Description:** Initializes charged Wathgrithr lightning spear skin with RemoveChargedFrom transform and sets FX owner on master sim.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `spear_wathgrithr_lightning_charged_clear_fn(inst)`
-* **Description:** Clears charged lightning spear skin, resetting FX owner. Returns early if not mastersim.
+* **Description:** Clears charged Wathgrithr lightning spear skin and resets FX owner on master sim.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `berrybush_init_fn(inst, build_name)`
-* **Description:** Initializes berrybush skin, spawning VFX if applicable. Returns early if placer component exists.
+* **Description:** Initializes berrybush skin with linked_skinname, placer check, and spawns VFX FX instance if available.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `berrybush_clear_fn(inst)`
-* **Description:** Clears berrybush skin, removing VFX instance.
+* **Description:** Clears berrybush skin by removing VFX FX instance and resetting linked_skinname.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `dug_berrybush_init_fn(inst, build_name)`
-* **Description:** Initializes dug berrybush skin.
+* **Description:** Initializes dug berrybush skin with linked_skinname set to build_name.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `dug_berrybush_clear_fn(inst)`
-* **Description:** Clears dug berrybush skin.
+* **Description:** Clears dug berrybush skin and resets linked_skinname.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `dug_berrybush_waxed_clear_fn(inst)`
-* **Description:** Clears dug berrybush waxed skin, updating inventory image.
+* **Description:** Clears dug waxed berrybush skin and updates inventory item image to parent prefab if inventoryitem component exists.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `reskin_tool_init_fn(inst, build_name)`
-* **Description:** Initializes reskin tool skin.
+* **Description:** Initializes reskin tool skin by calling basic_init_fn with reskin_tool build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `reskin_tool_clear_fn(inst)`
-* **Description:** Clears reskin tool skin.
+* **Description:** Clears reskin tool skin by calling basic_clear_fn with reskin_tool build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `whip_init_fn(inst, build_name)`
-* **Description:** Initializes whip skin, adding skin sounds on server. Returns early if not mastersim.
+* **Description:** Initializes whip skin with mastersim check and adds skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `whip_clear_fn(inst)`
-* **Description:** Clears whip skin, removing skin sounds.
+* **Description:** Clears whip skin and removes skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `trident_init_fn(inst, build_name)`
-* **Description:** Initializes trident skin, adding skin sounds on server. Returns early if not mastersim.
+* **Description:** Initializes trident skin with mastersim check and adds skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None### `trident_clear_fn(inst)`
-* **Description:** Clears trident skin, removing skin sounds.
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** None
+
+### `trident_clear_fn(inst)`
+* **Description:** Clears trident skin and removes skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `multitool_axe_pickaxe_init_fn(inst, build_name)`
-* **Description:** Initializes multitool axe pickaxe skin.
+* **Description:** Initializes multitool axe pickaxe skin by calling basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `multitool_axe_pickaxe_clear_fn(inst)`
-* **Description:** Clears multitool axe pickaxe skin.
+* **Description:** Clears multitool axe pickaxe skin by calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `axe_init_fn(inst, build_name)`
-* **Description:** Initializes axe skin, disabling bank swap for invisible skins.
+* **Description:** Initializes axe skin with invisible build check for floater bank swap.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** Errors if `inst` lacks `floater` component when `build_name` contains "_invisible" (nil dereference on `inst.components.floater` — no guard present).
 
 ### `axe_clear_fn(inst)`
-* **Description:** Clears axe skin, re-enabling bank swap.
+* **Description:** Clears axe skin by resetting floater bank swap and calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component (nil dereference on `inst.components.floater` — no guard present in source).
 ### `farm_hoe_init_fn(inst, build_name)`
-* **Description:** Initializes farm hoe skin, disabling bank swap for invisible skins.
+* **Description:** Initializes farm hoe skin with invisible build check for floater bank swap.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component (nil dereference on `inst.components.floater` when `build_name` contains '_invisible' — no guard present in source).
 
 ### `farm_hoe_clear_fn(inst)`
-* **Description:** Clears farm hoe skin, re-enabling bank swap.
+* **Description:** Clears farm hoe skin by resetting floater bank swap and calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component (nil dereference on `inst.components.floater` — no guard present in source).
 ### `golden_farm_hoe_init_fn(inst, build_name)`
-* **Description:** Initializes golden farm hoe skin. Disables bank swap for invisible skins (when build_name contains '_invisible').
+* **Description:** Initializes golden farm hoe skin with invisible build check for floater bank swap.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component (nil dereference on `inst.components.floater.do_bank_swap` when build_name contains "_invisible" — no guard present in source).
 ### `golden_farm_hoe_clear_fn(inst)`
-* **Description:** Clears golden farm hoe skin.
+* **Description:** Clears golden farm hoe skin by resetting floater bank swap and calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component (nil dereference on `inst.components.floater` — no guard present in source).
 ### `razor_init_fn(inst, build_name)`
-* **Description:** Initializes razor skin.
+* **Description:** Initializes razor skin by calling basic_init_fn with swap_razor build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `razor_clear_fn(inst)`
-* **Description:** Clears razor skin.
+* **Description:** Clears razor skin by calling basic_clear_fn with swap_razor build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `goldenaxe_init_fn(inst, build_name)`
-* **Description:** Initializes golden axe skin. Disables bank swap for invisible skins.
+* **Description:** Initializes golden axe skin with invisible build check for floater bank swap.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** Errors if `inst` lacks `floater` component when `build_name` contains "_invisible" (nil dereference on `inst.components.floater` — no guard present in source).
 ### `goldenaxe_clear_fn(inst)`
-* **Description:** Clears golden axe skin.
+* **Description:** Clears golden axe skin by resetting floater bank swap and calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component (nil dereference on `inst.components.floater` — no guard present in source).
 ### `pickaxe_init_fn(inst, build_name)`
-* **Description:** Initializes pickaxe skin. Disables bank swap for invisible skins.
+* **Description:** Initializes pickaxe skin with invisible build check for floater bank swap.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** Errors if `inst` lacks `floater` component when `build_name` contains "_invisible" (nil dereference on `inst.components.floater` — no guard present)
 
 ### `pickaxe_clear_fn(inst)`
-* **Description:** Clears pickaxe skin.
+* **Description:** Clears pickaxe skin by resetting floater bank swap and calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component (nil dereference on `inst.components.floater` — no guard present in source).
 ### `pitchfork_init_fn(inst, build_name)`
-* **Description:** Initializes pitchfork skin. Disables bank swap for invisible skins (build names containing `_invisible`).
+* **Description:** Initializes pitchfork skin with invisible build check for floater bank swap.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** Errors if `inst` lacks `floater` component when `build_name` contains "_invisible" (nil dereference on `inst.components.floater` — no guard present)
 
 ### `pitchfork_clear_fn(inst)`
-* **Description:** Clears pitchfork skin.
+* **Description:** Clears pitchfork skin by resetting floater bank swap and calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component (nil dereference on `inst.components.floater` — no guard present in source).
 ### `goldenpitchfork_init_fn(inst, build_name)`
-* **Description:** Initializes golden pitchfork skin. Disables floater bank swap for invisible skins (build names containing '_invisible').
+* **Description:** Initializes golden pitchfork skin with invisible build check for floater bank swap.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** Errors if `inst` lacks `floater` component when `build_name` contains "_invisible" (nil dereference on `inst.components.floater`).
 ### `goldenpitchfork_clear_fn(inst)`
-* **Description:** Clears golden pitchfork skin.
+* **Description:** Clears golden pitchfork skin by resetting floater bank swap and calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component (nil dereference on `inst.components.floater` — no guard present in source).
 
 ### `goldenpickaxe_init_fn(inst, build_name)`
-* **Description:** Initializes golden pickaxe skin. Disables bank swap for invisible skins (build names containing '_invisible').
+* **Description:** Initializes golden pickaxe skin with invisible build check for floater bank swap.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component and `build_name` contains "_invisible" (nil dereference on `inst.components.floater` — no guard present in source).
 
 ### `goldenpickaxe_clear_fn(inst)`
-* **Description:** Clears golden pickaxe skin.
+* **Description:** Clears golden pickaxe skin by resetting floater bank swap and calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component (nil dereference on `inst.components.floater` — no guard present in source).
 
 ### `shovel_init_fn(inst, build_name)`
-* **Description:** Initializes shovel skin. Disables bank swap for invisible skins.
+* **Description:** Initializes shovel skin with invisible build check for floater bank swap.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** Errors if `inst` lacks `floater` component when `build_name` contains '_invisible' (nil dereference).
 ### `shovel_clear_fn(inst)`
-* **Description:** Clears shovel skin.
+* **Description:** Clears shovel skin by resetting floater bank swap and calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component (nil dereference on `inst.components.floater` — no guard present in source).
 ### `goldenshovel_init_fn(inst, build_name)`
-* **Description:** Initializes golden shovel skin. Disables bank swap for invisible skins (build names containing `_invisible`).
+* **Description:** Initializes golden shovel skin with invisible build check for floater bank swap.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component and `build_name` contains "_invisible" (nil dereference on `inst.components.floater` — no guard present in source).
 ### `goldenshovel_clear_fn(inst)`
-* **Description:** Clears golden shovel skin.
+* **Description:** Clears golden shovel skin by resetting floater bank swap and calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `floater` component (nil dereference on `inst.components.floater` — no guard present in source).
 
 ### `umbrella_init_fn(inst, build_name)`
-* **Description:** Initializes umbrella skin.
+* **Description:** Initializes umbrella skin by calling basic_init_fn with umbrella build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `umbrella_clear_fn(inst)`
-* **Description:** Clears umbrella skin.
+* **Description:** Clears umbrella skin by calling basic_clear_fn with umbrella build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `oceanfishingrod_init_fn(inst, build_name)`
-* **Description:** Initializes ocean fishing rod skin.
+* **Description:** Initializes ocean fishing rod skin by calling basic_init_fn with fishingrod_ocean build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `oceanfishingrod_clear_fn(inst)`
-* **Description:** Clears ocean fishing rod skin.
+* **Description:** Clears ocean fishing rod skin by calling basic_clear_fn with fishingrod_ocean build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `fishingrod_init_fn(inst, build_name)`
-* **Description:** Initializes fishing rod skin.
+* **Description:** Initializes fishing rod skin by calling basic_init_fn with fishingrod build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `fishingrod_clear_fn(inst)`
-* **Description:** Clears fishing rod skin.
+* **Description:** Clears fishing rod skin by calling basic_clear_fn with fishingrod build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `beargerfur_sack_init_fn(inst, build_name)`
-* **Description:** Initializes bearger fur sack skin.
+* **Description:** Initializes Bearger fur sack skin with mastersim check and adds skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `beargerfur_sack_clear_fn(inst)`
-* **Description:** Clears bearger fur sack skin.
+* **Description:** Clears Bearger fur sack skin and removes skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `flotationcushion_init_fn(inst, build_name)`
-* **Description:** Initializes flotation cushion skin.
+* **Description:** Initializes flotation cushion skin by calling basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `flotationcushion_clear_fn(inst, build_name)`
-* **Description:** Clears flotation cushion skin.
+* **Description:** Clears flotation cushion skin by calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+  - `build_name` -- String name parameter (unused in body)
+* **Returns:** None
 * **Error states:** None
 
 ### `bookstation_init_fn(inst, build_name)`
-* **Description:** Initializes book station skin.
+* **Description:** Initializes book station skin by calling basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `bookstation_clear_fn(inst, build_name)`
-* **Description:** Clears book station skin.
+* **Description:** Clears book station skin by calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Build name string
-* **Returns:** `nil`
-* **Error states:** None### `sisturn_init_fn(inst, build_name)`
-* **Description:** Initializes sisturn skin, updating flower decor. Returns early if not mastersim.
+  - `inst` -- Entity instance to clear skin from
+  - `build_name` -- String name parameter (unused in body)
+* **Returns:** None
+* **Error states:** None
+
+### `sisturn_init_fn(inst, build_name)`
+* **Description:** Initializes Sisturn skin with mastersim check, adds skin sounds, and calls UpdateFlowerDecor if available.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `sisturn_clear_fn(inst)`
-* **Description:** Clears sisturn skin, updating flower decor.
+* **Description:** Clears Sisturn skin, removes skin sounds, and calls UpdateFlowerDecor if available.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `lucy_init_fn(inst, build_name)`
-* **Description:** Initializes Lucy axe skin.
+* **Description:** Initializes Lucy axe skin with mastersim check and adds skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `lucy_clear_fn(inst)`
-* **Description:** Clears Lucy axe skin.
+* **Description:** Clears Lucy axe skin and removes skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `townportal_init_fn(inst, build_name)`
-* **Description:** Initializes town portal skin.
+* **Description:** Initializes town portal skin with mastersim check and adds skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `townportal_clear_fn(inst)`
-* **Description:** Clears town portal skin.
+* **Description:** Clears town portal skin and removes skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `nightlight_init_fn(inst, build_name)`
-* **Description:** Initializes nightlight skin.
+* **Description:** Initializes nightlight skin with mastersim check and adds skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `nightlight_clear_fn(inst)`
-* **Description:** Clears nightlight skin.
+* **Description:** Clears nightlight skin and removes skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `wx78_scanner_init_fn(inst, build_name)`
-* **Description:** Initializes WX-78 scanner skin, updating inventory image.
+* **Description:** Initializes WX78 scanner skin with linked_skinname, inventory item image update, mastersim check, and adds skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** Errors if `inst` is nil or `inst.components` is missing (nil dereference on `inst.linked_skinname` assignment or `inst.components` table access — no guard for base entity validity before component checks).
 
 ### `wx78_scanner_clear_fn(inst)`
-* **Description:** Clears WX-78 scanner skin.
+* **Description:** Clears WX78 scanner skin by resetting linked_skinname and removing skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** None
+
+### `wx78_drone_scout_init_fn(inst, build_name)`
+* **Description:** Initializes WX78 drone scout skin with mastersim check and calls OnDroneScoutSkinChanged.
+* **Parameters:**
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** None
+
+### `wx78_drone_scout_clear_fn(inst)`
+* **Description:** Clears WX78 drone scout skin and calls OnDroneScoutSkinChanged with nil.
+* **Parameters:**
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** None
+
+### `wx78_drone_delivery_init_fn(inst, build_name)`
+* **Description:** Initializes WX78 drone delivery skin with linked_skinname transform and placer/mastersim checks.
+* **Parameters:**
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** None
+
+### `wx78_drone_delivery_clear_fn(inst)`
+* **Description:** Clears WX78 drone delivery skin by resetting linked_skinname and restoring default build.
+* **Parameters:**
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** None
+
+### `wx78_drone_delivery_item_init_fn(inst, build_name)`
+* **Description:** Initializes WX78 drone delivery item skin with linked_skinname, mastersim check, and inventory item image update.
+* **Parameters:**
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `inventoryitem` component (nil dereference on `inst.components.inventoryitem` — no guard present in source).
+### `wx78_drone_delivery_item_clear_fn(inst)`
+* **Description:** Clears WX78 drone delivery item skin by resetting linked_skinname and inventory item image.
+* **Parameters:**
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `inventoryitem` component (nil dereference on `inst.components.inventoryitem` — no guard present in source).### `wx78_drone_delivery_small_init_fn(inst, build_name)`
+* **Description:** Initializes WX78 drone delivery small skin with linked_skinname transform and placer/mastersim checks.
+* **Parameters:**
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** None
+
+### `wx78_drone_delivery_small_clear_fn(inst)`
+* **Description:** Clears WX78 drone delivery small skin by resetting linked_skinname and restoring default build.
+* **Parameters:**
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** None
+
+### `wx78_drone_delivery_small_item_init_fn(inst, build_name)`
+* **Description:** Initializes WX78 drone delivery small item skin with linked_skinname, mastersim check, and inventory item image update.
+* **Parameters:**
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `inventoryitem` component (nil dereference on `inst.components.inventoryitem` — no guard present in source).
+### `wx78_drone_delivery_small_item_clear_fn(inst)`
+* **Description:** Clears WX78 drone delivery small item skin by resetting linked_skinname and inventory item image.
+* **Parameters:**
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** Errors if `inst` has no `inventoryitem` component (nil dereference on `inst.components.inventoryitem` — no guard present in source).### `wx78_drone_zap_init_fn(inst, build_name)`
+* **Description:** Initializes WX78 drone zap skin with linked_skinname, mastersim check, and calls OnDroneZapSkinChanged if available.
+* **Parameters:**
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** None
+
+### `wx78_drone_zap_clear_fn(inst)`
+* **Description:** Clears WX78 drone zap skin by resetting linked_skinname and calling OnDroneZapSkinChanged with nil.
+* **Parameters:**
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
+* **Error states:** None
+
+### `wx78_moduleremover_init_fn(inst, build_name)`
+* **Description:** Initializes WX78 module remover skin by calling basic_init_fn.
+* **Parameters:**
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
+* **Error states:** None
+
+### `wx78_moduleremover_clear_fn(inst)`
+* **Description:** Clears WX78 module remover skin by calling basic_clear_fn.
+* **Parameters:**
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `portableblender_init_fn(inst, build_name)`
-* **Description:** Initializes portable blender skin.
+* **Description:** Initializes portable blender skin with linked_skinname and inventory item image update.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `portableblender_clear_fn(inst)`
-* **Description:** Clears portable blender skin.
+* **Description:** Clears portable blender skin by resetting linked_skinname.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `portablecookpot_init_fn(inst, build_name)`
-* **Description:** Initializes portable cookpot skin.
+* **Description:** Initializes portable cookpot skin with linked_skinname and inventory item image update.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `portablecookpot_clear_fn(inst)`
-* **Description:** Clears portable cookpot skin.
+* **Description:** Clears portable cookpot skin by resetting linked_skinname.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `portablespicer_init_fn(inst, build_name)`
-* **Description:** Initializes portable spicer skin.
+* **Description:** Initializes portable spicer skin with linked_skinname and inventory item image update.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `portablespicer_clear_fn(inst)`
-* **Description:** Clears portable spicer skin.
+* **Description:** Clears portable spicer skin by resetting linked_skinname.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `slingshot_init_fn(inst, build_name)`
-* **Description:** Initializes slingshot skin, notifying skin change. Returns early if not mastersim.
+* **Description:** Initializes slingshot skin with mastersim check and calls OnSlingshotSkinChanged.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `slingshot_clear_fn(inst)`
-* **Description:** Clears slingshot skin.
+* **Description:** Clears slingshot skin and calls OnSlingshotSkinChanged with nil.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `wobysmall_init_fn(inst, build_name)`
-* **Description:** Initializes small Woby skin. Returns early if not mastersim.
+* **Description:** Initializes small Woby skin with mastersim check and calls OnWobySkinChanged.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `wobysmall_clear_fn(inst)`
-* **Description:** Clears small Woby skin.
+* **Description:** Clears small Woby skin and calls OnWobySkinChanged with nil.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `wobybig_init_fn(inst, build_name)`
-* **Description:** Initializes big Woby skin. Returns early if not mastersim.
+* **Description:** Initializes big Woby skin with mastersim check and calls OnWobySkinChanged.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `wobybig_clear_fn(inst)`
-* **Description:** Clears big Woby skin.
+* **Description:** Clears big Woby skin and calls OnWobySkinChanged with nil.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `trunkvest_summer_init_fn(inst, build_name)`
-* **Description:** Initializes summer trunk vest skin.
+* **Description:** Initializes summer trunk vest skin by calling basic_init_fn with armor_trunkvest_summer build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `trunkvest_summer_clear_fn(inst)`
-* **Description:** Clears summer trunk vest skin.
+* **Description:** Clears summer trunk vest skin by calling basic_clear_fn with armor_trunkvest_summer build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `trunkvest_winter_init_fn(inst, build_name)`
-* **Description:** Initializes winter trunk vest skin.
+* **Description:** Initializes winter trunk vest skin by calling basic_init_fn with armor_trunkvest_winter build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `trunkvest_winter_clear_fn(inst)`
-* **Description:** Clears winter trunk vest skin.
+* **Description:** Clears winter trunk vest skin by calling basic_clear_fn with armor_trunkvest_winter build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `book_brimstone_init_fn(inst, build_name)`
-* **Description:** Initializes book of brimstone skin.
+* **Description:** Initializes brimstone book skin by calling basic_init_fn with books build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `book_brimstone_clear_fn(inst)`
-* **Description:** Clears book of brimstone skin.
+* **Description:** Clears brimstone book skin by calling basic_clear_fn with books build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `book_temperature_init_fn(inst, build_name)`
-* **Description:** Initializes book of temperature skin.
+* **Description:** Initializes temperature book skin by calling basic_init_fn with books build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `book_temperature_clear_fn(inst)`
-* **Description:** Clears book of temperature skin.
+* **Description:** Clears temperature book skin by calling basic_clear_fn with books build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `book_research_station_init_fn(inst, build_name)`
-* **Description:** Initializes book of research station skin.
+* **Description:** Initializes research station book skin by calling basic_init_fn with books build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `book_research_station_clear_fn(inst)`
-* **Description:** Clears book of research station skin.
+* **Description:** Clears research station book skin by calling basic_clear_fn with books build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `book_silviculture_init_fn(inst, build_name)`
-* **Description:** Initializes book of silviculture skin.
+* **Description:** Initializes silviculture book skin by calling basic_init_fn with books build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `book_silviculture_clear_fn(inst)`
-* **Description:** Clears book of silviculture skin.
+* **Description:** Clears silviculture book skin by calling basic_clear_fn with books build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `book_sleep_init_fn(inst, build_name)`
-* **Description:** Initializes book of sleep skin.
+* **Description:** Initializes sleep book skin by calling basic_init_fn with books build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `book_sleep_clear_fn(inst)`
-* **Description:** Clears book of sleep skin.
+* **Description:** Clears sleep book skin by calling basic_clear_fn with books build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `book_web_init_fn(inst, build_name)`
-* **Description:** Initializes book of web skin.
+* **Description:** Initializes web book skin by calling basic_init_fn with books build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `book_web_clear_fn(inst)`
-* **Description:** Clears book of web skin.
+* **Description:** Clears web book skin by calling basic_clear_fn with books build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `ruinsrelic_chair_init_fn(inst, build_name)`
-* **Description:** Initializes ruins relic chair skin.
+* **Description:** Initializes ruins relic chair skin by calling basic_init_fn with ruins_chair build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `ruinsrelic_chair_clear_fn(inst)`
-* **Description:** Clears ruins relic chair skin.
+* **Description:** Clears ruins relic chair skin by calling basic_clear_fn with ruins_chair build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `bedroll_furry_init_fn(inst, build_name)`
-* **Description:** Initializes furry bedroll skin.
+* **Description:** Initializes furry bedroll skin by calling basic_init_fn with swap_bedroll_furry build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `bedroll_furry_clear_fn(inst)`
-* **Description:** Clears furry bedroll skin.
+* **Description:** Clears furry bedroll skin by calling basic_clear_fn with swap_bedroll_furry build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `featherfan_init_fn(inst, build_name)`
-* **Description:** Initializes feather fan skin.
+* **Description:** Initializes feather fan skin by calling basic_init_fn with fan build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `featherfan_clear_fn(inst)`
-* **Description:** Clears feather fan skin.
+* **Description:** Clears feather fan skin by calling basic_clear_fn with fan build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `armordragonfly_init_fn(inst, build_name)`
-* **Description:** Initializes dragonfly armor skin.
+* **Description:** Initializes Dragonfly armor skin by calling basic_init_fn with torso_dragonfly build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- String name of the skin build to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `armordragonfly_clear_fn(inst)`
-* **Description:** Clears dragonfly armor skin.
+* **Description:** Clears Dragonfly armor skin by calling basic_clear_fn with torso_dragonfly build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `armorgrass_init_fn(inst, build_name)`
-* **Description:** Initializes grass armor skin.
+* **Description:** Initializes grass armor skin by calling basic_init_fn with armor_grass build name.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `armorgrass_clear_fn(inst)`
-* **Description:** Clears grass armor skin.
+* **Description:** Clears grass armor skin by calling basic_clear_fn with armor_grass build name.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armormarble_init_fn(inst, build_name)`
-* **Description:** Initializes marble armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armormarble_clear_fn(inst)`
-* **Description:** Clears marble armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armorwood_init_fn(inst, build_name)`
-* **Description:** Initializes wood armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armorwood_clear_fn(inst)`
-* **Description:** Clears wood armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armorruins_init_fn(inst, build_name)`
-* **Description:** Initializes ruins armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armorruins_clear_fn(inst)`
-* **Description:** Clears ruins armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armor_sanity_init_fn(inst, build_name)`
-* **Description:** Initializes sanity armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armor_sanity_clear_fn(inst)`
-* **Description:** Clears sanity armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armorskeleton_init_fn(inst, build_name)`
-* **Description:** Initializes skeleton armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armorskeleton_clear_fn(inst)`
-* **Description:** Clears skeleton armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armordreadstone_init_fn(inst, build_name)`
-* **Description:** Initializes dreadstone armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armordreadstone_clear_fn(inst)`
-* **Description:** Clears dreadstone armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `beargervest_init_fn(inst, build_name)`
-* **Description:** Initializes bearger vest skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
-### `beargervest_clear_fn(inst)`
-* **Description:** Clears bearger vest skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `reflectivevest_init_fn(inst, build_name)`
-* **Description:** Initializes reflective vest skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
-### `reflectivevest_clear_fn(inst)`
-* **Description:** Clears reflective vest skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `monkey_mediumhat_init_fn(inst, build_name)`
-* **Description:** Initializes monkey medium hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
-### `monkey_mediumhat_clear_fn(inst)`
-* **Description:** Clears monkey medium hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `monkey_smallhat_init_fn(inst, build_name)`
-* **Description:** Initializes monkey small hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
-### `monkey_smallhat_clear_fn(inst)`
-* **Description:** Clears monkey small hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `hivehat_init_fn(inst, build_name)`
-* **Description:** Initializes hive hat skin, adding regaljoker tag conditionally.
+* **Description:** Initializes hive hat skin and adds regaljoker tag if build_name equals hivehat_joker.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `hivehat_clear_fn(inst)`
-* **Description:** Clears hive hat skin, removing regaljoker tag.
+* **Description:** Clears hive hat skin and removes regaljoker tag.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `tophat_init_fn(inst, build_name)`
-* **Description:** Initializes top hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
-### `tophat_clear_fn(inst)`
-* **Description:** Clears top hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `flowerhat_init_fn(inst, build_name)`
-* **Description:** Initializes flower hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
-### `flowerhat_clear_fn(inst)`
-* **Description:** Clears flower hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `strawhat_init_fn(inst, build_name)`
-* **Description:** Initializes straw hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
-* **Error states:** None
-
-### `strawhat_clear_fn(inst)`
-* **Description:** Clears straw hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `walrushat_init_fn(inst, build_name)`
-* **Description:** Initializes walrus hat skin, adds skin sounds on server. Returns early if not master sim.
+* **Description:** Initializes walrus hat skin and adds skin sounds on master sim only.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `walrushat_clear_fn(inst)`
-* **Description:** Clears walrus hat skin, removes skin sounds.
+* **Description:** Clears walrus hat skin and removes skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `winterhat_init_fn(inst, build_name)`
-* **Description:** Initializes winter hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `winterhat_clear_fn(inst)`
-* **Description:** Clears winter hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `catcoonhat_init_fn(inst, build_name)`
-* **Description:** Initializes catcoon hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `catcoonhat_clear_fn(inst)`
-* **Description:** Clears catcoon hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `rainhat_init_fn(inst, build_name)`
-* **Description:** Initializes rain hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `rainhat_clear_fn(inst)`
-* **Description:** Clears rain hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `minerhat_init_fn(inst, build_name)`
-* **Description:** Initializes miner hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `minerhat_clear_fn(inst)`
-* **Description:** Clears miner hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `footballhat_init_fn(inst, build_name, opentop)`
-* **Description:** Initializes football hat skin, adds open_top_hat tag if specified, adds skin sounds on server. Returns early if not master sim.
+* **Description:** Initializes football hat skin, adds open_top_hat tag if opentop is true, and adds skin sounds on master sim.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-  - `opentop` -- Boolean flag for open top variant
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+  - `opentop` -- Boolean indicating if hat should have open_top_hat tag
+* **Returns:** nil
 * **Error states:** None
 
 ### `footballhat_clear_fn(inst)`
-* **Description:** Clears football hat skin, removes open_top_hat tag, removes skin sounds.
+* **Description:** Clears football hat skin, removes open_top_hat tag, and removes skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `featherhat_init_fn(inst, build_name)`
-* **Description:** Initializes feather hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `featherhat_clear_fn(inst)`
-* **Description:** Clears feather hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `beehat_init_fn(inst, build_name)`
-* **Description:** Initializes bee hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `beehat_clear_fn(inst)`
-* **Description:** Clears bee hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `watermelonhat_init_fn(inst, build_name)`
-* **Description:** Initializes watermelon hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `watermelonhat_clear_fn(inst)`
-* **Description:** Clears watermelon hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `beefalohat_init_fn(inst, build_name)`
-* **Description:** Initializes beefalo hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `beefalohat_clear_fn(inst)`
-* **Description:** Clears beefalo hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `eyebrellahat_init_fn(inst, build_name)`
-* **Description:** Initializes eyebrella hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `eyebrellahat_clear_fn(inst)`
-* **Description:** Clears eyebrella hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `earmuffshat_init_fn(inst, build_name)`
-* **Description:** Initializes earmuffs hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `earmuffshat_clear_fn(inst)`
-* **Description:** Clears earmuffs hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `ruinshat_init_fn(inst, build_name)`
-* **Description:** Initializes ruins hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `ruinshat_clear_fn(inst)`
-* **Description:** Clears ruins hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `walterhat_init_fn(inst, build_name)`
-* **Description:** Initializes walter hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `walterhat_clear_fn(inst)`
-* **Description:** Clears walter hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `alterguardianhat_init_fn(inst, build_name)`
-* **Description:** Initializes alter guardian hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `alterguardianhat_clear_fn(inst)`
-* **Description:** Clears alter guardian hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `skeletonhat_init_fn(inst, build_name)`
-* **Description:** Initializes skeleton hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `skeletonhat_clear_fn(inst)`
-* **Description:** Clears skeleton hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `dreadstonehat_init_fn(inst, build_name)`
-* **Description:** Initializes dreadstone hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `dreadstonehat_clear_fn(inst)`
-* **Description:** Clears dreadstone hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `researchlab3_init_fn(inst, build_name)`
-* **Description:** Initializes researchlab3 skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `researchlab3_clear_fn(inst)`
-* **Description:** Clears researchlab3 skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `mushroom_light_init_fn(inst, build_name)`
-* **Description:** Initializes mushroom light skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `mushroom_light_clear_fn(inst)`
-* **Description:** Clears mushroom light skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `mushroom_light2_init_fn(inst, build_name)`
-* **Description:** Initializes mushroom light2 skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `mushroom_light2_clear_fn(inst)`
-* **Description:** Clears mushroom light2 skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `tent_init_fn(inst, build_name)`
-* **Description:** Initializes tent skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `tent_clear_fn(inst)`
-* **Description:** Clears tent skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `critterlab_init_fn(inst, build_name)`
-* **Description:** Initializes critterlab skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `critterlab_clear_fn(inst)`
-* **Description:** Clears critterlab skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `rainometer_init_fn(inst, build_name)`
-* **Description:** Initializes rainometer skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `rainometer_clear_fn(inst)`
-* **Description:** Clears rainometer skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `winterometer_init_fn(inst, build_name)`
-* **Description:** Initializes winterometer skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `winterometer_clear_fn(inst)`
-* **Description:** Clears winterometer skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `tacklestation_init_fn(inst, build_name)`
-* **Description:** Initializes tacklestation skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `tacklestation_clear_fn(inst)`
-* **Description:** Clears tacklestation skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `lightning_rod_init_fn(inst, build_name)`
-* **Description:** Initializes lightning rod skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `lightning_rod_clear_fn(inst)`
-* **Description:** Clears lightning rod skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `arrowsign_post_init_fn(inst, build_name)`
-* **Description:** Initializes arrow sign post skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `arrowsign_post_clear_fn(inst)`
-* **Description:** Clears arrow sign post skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `treasurechest_init_fn(inst, build_name)`
-* **Description:** Initializes treasure chest skin, handles upgrades and placer checks. Returns early if placer component exists or not master sim.
+* **Description:** Initializes treasure chest skin with upgrade support. Returns early if placer component exists or on client. Uses upgraded build if _chestupgrade_stacksize exists.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `treasurechest_clear_fn(inst)`
-* **Description:** Clears treasure chest skin, handles upgrades.
+* **Description:** Clears treasure chest skin, using upgraded build name if _chestupgrade_stacksize exists, and removes skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `dragonflychest_init_fn(inst, build_name)`
-* **Description:** Initializes dragonfly chest skin, handles upgrades and placer checks. Returns early if placer component exists or not master sim.
+* **Description:** Initializes dragonfly chest skin with upgrade support. Returns early if placer component exists or on client. Uses upgraded build if _chestupgrade_stacksize exists.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `dragonflychest_clear_fn(inst)`
-* **Description:** Clears dragonfly chest skin, handles upgrades.
+* **Description:** Clears dragonfly chest skin, using upgraded build name if _chestupgrade_stacksize exists, and removes skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `wardrobe_init_fn(inst, build_name)`
-* **Description:** Initializes wardrobe skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `wardrobe_clear_fn(inst)`
-* **Description:** Clears wardrobe skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `fish_box_init_fn(inst, build_name)`
-* **Description:** Initializes fish box skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `fish_box_clear_fn(inst)`
-* **Description:** Clears fish box skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `sculptingtable_init_fn(inst, build_name)`
-* **Description:** Initializes sculpting table skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `sculptingtable_clear_fn(inst)`
-* **Description:** Clears sculpting table skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `endtable_init_fn(inst, build_name)`
-* **Description:** Initializes endtable (stagehand) skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `endtable_clear_fn(inst)`
-* **Description:** Clears endtable (stagehand) skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `dragonflyfurnace_init_fn(inst, build_name)`
-* **Description:** Initializes dragonfly furnace skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `dragonflyfurnace_clear_fn(inst)`
-* **Description:** Clears dragonfly furnace skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `birdcage_init_fn(inst, build_name)`
-* **Description:** Initializes birdcage skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `birdcage_clear_fn(inst)`
-* **Description:** Clears birdcage skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `meatrack_init_fn(inst, build_name)`
-* **Description:** Initializes meatrack skin, triggers skin change callback. Returns early if not master sim.
+* **Description:** Initializes meat rack skin and calls OnMeatRackSkinChanged on master sim if the method exists.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `meatrack_clear_fn(inst)`
-* **Description:** Clears meatrack skin, triggers skin change callback.
+* **Description:** Clears meat rack skin and calls OnMeatRackSkinChanged with nil if the method exists.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `meatrack_hermit_init_fn(inst, build_name)`
-* **Description:** Initializes hermit meatrack skin, triggers skin change callback. Returns early if not master sim.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `meatrack_hermit_clear_fn(inst)`
-* **Description:** Clears hermit meatrack skin, triggers skin change callback.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `meatrack_hermit_multi_init_fn(inst, build_name)`
-* **Description:** Initializes hermit multi meatrack skin, triggers skin change callback. Returns early if not master sim.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None### `meatrack_hermit_multi_clear_fn(inst)`
-* **Description:** Clears hermit multi meatrack skin, triggers skin change callback.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `beebox_hermit_init_fn(inst, build_name)`
-* **Description:** Initializes hermit beebox skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `beebox_hermit_clear_fn(inst)`
-* **Description:** Clears hermit beebox skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `beebox_init_fn(inst, build_name)`
-* **Description:** Initializes beebox skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `beebox_clear_fn(inst)`
-* **Description:** Clears beebox skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `beemine_init_fn(inst, build_name)`
-* **Description:** Initializes beemine skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `beemine_clear_fn(inst)`
-* **Description:** Clears beemine skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `trap_teeth_init_fn(inst, build_name)`
-* **Description:** Initializes teeth trap skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `trap_teeth_clear_fn(inst)`
-* **Description:** Clears teeth trap skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `trap_init_fn(inst, build_name)`
-* **Description:** Initializes trap skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `trap_clear_fn(inst)`
-* **Description:** Clears trap skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `birdtrap_init_fn(inst, build_name)`
-* **Description:** Initializes birdtrap skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `birdtrap_clear_fn(inst)`
-* **Description:** Clears birdtrap skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `grass_umbrella_init_fn(inst, build_name)`
-* **Description:** Initializes grass umbrella (parasol) skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `grass_umbrella_clear_fn(inst)`
-* **Description:** Clears grass umbrella (parasol) skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `saltbox_init_fn(inst, build_name)`
-* **Description:** Initializes saltbox skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `saltbox_clear_fn(inst)`
-* **Description:** Clears saltbox skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `oar_init_fn(inst, build_name)`
-* **Description:** Initializes oar skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `oar_clear_fn(inst)`
-* **Description:** Clears oar skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `oar_driftwood_init_fn(inst, build_name)`
-* **Description:** Initializes driftwood oar skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `oar_driftwood_clear_fn(inst)`
-* **Description:** Clears driftwood oar skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `wateringcan_init_fn(inst, build_name)`
-* **Description:** Initializes wateringcan skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `wateringcan_clear_fn(inst)`
-* **Description:** Clears wateringcan skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `seedpouch_init_fn(inst, build_name)`
-* **Description:** Initializes seedpouch skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `seedpouch_clear_fn(inst)`
-* **Description:** Clears seedpouch skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `seafaring_prototyper_init_fn(inst, build_name)`
-* **Description:** Initializes seafaring prototyper skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `seafaring_prototyper_clear_fn(inst)`
-* **Description:** Clears seafaring prototyper skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `tacklecontainer_init_fn(inst, build_name)`
-* **Description:** Initializes tacklecontainer skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `tacklecontainer_clear_fn(inst)`
-* **Description:** Clears tacklecontainer skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `supertacklecontainer_init_fn(inst, build_name)`
-* **Description:** Initializes supertacklecontainer skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `supertacklecontainer_clear_fn(inst)`
-* **Description:** Clears supertacklecontainer skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `mermhouse_crafted_init_fn(inst, build_name)`
-* **Description:** Initializes crafted mermhouse skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `mermhouse_crafted_clear_fn(inst)`
-* **Description:** Clears crafted mermhouse skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `mermwatchtower_init_fn(inst, build_name)`
-* **Description:** Initializes merm watchtower skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `mermwatchtower_clear_fn(inst)`
-* **Description:** Clears merm watchtower skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `mermhat_init_fn(inst, build_name)`
-* **Description:** Initializes merm hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `mermhat_clear_fn(inst)`
-* **Description:** Clears merm hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `resurrectionstone_init_fn(inst, build_name)`
-* **Description:** Initializes resurrection stone skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `resurrectionstone_clear_fn(inst)`
-* **Description:** Clears resurrection stone skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `sanityrock_init_fn(inst, build_name)`
-* **Description:** Initializes sanity rock skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `sanityrock_clear_fn(inst)`
-* **Description:** Clears sanity rock skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `insanityrock_init_fn(inst, build_name)`
-* **Description:** Initializes insanity rock skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `insanityrock_clear_fn(inst)`
-* **Description:** Clears insanity rock skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `lunarplanthat_init_fn(inst, build_name)`
-* **Description:** Initializes lunarplant hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `lunarplanthat_clear_fn(inst)`
-* **Description:** Clears lunarplant hat skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armor_lunarplant_init_fn(inst, build_name)`
-* **Description:** Initializes lunarplant armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armor_lunarplant_clear_fn(inst)`
-* **Description:** Clears lunarplant armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armor_lunarplant_husk_init_fn(inst, build_name)`
-* **Description:** Initializes lunarplant husk armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `armor_lunarplant_husk_clear_fn(inst)`
-* **Description:** Clears lunarplant husk armor skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `wagdrone_rolling_init_fn(inst, build_name)`
-* **Description:** Initializes wagdrone rolling skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `wagdrone_rolling_clear_fn(inst)`
-* **Description:** Clears wagdrone rolling skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `rabbithouse_init_fn(inst, build_name)`
-* **Description:** Initializes rabbit house skin, spawns glow FX if not burnt.
+* **Description:** Initializes rabbit house skin and spawns glow FX prefab if not a placer and not burnt. Sets parent and overrides glow symbol.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `rabbithouse_clear_fn(inst)`
-* **Description:** Clears rabbit house skin, removes glow FX.
+* **Description:** Clears rabbit house skin and removes glow FX instance if it exists.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `cavein_boulder_init_fn(inst, build_name)`
-* **Description:** Initializes cavein boulder skin, sets symbol swap data.
+* **Description:** Initializes cave-in boulder skin by clearing override symbol, setting symbol swap data, and calling basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `cavein_boulder_clear_fn(inst)`
-* **Description:** Clears cavein boulder skin, resets variation.
+* **Description:** Clears cave-in boulder skin by resetting variation and calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `stagehand_init_fn(inst, build_name)`
-* **Description:** Initializes stagehand skin, overrides animation symbols.
+* **Description:** Initializes stagehand skin and overrides fingers, fx, and dark_spew symbols.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `stagehand_clear_fn(inst)`
-* **Description:** Clears stagehand skin, clears animation symbol overrides.
+* **Description:** Clears stagehand skin by clearing override symbols for fingers, fx, and dark_spew.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `wormhole_init_fn(inst, build_name)`
-* **Description:** Initializes wormhole skin, sets minimap icon.
+* **Description:** Initializes wormhole skin and sets mini map icon to build_name.png.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `wormhole_clear_fn(inst)`
-* **Description:** Clears wormhole skin, resets minimap icon.
+* **Description:** Clears wormhole skin and resets mini map icon to wormhole.png.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `cave_entrance_init_fn(inst, build_name)`
-* **Description:** Initializes cave entrance skin, sets linked skinname.
+* **Description:** Initializes cave entrance skin and stores build_name in linked_skinname property.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `cave_entrance_clear_fn(inst)`
-* **Description:** Clears cave entrance skin, clears linked skinname.
+* **Description:** Clears cave entrance skin and sets linked_skinname to nil.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `cave_entrance_open_init_fn(inst, build_name)`
-* **Description:** Initializes open cave entrance skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `cave_entrance_open_clear_fn(inst)`
-* **Description:** Clears open cave entrance skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `cave_exit_init_fn(inst, build_name)`
-* **Description:** Initializes cave exit skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
-* **Error states:** None
-
-### `cave_exit_clear_fn(inst)`
-* **Description:** Clears cave exit skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `gravestone_init_fn(inst, build_name)`
-* **Description:** Initializes gravestone skin, plays animation based on build name number. Returns early if not master sim.
+* **Description:** Initializes gravestone skin and plays grave animation based on last character of build_name on master sim.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `gravestone_clear_fn(inst)`
-* **Description:** Clears gravestone skin, plays animation based on random choice.
+* **Description:** Clears gravestone skin and plays grave animation based on random_stone_choice property.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
-* **Error states:** None
-
-### `dug_gravestone_init_fn(inst, build_name)`
-* **Description:** Initializes dug gravestone skin.
-* **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `dug_gravestone_clear_fn(inst)`
-* **Description:** Clears dug gravestone skin, changes inventory item image name.
+* **Description:** Clears dug gravestone skin and changes inventory item image name based on random_stone_choice.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `pottedfern_init_fn(inst, build_name)`
-* **Description:** Initializes potted fern skin, sets eight faced transform.
+* **Description:** Initializes potted fern skin, sets eight-faced transform, and plays c animation.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `pottedfern_clear_fn(inst)`
-* **Description:** Clears potted fern skin, resets transform and animation.
+* **Description:** Clears potted fern skin, resets to no-faced transform, and plays original animation.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `siestahut_init_fn(inst, build_name)`
-* **Description:** Initializes siesta hut skin, spawns VFX if not placer.
+* **Description:** Initializes siesta hut skin and spawns VFX FX prefab after random delay if not a placer.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin on
+  - `build_name` -- Name of the skin build to apply
+* **Returns:** nil
 * **Error states:** None
 
 ### `siestahut_clear_fn(inst)`
-* **Description:** Clears siesta hut skin, removes VFX.
+* **Description:** Clears siesta hut skin and removes VFX FX instance if it exists.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `bushhat_init_fn(inst, build_name)`
-* **Description:** Initializes bushhat skin, listens for equip/unequip/remove events. Returns early if not master sim.
+* **Description:** Initializes bushhat skin by calling basic_init_fn, checking for skin FX prefab, and setting up event listeners for equipped, unequipped, and onremove events if vfx_fx exists.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize skin for
+  - `build_name` -- Skin/build name for the bushhat
+* **Returns:** nil
 * **Error states:** None
 
 ### `bushhat_clear_fn(inst)`
-* **Description:** Clears bushhat skin, removes event listeners.
+* **Description:** Clears bushhat skin by calling basic_clear_fn and removing event callbacks for equipped, unequipped, and onremove events.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `lureplantbulb_init_fn(inst, build_name)`
-* **Description:** Initializes lureplant bulb skin, sets linked skinname and image.
+* **Description:** Initializes lureplant bulb skin by setting linked_skinname, applying skin to AnimState, and changing inventory item image name.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance for lureplant bulb
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `lureplantbulb_clear_fn(inst)`
-* **Description:** Clears lureplant bulb skin, resets build and image.
+* **Description:** Clears lureplant bulb skin by resetting linked_skinname, restoring default build, and resetting inventory image name.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `lureplant_init_fn(inst, build_name)`
-* **Description:** Initializes lureplant skin, handles placer and skin data. Returns early if placer exists or not master sim.
+* **Description:** Initializes lureplant skin by setting AnimState skin, retrieving skin data, storing item_skinname, and calling SetSkin. Returns early if placer component exists or not on master sim.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance for lureplant
+  - `build_name` -- Skin name
+* **Returns:** nil
 * **Error states:** None
 
 ### `lureplant_clear_fn(inst)`
-* **Description:** Clears lureplant skin, resets build and skin. Returns early if not master sim.
+* **Description:** Clears lureplant skin by restoring default build, clearing item_skinname on master sim, and calling SetSkin.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `saddle_basic_init_fn(inst, build_name)`
-* **Description:** Initializes basic saddle skin, sets saddler swaps.
+* **Description:** Initializes basic saddle skin by calling basic_init_fn and setting saddler swaps with build name, symbol, and GUID.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the build/skin
-* **Returns:** `nil`
+  - `inst` -- Entity instance for saddle
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `saddle_basic_clear_fn(inst)`
-* **Description:** Clears basic saddle skin, resets saddler swaps.
+* **Description:** Clears basic saddle skin by calling basic_clear_fn and resetting saddler swaps to default values.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `wathgrithrhat_init_fn(inst, build_name, opentop)`
-* **Description:** Initializes Wigfrid helmet skin, adds open_top_hat tag if applicable, and adds skin sounds on server. Returns early if not mastersim.
+* **Description:** Initializes Wigfrid helmet skin by calling basic_init_fn, adding open_top_hat tag if opentop is true, and adding skin sounds on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-  - `opentop` -- Boolean flag indicating if the hat has an open top
-* **Returns:** `nil`
+  - `inst` -- Entity instance for Wigfrid helmet
+  - `build_name` -- Skin/build name
+  - `opentop` -- Boolean indicating if helmet has open top
+* **Returns:** nil
 * **Error states:** None
 
 ### `wathgrithrhat_clear_fn(inst)`
-* **Description:** Clears Wigfrid helmet skin, removes open_top_hat tag, and removes skin sounds.
+* **Description:** Clears Wigfrid helmet skin by calling basic_clear_fn, removing open_top_hat tag, and removing skin sounds.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `wathgrithr_improvedhat_init_fn(inst, build_name, opentop)`
-* **Description:** Initializes improved Wigfrid helmet skin, adds open_top_hat tag if applicable, and adds skin sounds on server. Returns early if not mastersim.
+* **Description:** Initializes improved Wigfrid helmet skin by calling basic_init_fn, adding open_top_hat tag if opentop is true, and adding skin sounds on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-  - `opentop` -- Boolean flag indicating if the hat has an open top
-* **Returns:** `nil`
+  - `inst` -- Entity instance for improved Wigfrid helmet
+  - `build_name` -- Skin/build name
+  - `opentop` -- Boolean indicating if helmet has open top
+* **Returns:** nil
 * **Error states:** None
 
 ### `wathgrithr_improvedhat_clear_fn(inst)`
-* **Description:** Clears improved Wigfrid helmet skin, removes open_top_hat tag, and removes skin sounds.
+* **Description:** Clears improved Wigfrid helmet skin by calling basic_clear_fn, removing open_top_hat tag, and removing skin sounds.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `pighouse_init_fn(inst, build_name)`
-* **Description:** Initializes Pighouse skin, updates window anim states if present.
+* **Description:** Initializes pighouse skin by calling basic_init_fn and applying skin to window and windowsnow AnimStates if they exist.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for pighouse
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `pighouse_clear_fn(inst)`
-* **Description:** Clears Pighouse skin, resets window anim states to default build.
+* **Description:** Clears pighouse skin by calling basic_clear_fn and restoring default builds for window and windowsnow AnimStates if they exist.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `researchlab_init_fn(inst, build_name)`
-* **Description:** Initializes Science Machine skin, overrides various symbols like bolts and FX.
+* **Description:** Initializes science machine skin by calling basic_init_fn and overriding multiple symbols including bolts, FX effects, and shadow elements.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for science machine
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `researchlab_clear_fn(inst)`
-* **Description:** Clears Science Machine skin, clears overridden symbols.
+* **Description:** Clears science machine skin by calling basic_clear_fn and clearing all overridden symbols.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `chester_eyebone_init_fn(inst, build_name)`
-* **Description:** Initializes Chester eyebone skin, refreshes eye, sets build and linked skinname on server. Returns early if not mastersim.
+* **Description:** Initializes Chester eyebone skin on master sim by refreshing eye, setting build, and storing linked_skinname.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for Chester eyebone
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `chester_eyebone_clear_fn(inst)`
-* **Description:** Clears Chester eyebone skin, refreshes eye, sets build and clears linked skinname.
+* **Description:** Clears Chester eyebone skin by refreshing eye, setting build, and clearing linked_skinname.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `chester_init_fn(inst, build_name)`
-* **Description:** Initializes Chester skin, sets build on server. Returns early if not mastersim.
+* **Description:** Initializes Chester skin on master sim by calling SetBuild.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for Chester
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `chester_clear_fn(inst)`
-* **Description:** Clears Chester skin, sets build.
+* **Description:** Clears Chester skin by calling SetBuild.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `hutch_fishbowl_init_fn(inst, build_name)`
-* **Description:** Initializes Hutch fishbowl skin, refreshes icon and sets linked skinname on server. Returns early if not mastersim.
+* **Description:** Initializes Hutch fishbowl skin on master sim by calling basic_init_fn, refreshing fishbowl icon, and storing linked_skinname.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for Hutch fishbowl
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `hutch_fishbowl_clear_fn(inst)`
-* **Description:** Clears Hutch fishbowl skin, refreshes icon and clears linked skinname.
+* **Description:** Clears Hutch fishbowl skin by calling basic_clear_fn, refreshing fishbowl icon, and clearing linked_skinname.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `hutch_init_fn(inst, build_name)`
-* **Description:** Initializes Hutch skin, sets build on server. Returns early if not mastersim.
+* **Description:** Initializes Hutch skin on master sim by calling SetBuild.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for Hutch
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `hutch_clear_fn(inst)`
-* **Description:** Clears Hutch skin, sets build.
+* **Description:** Clears Hutch skin by calling SetBuild.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `glommerflower_init_fn(inst, build_name)`
-* **Description:** Initializes Glommer flower skin, refreshes flower icon on server. Returns early if not mastersim.
+* **Description:** Initializes Glommer flower skin by calling basic_init_fn and refreshing flower icon on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
-* **Error states:** None### `glommerflower_clear_fn(inst)`
-* **Description:** Clears Glommer flower skin, refreshes flower icon.
+  - `inst` -- Entity instance for Glommer flower
+  - `build_name` -- Skin/build name
+* **Returns:** nil
+* **Error states:** None
+
+### `glommerflower_clear_fn(inst)`
+* **Description:** Clears Glommer flower skin by calling basic_clear_fn and refreshing flower icon.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `glommer_init_fn(inst, build_name)`
-* **Description:** Initializes Glommer skin using basic init function.
+* **Description:** Initializes Glommer skin by calling basic_init_fn.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for Glommer
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `glommer_clear_fn(inst)`
-* **Description:** Clears Glommer skin using basic clear function.
+* **Description:** Clears Glommer skin by calling basic_clear_fn.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `bundlewrap_init_fn(inst, build_name)`
-* **Description:** Initializes Bundle Wrap skin, sets skin data on bundlemaker component and adds sounds on server.
+* **Description:** Initializes bundle wrap skin by calling basic_init_fn, setting bundlemaker skin data, and adding skin sounds on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+  - `inst` -- Entity instance for bundle wrap
+  - `build_name` -- Skin/build name
+* **Returns:** nil
+* **Error states:** None
 
 ### `bundlewrap_clear_fn(inst)`
-* **Description:** Clears Bundle Wrap skin, resets skin data on bundlemaker and removes sounds.
+* **Description:** Clears bundle wrap skin by calling basic_clear_fn, resetting bundlemaker skin data, and removing skin sounds.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `bundle_init_fn(inst, build_name)`
-* **Description:** Initializes Bundle skin, updates inventory image and adds sounds.
+* **Description:** Initializes bundle skin by calling basic_init_fn, updating inventory image, and adding skin sounds.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for bundle
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `bundle_clear_fn(inst)`
-* **Description:** Clears Bundle skin, updates inventory image and removes sounds.
+* **Description:** Clears bundle skin by calling basic_clear_fn, updating inventory image, and removing skin sounds.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `abigail_flower_init_fn(inst, build_name)`
-* **Description:** Initializes Abigail flower skin, sets skin ID, anim state, and inventory image name on server.
+* **Description:** Initializes Abigail flower skin on master sim by setting flower_skin_id, applying skin to AnimState, changing inventory image name, and storing linked_skinname.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+  - `inst` -- Entity instance for Abigail flower
+  - `build_name` -- Skin/build name
+* **Returns:** nil
+* **Error states:** None
 
 ### `abigail_flower_clear_fn(inst)`
-* **Description:** Clears Abigail flower skin, resets anim state and inventory image name.
+* **Description:** Clears Abigail flower skin by restoring default build, clearing linked_skinname, and resetting inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `abigail_init_fn(inst, build_name)`
-* **Description:** Initializes Abigail skin, overrides ghost hat symbol on server.
+* **Description:** Initializes Abigail skin on master sim by overriding ghost_Hat symbol with skin build.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+  - `inst` -- Entity instance for Abigail
+  - `build_name` -- Skin/build name
+* **Returns:** nil
+* **Error states:** None
 
 ### `abigail_clear_fn(inst)`
-* **Description:** Clears Abigail skin, clears ghost hat symbol override.
+* **Description:** Clears Abigail skin by clearing the ghost_Hat override symbol.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `bugnet_init_fn(inst, build_name)`
-* **Description:** Initializes Bug Net skin and adds sounds on server.
+* **Description:** Initializes bug net skin on master sim by calling basic_init_fn and adding skin sounds.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+  - `inst` -- Entity instance for bug net
+  - `build_name` -- Skin/build name
+* **Returns:** nil
+* **Error states:** None
 
 ### `bugnet_clear_fn(inst)`
-* **Description:** Clears Bug Net skin and removes sounds.
+* **Description:** Clears bug net skin by calling basic_clear_fn and removing skin sounds.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `cookpot_init_fn(inst, build_name)`
-* **Description:** Initializes Crockpot skin, sets anim state skin if placer component exists or on server.
+* **Description:** Initializes crockpot skin by applying skin to AnimState. Returns early if no placer component and not on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
-* **Error states:** Returns early if no placer and not mastersim
+  - `inst` -- Entity instance for crockpot
+  - `build_name` -- Skin/build name
+* **Returns:** nil
+* **Error states:** None
 
 ### `cookpot_clear_fn(inst, build_name)`
-* **Description:** Clears Crockpot skin, resets anim state build.
+* **Description:** Clears crockpot skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-  - `build_name` -- The name of the skin build (unused in body)
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+  - `build_name` -- Skin/build name (unused in function body)
+* **Returns:** nil
 * **Error states:** None
 
 ### `firesuppressor_init_fn(inst, build_name)`
-* **Description:** Initializes Firesuppressor skin, updates linked placer skins or main anim state and meter symbol.
+* **Description:** Initializes firesuppressor skin by applying skin to linked placer entities or main entity, and overriding swap_meter symbol based on fuel level.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
-* **Error states:** Returns early if no placer and not mastersim
+  - `inst` -- Entity instance for firesuppressor
+  - `build_name` -- Skin/build name
+* **Returns:** nil
+* **Error states:** None
 
 ### `firesuppressor_clear_fn(inst)`
-* **Description:** Clears Firesuppressor skin, resets anim state build and meter symbol.
+* **Description:** Clears firesuppressor skin by restoring default build, clearing override symbol, and restoring original symbol if fuel level exists.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `firepit_init_fn(inst, build_name, fxoffset)`
-* **Description:** Initializes Firepit skin, sets FX offset, listens for takefuel event for skin FX on server.
+* **Description:** Initializes firepit skin by applying skin to AnimState, setting burnable FX offset, setting up takefuel event listener for skin FX if available, and restarting firepit.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-  - `fxoffset` -- Vector3 offset for fire effects
-* **Returns:** `nil`
-* **Error states:** Returns early if no placer and not mastersim
+  - `inst` -- Entity instance for firepit
+  - `build_name` -- Skin/build name
+  - `fxoffset` -- FX offset vector for burnable component
+* **Returns:** nil
+* **Error states:** None
 
 ### `firepit_clear_fn(inst)`
-* **Description:** Clears Firepit skin, resets FX offset, removes takefuel listener, restarts firepit.
+* **Description:** Clears firepit skin by restoring default build, clearing burnable fxoffset, removing takefuel event callback, and restarting firepit.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `campfire_init_fn(inst, build_name, fxoffset)`
-* **Description:** Initializes Campfire skin, positions FX children on server or placer.
+* **Description:** Initializes campfire skin by applying skin to AnimState and positioning first fxchild if it exists.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-  - `fxoffset` -- Vector3 offset for fire effects
-* **Returns:** `nil`
-* **Error states:** Returns early if no placer and not mastersim
+  - `inst` -- Entity instance for campfire
+  - `build_name` -- Skin/build name
+  - `fxoffset` -- FX offset vector for positioning fxchildren
+* **Returns:** nil
+* **Error states:** None
 
 ### `campfire_clear_fn(inst)`
-* **Description:** Clears Campfire skin, resets FX children position.
+* **Description:** Clears campfire skin by restoring default build and resetting first fxchild position to origin if it exists.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `coldfirepit_init_fn(inst, build_name, fxoffset)`
-* **Description:** Initializes Cold Firepit skin, sets FX offset and restarts firepit on server or placer.
+* **Description:** Initializes cold firepit skin by applying skin to AnimState, setting burnable FX offset, and restarting firepit.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-  - `fxoffset` -- Vector3 offset for fire effects
-* **Returns:** `nil`
-* **Error states:** Returns early if no placer and not mastersim
+  - `inst` -- Entity instance for cold firepit
+  - `build_name` -- Skin/build name
+  - `fxoffset` -- FX offset vector for burnable component
+* **Returns:** nil
+* **Error states:** None
 
 ### `coldfirepit_clear_fn(inst)`
-* **Description:** Clears Cold Firepit skin, resets FX offset and restarts firepit.
+* **Description:** Clears cold firepit skin by restoring default build, clearing burnable fxoffset, and restarting firepit.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_builder_init_fn(inst, build_name)`
-* **Description:** Initializes Critter Builder skin, sets linked skinname.
+* **Description:** Initializes critter builder skin by storing linked_skinname.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for critter builder
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `pet_init_fn(inst, build_name, default_build)`
-* **Description:** Initializes Pet skin, sets anim state skin on server.
+* **Description:** Initializes pet skin on master sim by applying skin to AnimState.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-  - `default_build` -- The default build name
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+  - `inst` -- Entity instance for pet
+  - `build_name` -- Skin/build name
+  - `default_build` -- Default build name for AnimState
+* **Returns:** nil
+* **Error states:** None
 
 ### `perdling_init_fn(inst, build_name, default_build, hungry_sound)`
-* **Description:** Initializes Perdling skin, sets anim state skin and hungry sound on server.
+* **Description:** Initializes perdling skin on master sim by applying skin to AnimState and storing skin_hungry_sound.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-  - `default_build` -- The default build name
+  - `inst` -- Entity instance for perdling
+  - `build_name` -- Skin/build name
+  - `default_build` -- Default build name for AnimState
   - `hungry_sound` -- Sound to play when hungry
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+* **Returns:** nil
+* **Error states:** None
 
 ### `glomling_init_fn(inst, build_name, default_build)`
-* **Description:** Initializes Glomling skin, sets anim state skin and adds sounds on server.
+* **Description:** Initializes glomling skin on master sim by applying skin to AnimState and adding skin sounds.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-  - `default_build` -- The default build name
-* **Returns:** `nil`
-* **Error states:** Returns early if not mastersim
+  - `inst` -- Entity instance for glomling
+  - `build_name` -- Skin/build name
+  - `default_build` -- Default build name for AnimState
+* **Returns:** nil
+* **Error states:** None
 
 ### `critter_dragonling_clear_fn(inst)`
-* **Description:** Clears Critter Dragonling skin, resets anim state build.
+* **Description:** Clears dragonling critter skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_dragonling_builder_clear_fn(inst)`
-* **Description:** Clears Critter Dragonling Builder skin, clears linked skinname.
+* **Description:** Clears dragonling builder critter skin by clearing linked_skinname.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_glomling_clear_fn(inst)`
-* **Description:** Clears Critter Glomling skin, resets anim state build and removes sounds.
+* **Description:** Clears glomling critter skin by restoring default build and removing skin sounds.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_glomling_builder_clear_fn(inst)`
-* **Description:** Clears Critter Glomling Builder skin, clears linked skinname.
+* **Description:** Clears glomling builder critter skin by clearing linked_skinname.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_kitten_clear_fn(inst)`
-* **Description:** Clears Critter Kitten skin, resets anim state build.
+* **Description:** Clears kitten critter skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_kitten_builder_clear_fn(inst)`
-* **Description:** Clears Critter Kitten Builder skin, clears linked skinname.
+* **Description:** Clears kitten builder critter skin by clearing linked_skinname.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_lamb_clear_fn(inst)`
-* **Description:** Clears Critter Lamb skin, resets anim state build.
+* **Description:** Clears lamb critter skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_lamb_builder_clear_fn(inst)`
-* **Description:** Clears Critter Lamb Builder skin, clears linked skinname.
+* **Description:** Clears lamb builder critter skin by clearing linked_skinname.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_perdling_clear_fn(inst)`
-* **Description:** Clears Critter Perdling skin, resets anim state build and hungry sound.
+* **Description:** Clears perdling critter skin by restoring default build and clearing skin_hungry_sound.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_perdling_builder_clear_fn(inst)`
-* **Description:** Clears Critter Perdling Builder skin, clears linked skinname.
+* **Description:** Clears perdling builder critter skin by clearing linked_skinname.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_puppy_clear_fn(inst)`
-* **Description:** Clears Critter Puppy skin, resets anim state build.
+* **Description:** Clears puppy critter skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_puppy_builder_clear_fn(inst)`
-* **Description:** Clears Critter Puppy Builder skin, clears linked skinname.
+* **Description:** Clears puppy builder critter skin by clearing linked_skinname.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_bulbin_init_fn(inst, build_name)`
-* **Description:** Initializes Critter Bulbin skin using basic init function.
+* **Description:** Initializes bulbin critter skin by calling basic_init_fn.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for bulbin critter
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_bulbin_clear_fn(inst)`
-* **Description:** Clears Critter Bulbin skin, sets persists false and schedules removal.
+* **Description:** Clears bulbin critter skin by setting persists to false and scheduling removal task.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `critter_bulbin_builder_clear_fn(inst)`
-* **Description:** Clears Critter Bulbin Builder skin, clears linked skinname.
+* **Description:** Clears bulbin builder critter skin by clearing linked_skinname.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `minisign_item_init_fn(inst, build_name, anim_bank)`
-* **Description:** Initializes Mini Sign Item skin, sets linked skinname, anim state, bank, and inventory image.
+* **Description:** Initializes mini sign item skin by storing linked_skinname, applying skin to AnimState, setting anim bank if provided, and changing inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-  - `anim_bank` -- Optional animation bank name
-* **Returns:** `nil`
+  - `inst` -- Entity instance for mini sign item
+  - `build_name` -- Skin/build name
+  - `anim_bank` -- Animation bank name (optional)
+* **Returns:** nil
 * **Error states:** None
 
 ### `minisign_item_clear_fn(inst)`
-* **Description:** Clears Mini Sign Item skin, resets linked skinname, anim state, bank, and inventory image.
+* **Description:** Clears mini sign item skin by clearing linked_skinname, restoring default build and bank, and resetting inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `minisign_drawn_init_fn(inst, build_name, anim_bank)`
-* **Description:** Initializes Mini Sign Drawn skin, sets linked skinname, anim state, bank, and inventory image.
+* **Description:** Initializes drawn mini sign skin by storing linked_skinname, applying skin to AnimState, setting anim bank if provided, and changing inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-  - `anim_bank` -- Optional animation bank name
-* **Returns:** `nil`
+  - `inst` -- Entity instance for drawn mini sign
+  - `build_name` -- Skin/build name
+  - `anim_bank` -- Animation bank name (optional)
+* **Returns:** nil
 * **Error states:** None
 
 ### `minisign_drawn_clear_fn(inst)`
-* **Description:** Clears Mini Sign Drawn skin, resets linked skinname, anim state, bank, and inventory image.
+* **Description:** Clears drawn mini sign skin by clearing linked_skinname, restoring default build and bank, and resetting inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `minisign_init_fn(inst, build_name, anim_bank)`
-* **Description:** Initializes Mini Sign placed skin, sets anim state, bank, and linked skinnames on server or placer.
+* **Description:** Initializes mini sign skin by applying skin to AnimState, setting anim bank if provided, and storing linked_skinname variants for item and drawn states.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-  - `anim_bank` -- Optional animation bank name
-* **Returns:** `nil`
-* **Error states:** Returns early if no placer and not mastersim
+  - `inst` -- Entity instance for mini sign
+  - `build_name` -- Skin/build name
+  - `anim_bank` -- Animation bank name (optional)
+* **Returns:** nil
+* **Error states:** None
 
 ### `minisign_clear_fn(inst)`
-* **Description:** Clears Mini Sign placed skin, resets linked skinnames, anim state, and bank.
+* **Description:** Clears mini sign skin by clearing linked_skinname variants and restoring default build and bank.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `boat_item_init_fn(inst, build_name)`
-* **Description:** Initializes Boat Item skin, sets linked skinname, anim state, and inventory image.
+* **Description:** Initializes boat item skin by storing linked_skinname, applying skin to AnimState, and changing inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for boat item
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `boat_item_clear_fn(inst)`
-* **Description:** Clears Boat Item skin, resets linked skinname, anim state, and inventory image.
+* **Description:** Clears boat item skin by clearing linked_skinname, restoring default build, and resetting inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `boat_init_fn(inst, build_name)`
-* **Description:** Initializes Boat placed skin, sets anim state on server or placer.
+* **Description:** Initializes boat skin by applying skin to AnimState. Returns early if no placer component and not on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
-* **Error states:** Returns early if no placer and not mastersim
+  - `inst` -- Entity instance for boat
+  - `build_name` -- Skin/build name
+* **Returns:** nil
+* **Error states:** None
 
 ### `boat_clear_fn(inst)`
-* **Description:** Clears Boat placed skin, resets anim state build.
+* **Description:** Clears boat skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `walkingplank_init_fn(inst, build_name)`
-* **Description:** Initializes Walking Plank skin, sets anim state on server or placer.
+* **Description:** Initializes walking plank skin by applying skin to AnimState. Returns early if no placer component and not on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
-* **Error states:** Returns early if no placer and not mastersim
+  - `inst` -- Entity instance for walking plank
+  - `build_name` -- Skin/build name
+* **Returns:** nil
+* **Error states:** None
 
 ### `walkingplank_clear_fn(inst, build_name)`
-* **Description:** Clears Walking Plank skin, resets anim state build.
+* **Description:** Clears walking plank skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-  - `build_name` -- The name of the skin build (unused in body)
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+  - `build_name` -- Skin/build name (unused in function body)
+* **Returns:** nil
 * **Error states:** None
 
 ### `steeringwheel_item_init_fn(inst, build_name)`
-* **Description:** Initializes Steering Wheel Item skin, sets linked skinname, anim state, and inventory image.
+* **Description:** Initializes steering wheel item skin by storing linked_skinname, applying skin to AnimState, and changing inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for steering wheel item
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `steeringwheel_item_clear_fn(inst)`
-* **Description:** Clears Steering Wheel Item skin, resets linked skinname, anim state, and inventory image.
+* **Description:** Clears steering wheel item skin by clearing linked_skinname, restoring default build, and resetting inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `steeringwheel_init_fn(inst, build_name)`
-* **Description:** Initializes Steering Wheel placed skin, sets anim state on server or placer. Returns early if no placer and not mastersim.
+* **Description:** Initializes steering wheel skin by applying skin to AnimState. Returns early if no placer component and not on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for steering wheel
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `steeringwheel_clear_fn(inst)`
-* **Description:** Clears Steering Wheel placed skin, resets anim state build.
+* **Description:** Clears steering wheel skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `anchor_item_init_fn(inst, build_name)`
-* **Description:** Initializes Anchor Item skin, sets linked skinname, anim state, and inventory image.
+* **Description:** Initializes anchor item skin by storing linked_skinname, applying skin to AnimState, and changing inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for anchor item
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `anchor_item_clear_fn(inst)`
-* **Description:** Clears Anchor Item skin, resets linked skinname, anim state, and inventory image.
+* **Description:** Clears anchor item skin by clearing linked_skinname, restoring default build, and resetting inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `anchor_init_fn(inst, build_name)`
-* **Description:** Initializes Anchor placed skin, sets anim state on server or placer. Returns early if no placer and not mastersim.
+* **Description:** Initializes anchor skin by applying skin to AnimState. Returns early if no placer component and not on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for anchor
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `anchor_clear_fn(inst)`
-* **Description:** Clears Anchor placed skin, resets anim state build.
+* **Description:** Clears anchor skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `mastupgrade_lamp_item_init_fn(inst, build_name)`
-* **Description:** Initializes Mast Upgrade Lamp Item skin, sets linked skinname, anim state, and inventory image.
+* **Description:** Initializes mast upgrade lamp item skin by storing linked_skinname, applying skin to AnimState, and changing inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for mast upgrade lamp item
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `mastupgrade_lamp_item_clear_fn(inst)`
-* **Description:** Clears Mast Upgrade Lamp Item skin, resets linked skinname, anim state, and inventory image.
+* **Description:** Clears mast upgrade lamp item skin by clearing linked_skinname, restoring default build, and resetting inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `mastupgrade_lamp_init_fn(inst, build_name)`
-* **Description:** Initializes Mast Upgrade Lamp placed skin, sets anim state on server or placer. Returns early if no placer and not mastersim.
+* **Description:** Initializes mast upgrade lamp skin by applying skin to AnimState. Returns early if no placer component and not on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for mast upgrade lamp
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `mastupgrade_lamp_clear_fn(inst)`
-* **Description:** Clears Mast Upgrade Lamp placed skin, resets anim state build.
+* **Description:** Clears mast upgrade lamp skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `mastupgrade_lightningrod_item_init_fn(inst, build_name)`
-* **Description:** Initializes Mast Upgrade Lightningrod Item skin, sets linked skinname, anim state, and inventory image.
+* **Description:** Initializes mast upgrade lightning rod item skin by storing linked_skinname, applying skin to AnimState, and changing inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for mast upgrade lightning rod item
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `mastupgrade_lightningrod_item_clear_fn(inst)`
-* **Description:** Clears Mast Upgrade Lightningrod Item skin, resets linked skinname, anim state, and inventory image.
+* **Description:** Clears mast upgrade lightning rod item skin by clearing linked_skinname, restoring default build, and resetting inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `mastupgrade_lightningrod_init_fn(inst, build_name)`
-* **Description:** Initializes Mast Upgrade Lightningrod placed skin, sets anim state on server or placer. Returns early if no placer and not mastersim.
+* **Description:** Initializes mast upgrade lightning rod skin by applying skin to AnimState. Returns early if no placer component and not on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for mast upgrade lightning rod
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `mastupgrade_lightningrod_clear_fn(inst)`
-* **Description:** Clears Mast Upgrade Lightningrod placed skin, resets anim state build.
+* **Description:** Clears mast upgrade lightning rod skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `mastupgrade_lightningrod_top_init_fn(inst, build_name)`
-* **Description:** Initializes Mast Upgrade Lightningrod Top placed skin, sets anim state on server or placer. Returns early if no placer and not mastersim.
+* **Description:** Initializes mast upgrade lightning rod top skin by applying skin to AnimState. Returns early if no placer component and not on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for mast upgrade lightning rod top
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `mastupgrade_lightningrod_top_clear_fn(inst)`
-* **Description:** Clears Mast Upgrade Lightningrod Top placed skin, resets anim state build.
+* **Description:** Clears mast upgrade lightning rod top skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `wall_moonrock_item_init_fn(inst, build_name)`
-* **Description:** Initializes Wall Moonrock Item skin, sets linked skinname, anim state, and inventory image.
+* **Description:** Initializes moonrock wall item skin by storing linked_skinname, applying skin to AnimState, and changing inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for moonrock wall item
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `wall_moonrock_item_clear_fn(inst)`
-* **Description:** Clears Wall Moonrock Item skin, resets linked skinname, anim state, and inventory image.
+* **Description:** Clears moonrock wall item skin by clearing linked_skinname, restoring default build, and resetting inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `wall_moonrock_init_fn(inst, build_name)`
-* **Description:** Initializes Wall Moonrock placed skin, sets anim state on server or placer. Returns early if no placer and not mastersim.
+* **Description:** Initializes moonrock wall skin by applying skin to AnimState. Returns early if no placer component and not on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for moonrock wall
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `wall_moonrock_clear_fn(inst)`
-* **Description:** Clears Wall Moonrock placed skin, resets anim state build.
+* **Description:** Clears moonrock wall skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `wall_ruins_item_init_fn(inst, build_name)`
-* **Description:** Initializes Wall Ruins Item skin, sets linked skinname, anim state, and inventory image.
+* **Description:** Initializes ruins wall item skin by storing linked_skinname, applying skin to AnimState, and changing inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for ruins wall item
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `wall_ruins_item_clear_fn(inst)`
-* **Description:** Clears Wall Ruins Item skin, resets linked skinname, anim state, and inventory image.
+* **Description:** Clears ruins wall item skin by clearing linked_skinname, restoring default build, and resetting inventory image name.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `wall_ruins_init_fn(inst, build_name)`
-* **Description:** Initializes Wall Ruins placed skin, sets anim state on server or placer. Returns early if no placer and not mastersim.
+* **Description:** Initializes ruins wall skin by applying skin to AnimState. Returns early if no placer component and not on master sim.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance for ruins wall
+  - `build_name` -- Skin/build name
+* **Returns:** nil
 * **Error states:** None
 
 ### `wall_ruins_clear_fn(inst)`
-* **Description:** Clears Wall Ruins placed skin, resets anim state build.
+* **Description:** Clears ruins wall skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** nil
 * **Error states:** None
 
 ### `wall_stone_item_init_fn(inst, build_name)`
-* **Description:** Initializes Wall Stone Item skin, sets linked skinname, anim state, and inventory image.
+* **Description:** Initializes stone wall item skin by setting linked skinname, applying skin to AnimState, and updating inventory item image.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_stone_item_clear_fn(inst)`
-* **Description:** Clears Wall Stone Item skin, resets linked skinname, anim state, and inventory image.
+* **Description:** Clears stone wall item skin by resetting linked_skinname, restoring default build, and clearing inventory image override.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_stone_init_fn(inst, build_name)`
-* **Description:** Initializes Wall Stone placed skin, sets anim state on server or placer. Returns early if no placer and not mastersim.
+* **Description:** Initializes stone wall placed skin. Returns early if no placer component on client.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_stone_clear_fn(inst)`
-* **Description:** Clears Wall Stone placed skin, resets anim state build.
+* **Description:** Clears stone wall placed skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_dreadstone_item_init_fn(inst, build_name)`
-* **Description:** Initializes Wall Dreadstone Item skin, sets linked skinname, anim state, and inventory image.
+* **Description:** Initializes dreadstone wall item skin by setting linked skinname, applying skin to AnimState, and updating inventory item image.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_dreadstone_item_clear_fn(inst)`
-* **Description:** Clears Wall Dreadstone Item skin, resets linked skinname, anim state, and inventory image.
+* **Description:** Clears dreadstone wall item skin by resetting linked_skinname, restoring default build, and clearing inventory image override.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_dreadstone_init_fn(inst, build_name)`
-* **Description:** Initializes Wall Dreadstone placed skin, sets anim state on server or placer. Returns early if no placer and not mastersim.
+* **Description:** Initializes dreadstone wall placed skin. Returns early if no placer component on client.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_dreadstone_clear_fn(inst)`
-* **Description:** Clears Wall Dreadstone placed skin, resets anim state build.
+* **Description:** Clears dreadstone wall placed skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_hay_item_init_fn(inst, build_name)`
-* **Description:** Initializes Wall Hay Item skin, sets linked skinname, anim state, and inventory image.
+* **Description:** Initializes hay wall item skin by setting linked skinname, applying skin to AnimState, and updating inventory item image.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_hay_item_clear_fn(inst)`
-* **Description:** Clears Wall Hay Item skin, resets linked skinname, anim state, and inventory image.
+* **Description:** Clears hay wall item skin by resetting linked_skinname, restoring default build, and clearing inventory image override.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_hay_init_fn(inst, build_name)`
-* **Description:** Initializes Wall Hay placed skin, sets anim state on server or placer. Returns early if no placer and not mastersim.
+* **Description:** Initializes hay wall placed skin. Returns early if no placer component on client.
 * **Parameters:**
-  - `inst` -- The entity instance to apply the skin to
-  - `build_name` -- The name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_hay_clear_fn(inst)`
-* **Description:** Clears Wall Hay placed skin, resets anim state build.
+* **Description:** Clears hay wall placed skin by restoring default build.
 * **Parameters:**
-  - `inst` -- The entity instance to clear the skin from
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_wood_item_init_fn(inst, build_name)`
-* **Description:** Initializes wood wall item skin by setting animation skin and inventory image.
+* **Description:** Initializes wood wall item skin by setting linked skinname, applying skin to AnimState, and updating inventory item image.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_wood_item_clear_fn(inst)`
-* **Description:** Clears wood wall item skin, resetting animation build and inventory image.
+* **Description:** Clears wood wall item skin by resetting linked_skinname, restoring default build, and clearing inventory image override.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_wood_init_fn(inst, build_name)`
-* **Description:** Initializes placed wood wall skin, checking for placer component and server authority. Returns early if no placer component and not master sim.
+* **Description:** Initializes wood wall placed skin. Returns early if no placer component on client.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `wall_wood_clear_fn(inst)`
-* **Description:** Clears placed wood wall skin, resetting animation build.
+* **Description:** Clears wood wall placed skin by restoring default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `fence_item_init_fn(inst, build_name)`
-* **Description:** Initializes fence item skin by setting animation skin and inventory image.
+* **Description:** Initializes fence item skin by setting linked skinname, applying skin to AnimState, and updating inventory item image.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `fence_item_clear_fn(inst)`
-* **Description:** Clears fence item skin, resetting animation build and inventory image.
+* **Description:** Clears fence item skin by resetting linked_skinname, restoring default build, and clearing inventory image override.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `fence_init_fn(inst, build_name)`
-* **Description:** Initializes placed fence skin, checking for placer component and server authority. Returns early if no placer component and not master sim.
+* **Description:** Initializes fence placed skin. Returns early if no placer component on client.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `fence_clear_fn(inst)`
-* **Description:** Clears placed fence skin, resetting animation build.
+* **Description:** Clears fence placed skin by restoring default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `fence_gate_item_init_fn(inst, build_name)`
-* **Description:** Initializes fence gate item skin by setting animation skin and inventory image.
+* **Description:** Initializes fence gate item skin by setting linked skinname, applying skin to AnimState, and updating inventory item image.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `fence_gate_item_clear_fn(inst)`
-* **Description:** Clears fence gate item skin, resetting animation build and inventory image.
+* **Description:** Clears fence gate item skin by resetting linked_skinname, restoring default build, and clearing inventory image override.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `fence_gate_init_fn(inst, build_name)`
-* **Description:** Initializes placed fence gate skin, checking for placer component and server authority. Returns early if no placer component and not master sim.
+* **Description:** Initializes fence gate placed skin. Sets dooranim skin_id and applies skin to dooranim AnimState. Returns early if no placer component on client.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `fence_gate_clear_fn(inst)`
-* **Description:** Clears placed fence gate skin, resetting animation build.
+* **Description:** Clears fence gate placed skin by resetting dooranim skin_id and restoring default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `mast_item_init_fn(inst, build_name)`
-* **Description:** Initializes mast item skin by setting animation skin and inventory image.
+* **Description:** Initializes mast item skin by setting linked skinname, applying skin to AnimState, and updating inventory item image.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
-### `mast_item_clear_fn(inst, build_name)`
-* **Description:** Clears mast item skin, resetting animation build.
+### `mast_item_clear_fn(inst)`
+* **Description:** Clears mast item skin by resetting linked_skinname and restoring default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
-
 ### `mast_init_fn(inst, build_name)`
-* **Description:** Initializes placed mast skin, checking for placer component and server authority. Returns early if no placer component and not master sim.
+* **Description:** Initializes mast placed skin. Returns early if no placer component on client.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
-### `mast_clear_fn(inst, build_name)`
-* **Description:** Clears placed mast skin, resetting animation build.
+### `mast_clear_fn(inst)`
+* **Description:** Clears mast placed skin by restoring default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` (string) -- Skin build name
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None### `record_init_fn(inst, build_name, trackname)`
-* **Description:** Initializes record skin, setting display name, inspectable override, and skin sounds. Returns early if not master sim.
+* **Description:** Initializes record skin by calling basic_init_fn, setting record displayname, overriding inspectable name, setting songToPlay_skin if trackname provided, and adding skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-  - `trackname` -- Optional track name for music
-* **Returns:** `nil`
-* **Error states:** None### `record_clear_fn(inst)`
-* **Description:** Clears record skin, resetting display name, inventory image, and skin sounds.
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+  - `trackname` -- Optional track name for skin-specific audio
+* **Returns:** None
+* **Error states:** None
+
+### `record_clear_fn(inst)`
+* **Description:** Clears record skin by calling basic_clear_fn, resetting displayname, clearing inspectable name override, clearing inventory image, resetting songToPlay_skin, and removing skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `mast_malbatross_item_init_fn(inst, build_name)`
-* **Description:** Initializes Malbatross mast item skin by setting animation skin and inventory image.
+* **Description:** Initializes malbatross mast item skin by setting linked skinname, applying skin to AnimState, and updating inventory item image.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `mast_malbatross_item_clear_fn(inst, build_name)`
-* **Description:** Clears Malbatross mast item skin, resetting animation build.
+* **Description:** Clears malbatross mast item skin by resetting linked_skinname and restoring default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+  - `build_name` -- Skin build name (unused in clear)
+* **Returns:** None
 * **Error states:** None
 
 ### `mast_malbatross_init_fn(inst, build_name)`
-* **Description:** Initializes placed Malbatross mast skin, checking for placer component and server authority. Returns early if no placer component and not master sim.
+* **Description:** Initializes malbatross mast placed skin. Returns early if no placer component on client.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `mast_malbatross_clear_fn(inst, build_name)`
-* **Description:** Clears placed Malbatross mast skin, resetting animation build.
+* **Description:** Clears malbatross mast placed skin by restoring default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+  - `build_name` -- Skin build name (unused in clear)
+* **Returns:** None
 * **Error states:** None
 
 ### `bernie_inactive_init_fn(inst, build_name)`
-* **Description:** Initializes inactive Bernie skin, setting animation and inventory image. Returns early if not master sim.
+* **Description:** Initializes inactive bernie skin on server only. Applies skin to AnimState and updates inventory item image.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `bernie_inactive_clear_fn(inst)`
-* **Description:** Clears inactive Bernie skin, resetting animation and inventory image.
+* **Description:** Clears inactive bernie skin by restoring default build and clearing inventory image override.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `bernie_active_init_fn(inst, build_name)`
-* **Description:** Initializes active Bernie skin, setting animation. Returns early if not master sim.
+* **Description:** Initializes active bernie skin on server only. Applies skin to AnimState.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `bernie_active_clear_fn(inst)`
-* **Description:** Clears active Bernie skin, resetting animation.
+* **Description:** Clears active bernie skin by restoring default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `bernie_big_init_fn(inst, build_name)`
-* **Description:** Initializes big Bernie skin, setting animation and optional custom build. Returns early if not master sim.
+* **Description:** Initializes big bernie skin on server only. Applies skin to AnimState and calls SetBernieSkinBuild if available.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `bernie_big_clear_fn(inst)`
-* **Description:** Clears big Bernie skin, resetting animation via custom function or default.
+* **Description:** Clears big bernie skin by calling ClearBernieSkinBuild if available, otherwise restores default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `researchlab4_init_fn(inst, build_name)`
-* **Description:** Initializes Research Lab 4 skin, overriding machine hat symbol. Returns early if placer component exists (on client) or if not master sim.
+* **Description:** Initializes researchlab4 skin. Overrides machine_hat symbol for placers on client or server. Returns early on client without placer.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `researchlab4_clear_fn(inst)`
-* **Description:** Clears Research Lab 4 skin, clearing symbol override.
+* **Description:** Clears researchlab4 skin by clearing machine_hat symbol override.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `reviver_init_fn(inst, build_name)`
-* **Description:** Initializes Reviver skin, setting animation, FX, and skin sounds. Returns early if not master sim.
+* **Description:** Initializes reviver skin on server only. Applies skin, sets up beat FX if defined in SKIN_FX_PREFAB, spawns glow child entity, adds skin sounds, and triggers skin_switched.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `reviver_clear_fn(inst)`
-* **Description:** Clears Reviver skin, removing FX and resetting animation.
+* **Description:** Clears reviver skin by restoring default build, clearing inventory image, removing highlight children FX, resetting PlayBeatAnimation, removing skin sounds, and triggering skin_switched.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `cane_init_fn(inst, build_name)`
-* **Description:** Initializes Cane skin, setting up VFX and event listeners. Returns early if not master sim.
+* **Description:** Initializes cane skin on server only. Calls basic_init_fn, overrides grass symbol, sets up VFX and trail FX from SKIN_FX_PREFAB, and registers event listeners for equipped/unequipped/onremove.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `cane_clear_fn(inst)`
-* **Description:** Clears Cane skin, removing event callbacks and resetting symbols.
+* **Description:** Clears cane skin by calling basic_clear_fn, clearing grass symbol override, and removing all event callbacks.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `nightsword_init_fn(inst, build_name)`
-* **Description:** Initializes Night Sword skin, setting up VFX and event listeners. Returns early if not master sim.
+* **Description:** Initializes nightsword skin on server only. Calls basic_init_fn, sets up VFX FX from SKIN_FX_PREFAB, and registers event listeners for equipped/unequipped/onremove.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `nightsword_clear_fn(inst)`
-* **Description:** Clears Night Sword skin, removing event callbacks.
+* **Description:** Clears nightsword skin by calling basic_clear_fn and removing all event callbacks.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `glasscutter_init_fn(inst, build_name)`
-* **Description:** Initializes Glass Cutter skin, adding skin sounds. Returns early if not master sim.
+* **Description:** Initializes glasscutter skin. Calls basic_init_fn and adds skin sounds on server only.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `glasscutter_clear_fn(inst)`
-* **Description:** Clears Glass Cutter skin, removing skin sounds.
+* **Description:** Clears glasscutter skin by calling basic_clear_fn and removing skin sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `orangestaff_init_fn(inst, build_name)`
-* **Description:** Initializes Orange Staff skin, setting up VFX, trail, and blinkstaff FX. Returns early if not master sim.
+* **Description:** Initializes orange staff skin on server only. Calls staff_init_fn, sets up VFX and trail FX from SKIN_FX_PREFAB, registers event listeners, and configures blinkstaff FX if defined.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `orangestaff_clear_fn(inst)`
-* **Description:** Clears Orange Staff skin, removing callbacks and resetting blinkstaff FX.
+* **Description:** Clears orange staff skin by calling staff_clear_fn, removing event callbacks, and resetting blinkstaff FX to defaults.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `yellowstaff_init_fn(inst, build_name)`
-* **Description:** Initializes Yellow Staff skin, storing morph skin data.
+* **Description:** Initializes yellow staff skin. Calls caststaff_init_fn and sets morph_skin from granted_items in skin data.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `yellowstaff_clear_fn(inst)`
-* **Description:** Clears Yellow Staff skin, niling morph skin.
+* **Description:** Clears yellow staff skin by calling caststaff_clear_fn and resetting morph_skin to nil.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `heatrock_init_fn(inst, build_name)`
-* **Description:** Initializes Thermal Stone skin, setting animation and inventory image with temp range. Returns early if not master sim.
+* **Description:** Initializes thermal stone skin on server only. Applies skin to AnimState and updates inventory image name with currentTempRange.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+* **Returns:** None
 * **Error states:** None
 
 ### `heatrock_clear_fn(inst)`
-* **Description:** Clears Thermal Stone skin, resetting animation and inventory image.
+* **Description:** Clears thermal stone skin by restoring default build and resetting inventory image name with currentTempRange.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `lantern_init_fn(inst, build_name, overridesymbols, followoffset)`
-* **Description:** Initializes Lantern skin, setting up FX and event listeners. Returns early if not master sim.
+* **Description:** Initializes lantern skin on server only. Applies skin, sets up held and ground FX from SKIN_FX_PREFAB, stores override symbols and follow offset, registers event listeners for lantern_on/off/unequipped/onremove, and turns on FX if machine is already on.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-  - `overridesymbols` -- Table of symbols to override
-  - `followoffset` -- Vector offset for FX following
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to apply
+  - `overridesymbols` -- Table of symbol names to override on FX
+  - `followoffset` -- Vector3 offset for FX follower positioning
+* **Returns:** None
 * **Error states:** None
 
 ### `lantern_clear_fn(inst)`
-* **Description:** Clears Lantern skin, turning off FX and removing listeners.
+* **Description:** Clears lantern skin by restoring default build, turning off FX, resetting FX references and offsets, and removing all event callbacks.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `panflute_init_fn(inst, build_name)`
-* **Description:** Initializes Pan Flute skin, setting animation and inventory image. Returns early if no placer and not master sim.
+* **Description:** Initializes pan flute skin by setting AnimState skin build and updating inventory item image name.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to apply skin to
+  - `build_name` -- Skin build name to set
+* **Returns:** None
 * **Error states:** None
 
 ### `panflute_clear_fn(inst)`
-* **Description:** Clears Pan Flute skin, resetting animation and inventory image.
+* **Description:** Clears pan flute skin by resetting AnimState build to default and clearing inventory item image name.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear skin from
+* **Returns:** None
 * **Error states:** None
 
 ### `researchlab2_init_fn(inst, build_name)`
-* **Description:** Initializes research lab skin, setting build, overriding symbols, and spawning FX children. Returns early if placer component exists or not master sim.
+* **Description:** Initializes researchlab2 skin with symbol overrides, spawns FX children, and sets up flash animation system.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Entity instance to initialize
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `researchlab2_clear_fn(inst)`
-* **Description:** Clears research lab skin overrides, removes children, and resets animation functions.
+* **Description:** Clears researchlab2 skin by removing FX children, canceling flash tasks, and restoring default animation functions.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Entity instance to clear
+* **Returns:** None
 * **Error states:** None
 
 ### `icebox_init_fn(inst, build_name)`
-* **Description:** Initializes icebox skin, setting build and listening for open/close/remove events. Returns early if placer component exists or not master sim.
+* **Description:** Initializes icebox skin, sets up FX prefabs, and listens for open/close/remove events.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Icebox entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `icebox_clear_fn(inst)`
-* **Description:** Clears icebox skin build and removes event callbacks.
+* **Description:** Clears icebox skin by removing event callbacks and killing frost FX.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Icebox entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `telebase_init_fn(inst, build_name)`
-* **Description:** Initializes telebase skin, applying skin to inst and linked placer decorations. Returns early if placer component exists or not master sim.
+* **Description:** Initializes telebase skin and applies same skin to all linked placer decorations.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Telebase entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `telebase_clear_fn(inst)`
-* **Description:** Clears telebase skin build and resets linked skin name.
+* **Description:** Clears telebase skin and resets linked_skinname.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Telebase entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `gemsocket_init_fn(inst, build_name)`
-* **Description:** Initializes gemsocket skin build. Returns early if not master sim.
+* **Description:** Initializes gemsocket skin on master sim only.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Gemsocket entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `gemsocket_clear_fn(inst)`
-* **Description:** Clears gemsocket skin build.
+* **Description:** Clears gemsocket skin by resetting to default build.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Gemsocket entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `molehat_init_fn(inst, build_name, opentop)`
-* **Description:** Initializes molehat skin, adding open_top_hat tag and equip callback if opentop.
+* **Description:** Initializes molehat skin, adds open_top_hat tag if opentop, and sets equip callback.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
+  - `inst` -- Molehat entity instance
+  - `build_name` -- Skin build name
   - `opentop` -- Boolean indicating if hat has open top
-* **Returns:** `nil`
+* **Returns:** None
 * **Error states:** None
 
 ### `molehat_clear_fn(inst)`
-* **Description:** Clears molehat skin, removing tag and resetting equip callback.
+* **Description:** Clears molehat skin, removes open_top_hat tag, and restores default equip callback.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Molehat entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `premiumwateringcan_init_fn(inst, build_name)`
-* **Description:** Initializes premium watering can skin.
+* **Description:** Initializes premium watering can skin using basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Watering can entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `premiumwateringcan_clear_fn(inst)`
-* **Description:** Clears premium watering can skin.
+* **Description:** Clears premium watering can skin using basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Watering can entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `mushroom_farm_init_fn(inst, build_name)`
-* **Description:** Initializes mushroom farm skin.
+* **Description:** Initializes mushroom farm skin using basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Mushroom farm entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `mushroom_farm_clear_fn(inst)`
-* **Description:** Clears mushroom farm skin.
+* **Description:** Clears mushroom farm skin using basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Mushroom farm entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `dock_woodposts_init_fn(inst, build_name)`
-* **Description:** Initializes dock woodposts skin, playing random idle animation.
+* **Description:** Initializes dock woodposts skin and plays random idle animation variant.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Dock woodposts entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `dock_woodposts_clear_fn(inst)`
-* **Description:** Clears dock woodposts skin, playing random idle animation.
+* **Description:** Clears dock woodposts skin and plays random idle animation variant.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Dock woodposts entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `dock_woodposts_item_init_fn(inst, build_name, anim_bank)`
-* **Description:** Initializes dock woodposts item skin, setting linked skin name and inventory image.
+* **Description:** Initializes dock woodposts item skin, sets linked_skinname, and updates inventory item image.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-  - `anim_bank` -- Animation bank name
-* **Returns:** `nil`
+  - `inst` -- Dock woodposts item entity instance
+  - `build_name` -- Skin build name
+  - `anim_bank` -- Optional animation bank override
+* **Returns:** None
 * **Error states:** None
 
 ### `dock_woodposts_item_clear_fn(inst)`
-* **Description:** Clears dock woodposts item skin, resetting build, bank, and inventory image.
+* **Description:** Clears dock woodposts item skin and resets inventory item image.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Dock woodposts item entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `trophyscale_fish_init_fn(inst, build_name)`
-* **Description:** Initializes trophy scale fish skin.
+* **Description:** Initializes trophy scale fish skin using basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Trophy scale fish entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `trophyscale_fish_clear_fn(inst)`
-* **Description:** Clears trophy scale fish skin.
+* **Description:** Clears trophy scale fish skin using basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Trophy scale fish entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `trophyscale_oversizedveggies_init_fn(inst, build_name)`
-* **Description:** Initializes trophy scale oversized veggies skin.
+* **Description:** Initializes oversized veggies trophy scale skin using basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Trophy scale veggies entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `trophyscale_oversizedveggies_clear_fn(inst)`
-* **Description:** Clears trophy scale oversized veggies skin.
+* **Description:** Clears oversized veggies trophy scale skin using basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Trophy scale veggies entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `resurrectionstatue_init_fn(inst, build_name)`
-* **Description:** Initializes resurrection statue skin.
+* **Description:** Initializes resurrection statue skin using basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Resurrection statue entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `resurrectionstatue_clear_fn(inst)`
-* **Description:** Clears resurrection statue skin.
+* **Description:** Clears resurrection statue skin using basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Resurrection statue entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `antlionhat_init_fn(inst, build_name)`
-* **Description:** Initializes antlion hat skin.
+* **Description:** Initializes antlion hat skin using basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Antlion hat entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `antlionhat_clear_fn(inst)`
-* **Description:** Clears antlion hat skin.
+* **Description:** Clears antlion hat skin using basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Antlion hat entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `woodcarvedhat_init_fn(inst, build_name)`
-* **Description:** Initializes woodcarved hat skin.
+* **Description:** Initializes woodcarved hat skin using basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Woodcarved hat entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `woodcarvedhat_clear_fn(inst)`
-* **Description:** Clears woodcarved hat skin.
+* **Description:** Clears woodcarved hat skin using basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Woodcarved hat entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `nightstick_init_fn(inst, build_name)`
-* **Description:** Initializes nightstick skin.
+* **Description:** Initializes nightstick skin using basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Nightstick entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `nightstick_clear_fn(inst)`
-* **Description:** Clears nightstick skin.
+* **Description:** Clears nightstick skin using basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Nightstick entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `hawaiianshirt_init_fn(inst, build_name)`
-* **Description:** Initializes hawaiian shirt skin.
+* **Description:** Initializes hawaiian shirt skin using basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Hawaiian shirt entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `hawaiianshirt_clear_fn(inst)`
-* **Description:** Clears hawaiian shirt skin.
+* **Description:** Clears hawaiian shirt skin using basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Hawaiian shirt entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `icehat_init_fn(inst, build_name)`
-* **Description:** Initializes ice hat skin.
+* **Description:** Initializes ice hat skin using basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Ice hat entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `icehat_clear_fn(inst)`
-* **Description:** Clears ice hat skin.
+* **Description:** Clears ice hat skin using basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Ice hat entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `w_radio_init_fn(inst, build_name, skin_custom)`
-* **Description:** Initializes w_radio skin and triggers callback if available.
+* **Description:** Initializes w radio skin and calls OnWRadioSkinChanged callback if present.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-  - `skin_custom` -- Custom skin data
-* **Returns:** `nil`
+  - `inst` -- W radio entity instance
+  - `build_name` -- Skin build name
+  - `skin_custom` -- Custom skin parameter
+* **Returns:** None
 * **Error states:** None
 
 ### `w_radio_clear_fn(inst)`
-* **Description:** Clears w_radio skin and triggers callback with nil.
+* **Description:** Clears w radio skin and calls OnWRadioSkinChanged with nil.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- W radio entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `pumpkinhat_init_fn(inst, build_name)`
-* **Description:** Initializes pumpkin hat skin and triggers callback on master sim. Returns early if not master sim.
+* **Description:** Initializes pumpkin hat skin and calls OnPumpkinHatSkinChanged on master sim.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Pumpkin hat entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `pumpkinhat_clear_fn(inst)`
-* **Description:** Clears pumpkin hat skin and triggers callback with nil.
+* **Description:** Clears pumpkin hat skin and calls OnPumpkinHatSkinChanged with nil.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Pumpkin hat entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `hermitcrab_init_fn(inst, build_name)`
-* **Description:** Initializes hermit crab skin.
+* **Description:** Initializes hermit crab skin using basic_init_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Hermit crab entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `hermitcrab_clear_fn(inst)`
-* **Description:** Clears hermit crab skin.
+* **Description:** Clears hermit crab skin using basic_clear_fn.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Hermit crab entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `hermithouse_ornament_init_fn(inst, build_name)`
-* **Description:** Initializes hermit house ornament skin, managing winter tag and sounds. Returns early if not master sim.
+* **Description:** Initializes hermit house ornament skin, adds winter ornament tag if Winters Feast, and sets up sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Hermit house ornament entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `hermithouse_ornament_clear_fn(inst)`
-* **Description:** Clears hermit house ornament skin, removing tag and sounds.
+* **Description:** Clears hermit house ornament skin, removes winter ornament tag, and removes sounds.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Hermit house ornament entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `hermitcrab_lightpost_init_fn(inst, build_name)`
-* **Description:** Initializes hermit crab lightpost skin and triggers callback.
+* **Description:** Initializes hermit crab lightpost skin with lantern post common init and callback.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Hermit crab lightpost entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `hermitcrab_lightpost_clear_fn(inst)`
-* **Description:** Clears hermit crab lightpost skin and triggers callback with nil.
+* **Description:** Clears hermit crab lightpost skin with lantern post clear init and callback.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Hermit crab lightpost entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `hermithotspring_init_fn(inst, build_name)`
-* **Description:** Initializes hermit hot spring skin, triggering callback without basic fn.
+* **Description:** Initializes hermit hot spring skin by calling OnHermitHotSpringSkinChanged callback only.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Hermit hot spring entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `hermithouse_init_fn(inst, build_name)`
-* **Description:** Initializes hermit house skin and triggers callback.
+* **Description:** Initializes hermit house skin and calls OnHermitHouseSkinChanged callback.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Hermit house entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `hermithouse_clear_fn(inst)`
-* **Description:** Clears hermit house skin and triggers callback with nil.
+* **Description:** Clears hermit house skin and calls OnHermitHouseSkinChanged with nil.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Hermit house entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `hermit_chair_rocking_init_fn(inst, build_name)`
-* **Description:** Initializes hermit rocking chair skin, overriding symbols on master sim. Returns early if not master sim.
+* **Description:** Initializes hermit rocking chair skin and overrides chair_parts symbol on back component.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Hermit rocking chair entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `hermit_chair_rocking_clear_fn(inst)`
-* **Description:** Clears hermit rocking chair skin, clearing symbol overrides.
+* **Description:** Clears hermit rocking chair skin and clears chair_parts symbol override.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Hermit rocking chair entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `hermitcrab_teashop_init_fn(inst, build_name)`
-* **Description:** Initializes hermit crab teashop skin, applying to linked front entity if exists.
+* **Description:** Initializes hermit crab teashop skin on inst and front component if present.
 * **Parameters:**
-  - `inst` -- Entity instance
-  - `build_name` -- Name of the skin build
-* **Returns:** `nil`
+  - `inst` -- Hermit crab teashop entity instance
+  - `build_name` -- Skin build name
+* **Returns:** None
 * **Error states:** None
 
 ### `hermitcrab_teashop_clear_fn(inst)`
-* **Description:** Clears hermit crab teashop skin, applying to linked front entity if exists.
+* **Description:** Clears hermit crab teashop skin on inst and front component if present.
 * **Parameters:**
-  - `inst` -- Entity instance
-* **Returns:** `nil`
+  - `inst` -- Hermit crab teashop entity instance
+* **Returns:** None
 * **Error states:** None
 
 ### `CreatePrefabSkin(name, info)`
-* **Description:** Factory function that creates and configures a skin prefab table with metadata and callbacks. Defaults info.type to 'base' if nil.
+* **Description:** Factory function that creates a Prefab skin object with all metadata properties from info table, handles torso tuck builds, alternate body/skirt builds, cuff sizes, and registers FX/sound mappings.
 * **Parameters:**
-  - `name` -- Prefab name
-  - `info` -- Table containing skin configuration data
-* **Returns:** `prefab_skin` table
+  - `name` -- Prefab skin name
+  - `info` -- Table containing skin metadata (type, assets, prefabs, skin_tags, etc.)
+* **Returns:** Prefab skin object with is_skin=true and all info properties assigned
 * **Error states:** None
 
 ## Events & listeners
-
 **Listens to:**
-- `equipped` -- Listened to in bushhat_init_fn to spawn VFX
-- `unequipped` -- Listened to in bushhat_init_fn to remove VFX
-- `onremove` -- Listened to in bushhat_init_fn to remove VFX
-- `takefuel` -- Listened to in firepit_init_fn to handle fueling effects for skin FX
-- `lantern_on` -- Used by lantern to trigger light FX
-- `lantern_off` -- Used by lantern to remove light FX
-- `onopen` -- Listened to in icebox_init_fn to trigger open FX
-- `onclose` -- Listened to in icebox_init_fn to trigger close FX cleanup
+- `equipped` -- Listened to in bushhat_init_fn for vfx_fx handling
+- `unequipped` -- Listened to in bushhat_init_fn for vfx_fx cleanup
+- `onremove` -- Listened to in bushhat_init_fn for vfx_fx cleanup
+- `takefuel` -- Listened to in firepit_init_fn for skin FX spawning based on fuel value
+- `lantern_on` -- Registered in lantern_init_fn to turn on lantern light FX
+- `lantern_off` -- Registered in lantern_init_fn to turn off lantern light FX
+- `enterlimbo` -- Registered in lantern_init_fn on FX entity to track position before limbo
+- `onopen` -- icebox listens to trigger open FX when opened
+- `onclose` -- icebox listens to kill frost FX when closed
 
 **Pushes:**
-- None
+None

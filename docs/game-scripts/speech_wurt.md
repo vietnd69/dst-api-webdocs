@@ -5,11 +5,11 @@ description: Contains static speech string data for the Wurt character, used for
 tags: [speech, character, localization]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-21
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: f7b1b71e
+source_hash: 91628900
 system_scope: player
 ---
 

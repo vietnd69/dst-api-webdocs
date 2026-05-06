@@ -1,254 +1,351 @@
 ---
 id: inventoryitem
 title: Inventoryitem
-description: Manages item properties and behavior related to inventory interaction, moisture, physics, and owner relationships.
-tags: [inventory, physics, moisture, pickup, components]
+description: Manages item ownership, inventory state, moisture, and physics for entities that can be picked up and carried.
+tags: [inventory, item, ownership, moisture, physics]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: 3321113f
+source_hash: 59031b6a
 system_scope: inventory
 ---
 
 # Inventoryitem
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`Inventoryitem` provides core functionality for items that can be held, dropped, stored in containers, or wielded by entities. It handles physics for dropping, moisture state management (via integration with `inventoryitemmoisture`), owner tracking, animation state updates, and event callbacks for inventory lifecycle events such as pickup, drop, and storage placement. It works closely with `inventory`, `container`, `burnable`, `health`, `propagator`, `rainimmunity`, and `waterproofer` components.
+`InventoryItem` is a core component that manages whether an entity can be picked up, carried, and stored in containers. It tracks ownership state, handles moisture/wetness propagation, manages drop physics, and coordinates lifecycle events when items enter or leave inventory. This component works closely with `inventory`, `container`, and `inventoryitemmoisture` to maintain consistent item state across the game's entity component system.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
 inst:AddComponent("inventoryitem")
-inst.components.inventoryitem:SetOwner(someowner)
-inst.components.inventoryitem:SetSinks(false)
-inst.components.inventoryitem:AddMoisture(0.5)
-inst.components.inventoryitem:OnPickup(player, 1)
+inst.components.inventoryitem:SetOwner(player)
+inst.components.inventoryitem:SetOnPickupFn(function(item, picker) 
+    print("Item picked up by " .. picker.prefab)
+end)
+inst.components.inventoryitem:EnableMoisture(true)
 ```
 
 ## Dependencies & tags
-**Components used:** `inventory`, `container`, `burnable`, `health`, `inventoryitemmoisture`, `propagator`, `rainimmunity`, `waterproofer`, `brain`  
-**Tags:** No tags are added, removed, or checked directly by this component.
+**Components used:**
+- `inventoryitemmoisture` -- added/removed via EnableMoisture(), handles wetness state
+- `waterproofer` -- checked in constructor to determine if moisture should be enabled
+- `container` -- accessed for slot queries and item removal
+- `inventory` -- accessed for slot queries and item removal
+- `brain` -- hibernated/woken when item enters/leaves inventory
+- `burnable` -- checked in OnPickup() to stop smoldering
+- `health` -- accessed in OnPickup() to apply fire damage
+- `propagator` -- delayed in OnDropped() for fire spread timing
+- `replica.inventoryitem` -- network replication for owner and property changes
+
+**Tags:**
+- `heavy` -- checked in DoDropPhysics() to modify drop velocity
+- `player` -- checked in OnPickup() for profile stats tracking
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `owner` | entity or `nil` | `nil` | The entity currently holding or containing this item. |
-| `canbepickedup` | boolean | `true` | Whether the item can be picked up by players or entities. |
-| `canbepickedupalive` | boolean | `false` | Flag for minion pickup behavior (e.g., eyeplants); rarely used. |
-| `onpickupfn` | function or `nil` | `nil` | Custom callback invoked when the item is picked up. |
-| `isnew` | boolean | `true` | Indicates whether the item has been collected for the first time by a player. |
-| `nobounce` | boolean | `false` | If true, the item lands immediately without bouncing. |
-| `cangoincontainer` | boolean | `true` | Whether the item can be placed in containers. |
-| `canonlygoinpocket` | boolean | `false` | If true, the item can only go into pocket-sized containers. Mutually exclusive with `canonlygoinpocketorpocketcontainers`. |
-| `canonlygoinpocketorpocketcontainers` | boolean | `false` | If true, the item can only go into pockets or containers that also support only-pockets. Mutually exclusive with `canonlygoinpocket`. |
-| `keepondeath` | boolean | `false` | (Declared but not used in current codebase.) |
-| `atlasname` | string or `nil` | `nil` | Custom texture atlas name for rendering. |
-| `imagename` | string or `nil` | `nil` | Custom image name for rendering. |
-| `trappable` | boolean | `true` | Whether the item can be trapped (e.g., by tentacles or vines). |
-| `sinks` | boolean | `false` | Whether the item sinks in water or mud. |
-| `droprandomdir` | boolean | `false` | Whether the item drops in a random horizontal direction. |
-| `isacidsizzling` | boolean | `false` | Whether the item is currently being damaged by acid rain. |
-| `grabbableoverridetag` | string or `nil` | `nil` | Override tag used for item grab logic. |
-| `pushlandedevents` | boolean | `true` | Controls whether `on_landed` and `on_no_longer_landed` events are pushed. |
-| `is_landed` | boolean | `false` | Internal state indicating whether the item is on the ground. |
+| `owner` | entity | `nil` | The entity currently holding this item. |
+| `canbepickedup` | boolean | `true` | Whether this item can be picked up by entities. |
+| `canbepickedupalive` | boolean | `false` | Allows pickup even when alive (used for minions like eyeplants). |
+| `onpickupfn` | function | `nil` | Callback function called when item is picked up. |
+| `isnew` | boolean | `true` | Tracks if item is newly collected for profile stats. |
+| `nobounce` | boolean | `false` | If true, item lands instantly without bounce physics. |
+| `cangoincontainer` | boolean | `true` | Whether item can be placed in containers. |
+| `canonlygoinpocket` | boolean | `false` | Mutually exclusive with canonlygoinpocketorpocketcontainers. |
+| `canonlygoinpocketorpocketcontainers` | boolean | `false` | Allows item in pocket or pocket-only containers. |
+| `islockedinslot` | boolean | `false` | Whether item is locked in its current inventory slot. |
+| `keepondeath` | boolean | `false` | Whether item persists when owner dies. |
+| `atlasname` | string | `nil` | Atlas name for item icon replication. |
+| `imagename` | string | `nil` | Image name for item icon replication. |
+| `trappable` | boolean | `true` | Whether item can be trapped. |
+| `sinks` | boolean | `false` | Whether item sinks in water when landed. |
+| `droprandomdir` | boolean | `false` | Whether item drops with random direction velocity. |
+| `isacidsizzling` | boolean | `false` | Whether item is affected by acid sizzling. |
+| `grabbableoverridetag` | string | `nil` | Tag override for grabbability checks. |
+| `pushlandedevents` | boolean | `true` | Whether to push on_landed/on_no_longer_landed events. |
+| `is_landed` | boolean | `false` | Whether item is currently on the ground. |
+| `ondropfn` | function | `nil` | Callback function called when item is dropped. |
+| `onputininventoryfn` | function | `nil` | Callback function called when item is put in inventory. |
+| `onactiveitemfn` | function | `nil` | Deprecated callback for active item changes. |
 
 ## Main functions
+### `OnRemoveFromEntity()`
+* **Description:** Called when component is removed from entity. Disables moisture and removes event callbacks.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
 ### `EnableMoisture(enable)`
-*   **Description:** Enables or disables moisture tracking for the item by adding or removing the `inventoryitemmoisture` component.
-*   **Parameters:** `enable` (boolean) – `true` to enable moisture tracking, `false` to remove the component.
-*   **Returns:** Nothing.
+* **Description:** Enables or disables the inventoryitemmoisture component on this entity.
+* **Parameters:** `enable` -- boolean to enable or disable moisture tracking
+* **Returns:** None
+* **Error states:** None
 
 ### `GetMoisture()`
-*   **Description:** Returns the item's current moisture value.
-*   **Parameters:** None.
-*   **Returns:** number – moisture level between `0` and `TUNING.MAX_WETNESS`, or `0` if `inventoryitemmoisture` component is not present.
+* **Description:** Returns the current moisture value of this item.
+* **Parameters:** None
+* **Returns:** number -- moisture value, or `0` if moisture component is not present
+* **Error states:** None
 
 ### `GetMoisturePercent()`
-*   **Description:** Returns the item’s moisture as a normalized percentage (`0.0` to `1.0`).
-*   **Parameters:** None.
-*   **Returns:** number – moisture percentage, or `0` if `inventoryitemmoisture` is not present.
+* **Description:** Returns moisture as a percentage of maximum wetness.
+* **Parameters:** None
+* **Returns:** number -- moisture divided by TUNING.MAX_WETNESS, or `nil` if moisture component is not present
+* **Error states:** None
 
 ### `IsWet()`
-*   **Description:** Returns whether the item is considered "wet" based on thresholds defined in `TUNING`.
-*   **Parameters:** None.
-*   **Returns:** boolean – `true` if `iswet` is set, otherwise `false`.
+* **Description:** Checks if the item is currently wet.
+* **Parameters:** None
+* **Returns:** boolean -- true if wet, false otherwise or if moisture component is not present
+* **Error states:** None
 
 ### `IsAcidSizzling()`
-*   **Description:** Returns whether the item is currently sizzling from acid rain, via the network-replica.
-*   **Parameters:** None.
-*   **Returns:** boolean – `true` if acid sizzling is active.
+* **Description:** Checks if the item is affected by acid sizzling via replica.
+* **Parameters:** None
+* **Returns:** boolean -- result from replica inventory item
+* **Error states:** None (replica is guaranteed when component exists)
 
 ### `InheritMoisture(moisture, iswet)`
-*   **Description:** Sets the item's moisture state to match the provided moisture level and wetness flag. Uses `TUNING` thresholds to determine `iswet`.
-*   **Parameters:** `moisture` (number) – target moisture value; `iswet` (boolean) – whether the source is considered wet.
-*   **Returns:** Nothing.
+* **Description:** Inherits moisture values from another source.
+* **Parameters:**
+  - `moisture` -- number moisture value to inherit
+  - `iswet` -- boolean wetness state to inherit
+* **Returns:** None
+* **Error states:** None
 
 ### `InheritWorldWetnessAtXZ(x, z)`
-*   **Description:** Inherits world moisture state at a world XZ coordinate if the item is not under a rain dome.
-*   **Parameters:** `x` (number) – world X coordinate; `z` (number) – world Z coordinate.
-*   **Returns:** Nothing.
+* **Description:** Inherits world wetness at specific coordinates if not under rain dome.
+* **Parameters:**
+  - `x` -- number world x coordinate
+  - `z` -- number world z coordinate
+* **Returns:** None
+* **Error states:** None
 
 ### `InheritWorldWetnessAtTarget(target)`
-*   **Description:** Inherits world moisture state from `TheWorld.state` to the item if the target entity does not have rain immunity.
-*   **Parameters:** `target` (entity) – entity to check for `rainimmunity`.
-*   **Returns:** Nothing.
+* **Description:** Inherits world wetness from target if target has no rain immunity.
+* **Parameters:** `target` -- entity to check for rain immunity
+* **Returns:** None
+* **Error states:** None
 
 ### `DiluteMoisture(item, count)`
-*   **Description:** Dilutes this item's moisture by mixing in moisture from another item (e.g., when combining wet items in a stack).
-*   **Parameters:** `item` (entity) – item to borrow moisture from; `count` (number) – number of items to dilute.
-*   **Returns:** Nothing.
+* **Description:** Dilutes moisture when stacking with another item.
+* **Parameters:**
+  - `item` -- entity item to dilute with
+  - `count` -- number stack count to dilute
+* **Returns:** None
+* **Error states:** None
 
 ### `AddMoisture(delta)`
-*   **Description:** Increases or decreases moisture by the specified delta.
-*   **Parameters:** `delta` (number) – amount to change moisture by (positive = wetter, negative = drier).
-*   **Returns:** Nothing.
+* **Description:** Adds moisture delta to current moisture value.
+* **Parameters:** `delta` -- number amount to add (can be negative)
+* **Returns:** None
+* **Error states:** None
 
 ### `MakeMoistureAtLeast(min)`
-*   **Description:** Ensures this item has at least `min` moisture.
-*   **Parameters:** `min` (number) – minimum moisture level to enforce.
-*   **Returns:** Nothing.
+* **Description:** Ensures moisture is at least the specified minimum value.
+* **Parameters:** `min` -- number minimum moisture value
+* **Returns:** None
+* **Error states:** None
 
 ### `DryMoisture()`
-*   **Description:** Sets the item's moisture to `0`, effectively drying it.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Sets moisture to zero, drying the item completely.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `SetOwner(owner)`
-*   **Description:** Sets the item’s owner (entity holding or containing it).
-*   **Parameters:** `owner` (entity or `nil`) – the new owner.
-*   **Returns:** Nothing.
+* **Description:** Sets the owner entity for this item.
+* **Parameters:** `owner` -- entity or nil to clear owner
+* **Returns:** None
+* **Error states:** None
 
 ### `ClearOwner()`
-*   **Description:** Clears the item’s owner reference.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Clears the owner reference to nil.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `SetOnDroppedFn(fn)`
-*   **Description:** Registers a callback function to be invoked when the item is dropped.
-*   **Parameters:** `fn` (function) – callback with signature `fn(item)`.
-*   **Returns:** Nothing.
+* **Description:** Sets callback function to be called when item is dropped.
+* **Parameters:** `fn` -- function callback
+* **Returns:** None
+* **Error states:** None
+
+### `SetOnActiveItemFn(fn)`
+* **Description:** Deprecated. Sets callback for active item changes.
+* **Parameters:** `fn` -- function callback
+* **Returns:** None
+* **Error states:** None
 
 ### `SetOnPickupFn(fn)`
-*   **Description:** Registers a callback function to be invoked when the item is picked up.
-*   **Parameters:** `fn` (function) – callback with signature `fn(item, pickupguy, src_pos)`.
-*   **Returns:** Nothing.
+* **Description:** Sets callback function to be called when item is picked up.
+* **Parameters:** `fn` -- function callback
+* **Returns:** None
+* **Error states:** None
+
+### `SetOnPutInInventoryFn(fn)`
+* **Description:** Sets callback function to be called when item is put in inventory.
+* **Parameters:** `fn` -- function callback
+* **Returns:** None
+* **Error states:** None
 
 ### `SetSinks(should_sink)`
-*   **Description:** Sets whether the item should sink in water/mud. May re-check immediate sinking if already landed.
-*   **Parameters:** `should_sink` (boolean) – sink behavior flag.
-*   **Returns:** Nothing.
+* **Description:** Sets whether item should sink in water and triggers sink check if already landed.
+* **Parameters:** `should_sink` -- boolean whether item should sink
+* **Returns:** None
+* **Error states:** None
 
 ### `GetSlotNum()`
-*   **Description:** Returns the slot index of this item in its owner’s container or inventory.
-*   **Parameters:** None.
-*   **Returns:** number or `nil` – slot number, or `nil` if not in container/inventory or owner missing.
+* **Description:** Returns the slot number this item occupies in owner's inventory or container.
+* **Parameters:** None
+* **Returns:** number slot index, or `nil` if no owner or container/inventory component
+* **Error states:** None (returns nil if owner lacks required components - guarded by 'ct ~= nil' check)
 
 ### `GetContainer()`
-*   **Description:** Returns the container or inventory component that owns this item.
-*   **Parameters:** None.
-*   **Returns:** container or inventory component, or `nil` if no owner.
+* **Description:** Returns the container or inventory component that owns this item.
+* **Parameters:** None
+* **Returns:** container or inventory component, or `nil` if no owner
+* **Error states:** None (returns nil if owner lacks required components - safe OR expression)
 
 ### `HibernateLivingItem()`
-*   **Description:** Deactivates the item’s brain (if present) and stops all sounds to save resources while stored.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Hibernates brain and kills sounds when item enters inventory.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `WakeLivingItem()`
-*   **Description:** Reactivates the item’s brain (if present) when removed from storage.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Wakes brain when item leaves inventory.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `OnPutInInventory(owner)`
-*   **Description:** Called when the item is placed into an inventory or container. Handles ownership, scene removal, and local transform resetting.
-*   **Parameters:** `owner` (entity) – entity receiving the item.
-*   **Returns:** Nothing.
+* **Description:** Called when item is placed in an owner's inventory. Sets owner, removes from scene, and pushes event.
+* **Parameters:** `owner` -- entity that now owns this item
+* **Returns:** None
+* **Error states:** None
 
 ### `OnRemoved()`
-*   **Description:** Called when the item is removed from its owner (but not yet dropped). Restores scene presence and reactivates brain/sounds.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Called when item is removed from owner. Clears owner and returns item to scene.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `OnDropped(randomdir, speedmult)`
-*   **Description:** Initiates physics-based drop, triggers cleanup, and fires drop events. If item is in a container, it propagates drop events to nested items.
-*   **Parameters:** `randomdir` (boolean) – whether to randomize drop direction; `speedmult` (number) – velocity multiplier.
-*   **Returns:** Nothing.
+* **Description:** Called when item is dropped. Handles physics, events, and propagator delay.
+* **Parameters:**
+  - `randomdir` -- boolean whether to drop with random direction
+  - `speedmult` -- number speed multiplier for drop velocity
+* **Returns:** None
+* **Error states:** None
 
 ### `DoDropPhysics(x, y, z, randomdir, speedmult)`
-*   **Description:** Applies physics or transform updates to simulate dropping the item.
-*   **Parameters:** `x`, `y`, `z` (numbers) – world position of drop origin; `randomdir` (boolean) – randomize direction; `speedmult` (number) – velocity scale.
-*   **Returns:** Nothing.
+* **Description:** Applies physics velocity to dropped item based on weight and bounce settings.
+* **Parameters:**
+  - `x` -- number world x position
+  - `y` -- number world y position
+  - `z` -- number world z position
+  - `randomdir` -- boolean whether to use random direction
+  - `speedmult` -- number speed multiplier
+* **Returns:** None
+* **Error states:** None
 
 ### `OnPickup(pickupguy, src_pos)`
-*   **Description:** Handles pickup logic: clears landing, checks for smoldering, applies fire damage on pickup if applicable, and triggers callbacks. Returns early result if `onpickupfn` returns `true`.
-*   **Parameters:** `pickupguy` (entity) – entity picking up the item; `src_pos` (number or table) – source position data.
-*   **Returns:** boolean or `nil` – `true` if pickup should be canceled (e.g., by custom logic), otherwise `nil`.
+* **Description:** Called when item is picked up. Handles smoldering damage, events, and profile stats.
+* **Parameters:**
+  - `pickupguy` -- entity picking up the item
+  - `src_pos` -- position where pickup occurred
+* **Returns:** result of onpickupfn callback, or `nil`
+* **Error states:** None (health component access is guarded by 'if pickupguy.components.health ~= nil' check before DoFireDamage call)
 
 ### `IsHeld()`
-*   **Description:** Returns whether the item has an owner (i.e., is held or stored).
-*   **Parameters:** None.
-*   **Returns:** boolean – `true` if `owner ~= nil`.
+* **Description:** Checks if item currently has an owner.
+* **Parameters:** None
+* **Returns:** boolean -- true if owner is not nil
+* **Error states:** None
 
 ### `IsHeldBy(guy)`
-*   **Description:** Returns whether the item is held by a specific entity.
-*   **Parameters:** `guy` (entity) – entity to compare against owner.
-*   **Returns:** boolean – `true` if `owner == guy`.
+* **Description:** Checks if item is held by a specific entity.
+* **Parameters:** `guy` -- entity to check against owner
+* **Returns:** boolean -- true if owner matches guy
+* **Error states:** None
 
 ### `ChangeImageName(newname)`
-*   **Description:** Updates the item’s image name and fires an `imagechange` event.
-*   **Parameters:** `newname` (string) – new image name.
-*   **Returns:** Nothing.
+* **Description:** Changes the item's image name and pushes imagechange event.
+* **Parameters:** `newname` -- string new image name
+* **Returns:** None
+* **Error states:** None
 
 ### `RemoveFromOwner(wholestack, keepoverstacked)`
-*   **Description:** Removes the item from its owner’s inventory or container.
-*   **Parameters:** `wholestack` (boolean) – remove entire stack; `keepoverstacked` (boolean) – allow overstacking.
-*   **Returns:** item (the removed entity) or `nil`.
+* **Description:** Removes item from owner's inventory or container.
+* **Parameters:**
+  - `wholestack` -- boolean whether to remove entire stack
+  - `keepoverstacked` -- boolean whether to keep overstacked items
+* **Returns:** removed item entity, or `nil` if no owner
+* **Error states:** None (returns nil if owner lacks required components - guarded by conditional checks)
+
+### `OnRemoveEntity()`
+* **Description:** Called when entity is being removed. Cleans up owner references and pushes forget event.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `GetGrandOwner()`
-*   **Description:** Traverses nested item owners (e.g., an item inside a container inside a backpack) to find the top-level owner.
-*   **Parameters:** None.
-*   **Returns:** entity – top-level owner, or `nil` if no owner.
+* **Description:** Recursively finds the ultimate owner of nested inventory items.
+* **Parameters:** None
+* **Returns:** entity -- the grand owner, or `nil` if no owner chain
+* **Error states:** None (returns owner if no inventoryitem component - guarded by conditional check)
 
 ### `IsSheltered()`
-*   **Description:** Returns whether the item is protected from weather (i.e., held by an entity with waterproof inventory or stored inside a container).
-*   **Parameters:** None.
-*   **Returns:** boolean – `true` if sheltered.
+* **Description:** Checks if item is protected from rain by being held in waterproof inventory.
+* **Parameters:** None
+* **Returns:** boolean -- true if held and in waterproof container/inventory
+* **Error states:** None (returns false if owner lacks required components - safe OR/AND expression)
 
 ### `SetLanded(is_landed, should_poll_for_landing)`
-*   **Description:** Updates the `is_landed` state and toggles physics polling accordingly. Pushes `on_landed` or `on_no_longer_landed` events if `pushlandedevents` is true.
-*   **Parameters:** `is_landed` (boolean) – new landed state; `should_poll_for_landing` (boolean) – whether to start/stop physics polling.
-*   **Returns:** Nothing.
+* **Description:** Sets landed state and manages update polling. Pushes landed events when state changes.
+* **Parameters:**
+  - `is_landed` -- boolean whether item is on ground
+  - `should_poll_for_landing` -- boolean whether to poll for landing state
+* **Returns:** None
+* **Error states:** None
 
 ### `ShouldSink()`
-*   **Description:** Checks if the item should sink based on its position and `sinks` flag.
-*   **Parameters:** None.
-*   **Returns:** boolean – `true` if sink conditions are met.
+* **Description:** Checks if item should sink based on position and sink setting.
+* **Parameters:** None
+* **Returns:** boolean -- true if not held, not in limbo, and position is not passable
+* **Error states:** None
 
 ### `TryToSink()`
-*   **Description:** Attempts to sink the item if `ShouldEntitySink` returns true.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Triggers sink task if entity should sink.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `OnUpdate(dt)`
-*   **Description:** Physics polling callback used to detect when a dropped item has landed and update the `is_landed` state accordingly.
-*   **Parameters:** `dt` (number) – time since last frame.
-*   **Returns:** Nothing.
+* **Description:** Update loop that checks velocity and position to determine landed state.
+* **Parameters:** `dt` -- number delta time since last update
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:**  
-  - `stacksizechange` – notifies owner when stack size changes.  
-  - `enterlimbo` – clears landed state when item enters limbo.  
-  - `exitlimbo` – clears landed state on exit (but not fully landed).
-- **Pushes:**  
-  - `on_no_longer_landed` – fired when item transitions from landed to airborne.  
-  - `on_landed` – fired when item transitions from airborne to landed.  
-  - `ondropped` – fired after drop logic completes.  
-  - `onpickup` – fired after pickup logic begins.  
-  - `onputininventory` – fired after placing item in inventory/container.  
-  - `imagechange` – fired when image name is updated.  
-  - `stacksizechange` – propagated to owner when stack size changes (via `OnStackSizeChange`).  
-  - `onownerdropped`, `onownerputininventory` – propagated to child items in containers.
+**Listens to:**
+- `stacksizechange` -- triggers OnStackSizeChange to push stacksizechange event to owner
+- `enterlimbo` -- triggers OnEnterLimbo to set landed state to false
+- `exitlimbo` -- triggers OnExitLimbo to set landed state with scene return
+
+**Pushes:**
+- `onputininventory` -- fired in OnPutInInventory() with owner as data
+- `ondropped` -- fired in OnDropped() with no data
+- `onpickup` -- fired in OnPickup() with owner in data table
+- `imagechange` -- fired in ChangeImageName() with no data
+- `on_landed` -- fired in SetLanded() when transitioning to landed state
+- `on_no_longer_landed` -- fired in SetLanded() when transitioning from landed state
+- `stacksizechange` -- pushed to owner in OnStackSizeChange() with item and stack data
+- `onownerputininventory` -- pushed to items in owner's container slots
+- `onownerdropped` -- pushed to items in owner's container slots

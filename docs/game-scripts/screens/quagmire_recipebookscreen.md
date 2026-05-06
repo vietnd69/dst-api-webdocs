@@ -1,60 +1,90 @@
 ---
 id: quagmire_recipebookscreen
-title: Quagmire Recipebookscreen
-description: Renders the Quagmire festival recipe book UI, overlaying the minimap interface and repurposing map control logic for book navigation.
-tags: [ui, festival, recipe, map]
+title: QuagmireRecipeBookScreen
+description: Modal screen displaying the Quagmire event recipe book with minimap-style controls and background dimming.
+tags: [screen, ui, quagmire, event]
 sidebar_position: 10
-
-last_updated: 2026-03-09
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
 category_type: screens
-source_hash: 0eabf73b
+source_hash: c6565427
 system_scope: ui
 ---
 
-# Quagmire Recipebookscreen
+# QuagmireRecipeBookScreen
 
-> Based on game build **714014** | Last updated: 2026-03-09
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-`QuagmireRecipeBookScreen` is a specialized UI screen that displays the Quagmire festival recipe book. It extends `Screen` and repurposes the map-screen infrastructure — including minimap controls and camera interaction — to host and navigate the `QuagmireBookWidget`. Although it hijacks the map-screen flow, it suppresses standard map functionality (e.g., rotation, zoom, and pause buttons), customizing the HUD layout for recipe browsing during the Quagmire event.
+`QuagmireRecipeBookScreen` is a modal UI screen extending `Screen`. It is specifically designed for the Quagmire event to display the recipe book (`QuagmireBookWidget`). The screen hijacks the `MapScreen` constructor logic to leverage existing minimap control flows. It renders a semi-transparent black background that closes the screen when clicked, and optionally displays map controls (zoom/rotate) for mouse users. Controller input is handled via `OnControl`, primarily supporting cancel/back navigation.
 
 ## Usage example
-The screen is instantiated and pushed to the front-end when entering the Quagmire recipe book menu. A typical invocation (from within DST code) is:
-
 ```lua
-local QuagmireRecipeBookScreen = require "screens/quagmire_recipebookscreen"
+local QuagmireRecipeBookScreen = require("screens/quagmire_recipebookscreen")
+
+-- Push the screen, typically passing the player or HUD owner
 TheFrontEnd:PushScreen(QuagmireRecipeBookScreen(ThePlayer))
 ```
 
 ## Dependencies & tags
-**Components used:** `playercontroller` (via `ThePlayer.components.playercontroller`), `hud` (via `owner.HUD.inst`).
-**Tags:** None identified.
+**External dependencies:**
+- `widgets/screen` -- Screen base class
+- `widgets/widget` -- Generic widget container
+- `widgets/imagebutton` -- Background click-to-close image
+- `widgets/redux/quagmire_book` -- QuagmireBookWidget, the main content display
+- `widgets/redux/templates` -- UI template utilities
+- `widgets/mapcontrols` -- Minimap-style control buttons (zoom/rotate)
+
+**Components used:** None.
+
+**Tags:** None.
 
 ## Properties
-No public properties are explicitly initialized or exposed.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `owner` | Entity | --- | The entity owning this screen (typically the player). Used for HUD scaling events. |
+| `book` | QuagmireBookWidget | --- | The main recipe book widget instance added to the root. |
+| `bottomright_root` | Widget | `nil` | Container for bottom-right map controls. Only created if `TheInput:ControllerAttached()` is false. |
+| `mapcontrols` | MapControls | `nil` | Map control widget instance (zoom/rotate buttons). Only created for mouse input. |
+| `black` | ImageButton | --- | Full-screen semi-transparent background. Clicking triggers `TheFrontEnd:PopScreen()`. |
 
 ## Main functions
-### `OnControl(control, down)`
-* **Description:** Handles input events for screen navigation and map-related controls. Overrides parent `Screen` behavior to support closing on cancel/back and intercepting map control inputs (currently disabled in code, but historically used for rotation/zoom).
-* **Parameters:**  
-  `control` (number) — Input control identifier (e.g., `CONTROL_CANCEL`, `CONTROL_ROTATE_LEFT`).  
-  `down` (boolean) — Whether the control was pressed (`true`) or released (`false`).  
-* **Returns:** `true` if the event was handled and should be consumed; `false` otherwise.
-* **Error states:** Returns `false` unconditionally after the commented-out legacy block, ensuring no unintended map control side effects.
-
-### `GetHelpText()`
-* **Description:** Constructs and returns the localized help text displayed in the HUD, indicating the back/cancel control.
-* **Parameters:** None.
-* **Returns:** `string` — Localized help string (e.g., `"B  Back"`).
-
-### `OnBecomeActive()`
-* **Description:** Called when the screen becomes active. Calls parent method; minimap visibility toggle is commented out and unused.
+### `_ctor(owner)`
+*   **Description:** Initializes the screen. Calls `Screen._ctor` with `"MapScreen"` to hijack minimap logic. Creates the background dimmer, the recipe book widget, and conditionally adds map controls for mouse users. Registers a listener for HUD scaling updates.
+*   **Parameters:**
+    - `owner` -- Entity instance (usually the player) owning the HUD
+*   **Returns:** nil
+*   **Error states:** Errors if `owner` is nil and `owner.HUD` is accessed in the HUD scale listener registration (guarded by `if not TheInput:ControllerAttached()`).
 
 ### `OnBecomeInactive()`
-* **Description:** Called when the screen is no longer active. Calls parent method; minimap visibility toggle is commented out and unused.
+*   **Description:** Lifecycle hook called when the screen is pushed behind another screen or popped. Calls the base class implementation. Contains commented-out logic for toggling minimap visibility.
+*   **Parameters:** None
+*   **Returns:** nil
+*   **Error states:** None.
+
+### `OnBecomeActive()`
+*   **Description:** Lifecycle hook called when the screen comes to the front. Calls the base class implementation. Contains commented-out logic for toggling minimap visibility.
+*   **Parameters:** None
+*   **Returns:** nil
+*   **Error states:** None.
+
+### `OnControl(control, down)`
+*   **Description:** Handles input. Processes `CONTROL_MENU_BACK` and `CONTROL_CANCEL` to close the screen with a sound effect. Rotation and zoom controls (`CONTROL_ROTATE_LEFT`, `CONTROL_MAP_ZOOM_IN`, etc.) are present in the source but commented out; this function returns `false` for those inputs in the current build.
+*   **Parameters:**
+    - `control` -- CONTROL_* constant
+    - `down` -- boolean indicating key press state
+*   **Returns:** boolean -- `true` if input was handled (cancel/back), `false` otherwise
+*   **Error states:** None. References `ThePlayer.components.playercontroller` in commented code (see `playercontroller.lua` for `RotLeft`/`RotRight`).
+
+### `GetHelpText()`
+*   **Description:** Generates the help text string displayed in the UI hint bar. Concatenates the localized cancel control name with the back action string.
+*   **Parameters:** None
+*   **Returns:** string -- Help text (e.g., "B Back")
+*   **Error states:** None.
 
 ## Events & listeners
-- **Listens to:**  
-  `"refreshhudsize"` — On `owner.HUD.inst`, updates the bottom-right HUD scale container when the HUD size changes.
+**Listens to:**
+- `refreshhudsize` (on `owner.HUD.inst`) -- Triggers a lambda that updates `bottomright_root` scale to match the current HUD scale.
+
+**Pushes:** None.

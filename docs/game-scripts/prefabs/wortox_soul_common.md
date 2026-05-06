@@ -1,96 +1,142 @@
 ---
 id: wortox_soul_common
 title: Wortox Soul Common
-description: Provides shared utility functions for Wortox's soul-based mechanics, including healing nearby players, spawning souls on death, and determining valid soul sources.
-tags: [combat, utility, wortox, healing]
+description: Utility module providing shared logic for Wortox soul harvesting, healing, and spawning mechanics.
+tags: [wortox, utility, soul, mechanics, healing]
 sidebar_position: 10
-
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: a3ced559
-system_scope: entity
+source_hash: 864790ab
+system_scope: combat
 ---
 
 # Wortox Soul Common
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-`wortox_soul_common` is a Lua module that exports functional utilities used by Wortox’s soul-related systems. It does not define a component itself but rather provides standalone helper functions for handling soul healing logic, soul counting, soul spawning on death, and validating potential soul sources. It leverages core components like `health`, `sanity`, `combat`, and `inventory`, and is intended to be reused across prefabs and state graphs related to Wortox’s soul mechanics.
+`wortox_soul_common.lua` is a utility module returning a table of helper functions used by Wortox-related prefabs (e.g., `wortox_soul`, `wortox`). It encapsulates logic for soul harvesting validation, soul spawning positioning, and the "Soul Hop" healing mechanic. It does not define a spawnable entity itself but is required by other prefab files to access `fns.DoHeal`, `fns.HasSoul`, etc. The module relies heavily on `TUNING` constants for balance values and global entity lists (`AllPlayers`) for targeting.
 
 ## Usage example
 ```lua
-local wortox_soul_common = require "prefabs/wortox_soul_common"
+local fns = require("prefabs/wortox_soul_common")
 
--- Check if an entity can yield souls when killed
-if wortox_soul_common.HasSoul(victim) then
-    local num = wortox_soul_common.GetNumSouls(victim)
-    wortox_soul_common.SpawnSoulsAt(victim, num)
+-- Check if an entity drops a soul:
+if fns.HasSoul(victim) then
+    local count = fns.GetNumSouls(victim)
+    fns.SpawnSoulsAt(victim, count)
 end
 
--- Heal nearby players and give sanity to other soulstealers
-wortox_soul_common.DoHeal(inst)
+-- Heal nearby players (called from a soul release action):
+fns.DoHeal(inst)
+
+-- Give stacked souls to a player inventory:
+fns.GiveSouls(player_inst, 5, player_inst:GetPosition())
 ```
 
 ## Dependencies & tags
-**Components used:** `health`, `sanity`, `combat`, `inventory`, `murderable`, `stackable`, `Transform`  
-**Tags:** Checks `player`, `playerghost`, `soulstealer`, `saddled`, `dualsoul`, `epic`, `health_as_oldage`; uses `SOULLESS_TARGET_TAGS`  
-**Special constants:** Uses `TUNING.WORTOX_SOULHEAL_RANGE`, `TUNING.WORTOX_SOULHEAL_MINIMUM_HEAL`, `TUNING.WORTOX_SOULHEAL_LOSS_PER_PLAYER`, `TUNING.SKILLS.WORTOX.*`, `TUNING.HEALING_MED`, `TUNING.SANITY_TINY`, `PI`, `TWOPI`
+**External dependencies:**
+- `TUNING` -- Global balance constants for healing amounts, ranges, and skill multipliers.
+- `AllPlayers` -- Global list of player entities used for healing target iteration.
+- `SpawnPrefab` -- Instantiates soul and FX prefabs (`wortox_soul`, `wortox_soul_spawn`, `wortox_soul_heal_fx`).
+- `TheNet` -- Networking global used to check PVP status.
+- `SOULLESS_TARGET_TAGS` -- Global table of tags that prevent soul drops.
+- `GetRandomWithVariance`, `TWOPI`, `PI` -- Math utilities for positioning logic.
+
+**Components used:**
+- `health` -- Checked for `IsDead`, `IsHurt`, `DoDelta`.
+- `combat` -- Checked for `CanTarget`, `IsAlly`, `hiteffectsymbol`.
+- `sanity` -- Checked for `DoDelta`.
+- `inventory` -- Used in `GiveSouls` to transfer items.
+- `stackable` -- Used in `GiveSouls` to set soul stack size.
+- `murderable` -- Checked in `HasSoul` as an alternative to combat/health.
+- `transform` -- Used to get world position for spawning and range checks.
+
+**Tags:**
+- `playerghost` -- Excluded from healing targets.
+- `health_as_oldage` -- Excluded from healing targets (Wanda specific).
+- `soulstealer` -- Receives sanity instead of health in `DoHeal`.
+- `saddled` -- Excluded from soul harvesting in `SoulDamageTest`.
+- `player` -- Checked against PVP settings in `SoulDamageTest`.
+- `dualsoul` -- Causes `GetNumSouls` to return 2.
+- `epic` -- Causes `GetNumSouls` to return 7-8.
 
 ## Properties
-No public properties. This module returns a table of functions and is used as a namespace.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `fns` | table | --- | The returned module table containing all exported helper functions. |
+| `DoHeal` | function | --- | Exported key. Triggers healing and sanity logic for nearby players. |
+| `HasSoul` | function | --- | Exported key. Validates if an entity is eligible to drop a soul. |
+| `SoulDamageTest` | function | --- | Exported key. Validates if a kill event should harvest a soul. |
+| `GetNumSouls` | function | --- | Exported key. Determines soul count based on entity tags. |
+| `SpawnSoulAt` | function | --- | Exported key. Spawns a single soul prefab at coordinates. |
+| `SpawnSoulsAt` | function | --- | Exported key. Spawns multiple souls with positioning logic. |
+| `GiveSouls` | function | --- | Exported key. Spawns stacked soul item and adds to inventory. |
 
 ## Main functions
 ### `DoHeal(inst)`
-*   **Description:** Heals hurt players and gives small sanity to nearby "soulstealer" players within range of `inst`. Healing amount is dynamically adjusted based on the number of targets and Wortox’s modifiers (e.g., `soul_heal_mult`, `soul_heal_premult`, `soul_heal_player_efficient`). Sanity bonuses depend on the target’s `wortox_inclination` (`"nice"`/`"naughty"`).
-*   **Parameters:** `inst` (entity) — the entity performing the soul heal (typically a Wortox player instance).
-*   **Returns:** Nothing.
-*   **Error states:** Does nothing if no valid healing or sanity targets are found. Healing does not occur for targets with `health_as_oldage` tag or who are dead/ghosted/invisible.
+*   **Description:** Iterates through `AllPlayers` within range and applies healing or sanity based on target state. Healing amount is reduced per additional target unless `inst.soul_heal_player_efficient` is true. Targets with `wortox_inclination == "naughty"` receive reduced healing (`TUNING.SKILLS.WORTOX.NAUGHTY_SOULHEAL_RECEIVED_MULT`). Soulstealers receive sanity instead of health if not in overload state. Spawns `wortox_soul_heal_fx` for each healed target.
+*   **Parameters:**
+    - `inst` -- Entity instance (typically Wortox or released soul) acting as the source. Must have `Transform` component.
+*   **Returns:** None
+*   **Error states:** Errors if `inst` is nil or missing `Transform` component (unguarded `inst.Transform:GetWorldPosition()`). Errors if `AllPlayers` contains an entity without `components.health`.
 
 ### `HasSoul(victim)`
-*   **Description:** Determines whether an entity can yield souls when killed (i.e., is a valid soul source).
-*   **Parameters:** `victim` (entity) — the entity to test.
-*   **Returns:** `boolean` — `true` if the entity has either `combat`+`health` components or `murderable` component, and does **not** have any tag in `SOULLESS_TARGET_TAGS`.
-*   **Error states:** Returns `false` for invalid or non-damageable entities (e.g., structures, soulless creatures).
-
-### `GetNumSouls(victim)`
-*   **Description:** Calculates how many souls an entity yields upon death.
-*   **Parameters:** `victim` (entity) — must have already been validated with `HasSoul`.
-*   **Returns:** `number` — number of souls to spawn: 2 for `dualsoul`, 7–8 for `epic`, or 1 by default.
-*   **Error states:** Assumes `HasSoul(victim)` was true; behavior is undefined if called on invalid entities.
-
-### `SpawnSoulAt(x, y, z, victim, marksource)`
-*   **Description:** Spawns a `wortox_soul` prefab at world position `(x, y, z)` and links it to the `victim` for tracking (e.g., source attribution or tracking).
+*   **Description:** Determines if an entity is valid for soul harvesting. Returns true if the entity has `combat` + `health` OR `murderable` components, and does not possess any tags in `SOULLESS_TARGET_TAGS`.
 *   **Parameters:**
-    *   `x, y, z` (numbers) — world coordinates for spawn.
-    *   `victim` (entity) — the entity whose soul is being spawned.
-    *   `marksource` (boolean) — if `true`, sets `fx._soulsource` to `victim._soulsource`.
-*   **Returns:** Nothing ( spawns a prefab and calls `fx:Setup(victim)`).
-
-### `SpawnSoulsAt(victim, numsouls)`
-*   **Description:** Spawns `numsouls` soul entities around the victim’s death position, arranging them in a ring or semi-circle depending on count. The first soul is guaranteed; extra souls for `epic`/`dualsoul` are offset by randomized angles and radii.
-*   **Parameters:** `victim` (entity) — the source of the souls. `numsouls` (number) — number of souls to spawn.
-*   **Returns:** Nothing.
-*   **Error states:** If `numsouls < 2`, only one soul is spawned with proper positional logic. Uses `GetRandomWithVariance` for angular deviation.
-
-### `GiveSouls(inst, num, pos)`
-*   **Description:** Creates a `wortox_soul` item, sets its stack size to `num`, and places it into `inst`’s inventory at position `pos`.
-*   **Parameters:**
-    *   `inst` (entity) — the receiving entity (typically Wortox).
-    *   `num` (number) — number of souls to stack.
-    *   `pos` (Vector3? or nil) — drop position; if `nil`, default inventory logic applies.
-*   **Returns:** Nothing.
+    - `victim` -- Entity instance to check.
+*   **Returns:** `true` if eligible, `false` otherwise.
+*   **Error states:** Errors if `victim` is nil (unguarded `victim.components` access).
 
 ### `SoulDamageTest(inst, ent, owner)`
-*   **Description:** Validates whether a target (`ent`) can be damaged for soul gain by `inst` (or `owner`). Enforces PvP rules, friendly fire checks, and soul existence criteria.
+*   **Description:** Validates if a damage event should result in a soul drop. Checks if `ent` is the `owner` (self-damage), if `owner` can target `ent`, if `ent` is dead, saddled, or a player in non-PVP. Falls back to `HasSoul(ent)` if all checks pass.
 *   **Parameters:**
-    *   `inst` (entity) — the entity whose damage is being evaluated.
-    *   `ent` (entity) — the potential victim.
-    *   `owner` (entity or nil) — the entity giving the damage command (e.g., for pet attacks).
-*   **Returns:** `boolean` — `true` if the target is a valid soul source under current conditions.
-*   **Error states:** Returns `false` if: `ent == owner`; owner has no `combat` component; owner cannot target `ent` (e.g., friendly); `ent` is dead, saddled, a non-PvP player; or `HasSoul(ent)` is `false`.
+    - `inst` -- Unused in logic (legacy parameter).
+    - `ent` -- Entity taking damage.
+    - `owner` -- Entity dealing damage (source of soul harvest).
+*   **Returns:** `true` if soul should drop, `false` otherwise.
+*   **Error states:** Errors if `ent` is nil (unguarded `ent.components` access). `owner` nil is handled safely.
+
+### `GetNumSouls(victim)`
+*   **Description:** Returns the number of souls to drop based on entity tags. `dualsoul` returns 2. `epic` returns random 7-8. Default is 1.
+*   **Parameters:**
+    - `victim` -- Entity instance that died.
+*   **Returns:** Integer count of souls.
+*   **Error states:** Errors if `victim` is nil or missing `HasTag` method.
+
+### `SpawnSoulAt(x, y, z, victim, marksource)`
+*   **Description:** Spawns a single `wortox_soul` prefab at the specified coordinates. Calls `fx:Setup(victim)` to initialize soul data. If `marksource` is true, copies `_soulsource` from victim to the new soul.
+*   **Parameters:**
+    - `x` -- World X coordinate.
+    - `y` -- World Y coordinate.
+    - `z` -- World Z coordinate.
+    - `victim` -- Source entity (passed to `Setup`).
+    - `marksource` -- Boolean flag to propagate `_soulsource` reference.
+*   **Returns:** None
+*   **Error states:** Errors if `SpawnPrefab("wortox_soul")` returns nil (missing prefab) and code attempts to access `fx.Transform`.
+
+### `SpawnSoulsAt(victim, numsouls)`
+*   **Description:** Spawns multiple souls around the victim. If `numsouls == 2`, spawns in a tight cluster. If `> 1`, distributes in a circle of radius ~1.6-2.0. Ensures at least one soul spawns at the exact victim position (via `marksource = true` on the first call).
+*   **Parameters:**
+    - `victim` -- Entity instance to spawn around.
+    - `numsouls` -- Integer count of souls to spawn.
+*   **Returns:** None
+*   **Error states:** Errors if `victim` is nil or missing `Transform` component.
+
+### `GiveSouls(inst, num, pos)`
+*   **Description:** Spawns a single `wortox_soul` prefab, sets its stack size to `num` via `stackable` component, and adds it to `inst`'s inventory at `pos`.
+*   **Parameters:**
+    - `inst` -- Entity instance receiving the souls (must have `inventory`).
+    - `num` -- Integer stack size.
+    - `pos` -- Vector3 position for the drop (passed to `GiveItem`).
+*   **Returns:** None
+*   **Error states:** Errors if `inst` is nil or missing `inventory` component. Errors if `wortox_soul` prefab is missing.
 
 ## Events & listeners
-None. This module is a pure utility library with no event registration or firing.
+**Listens to:** None identified. This is a utility module; functions are called directly by other code rather than triggered by entity events.
+
+**Pushes:** None identified. No `inst:PushEvent()` calls in this module.
+
+**World state watchers:** None identified. No `inst:WatchWorldState()` calls in this module.

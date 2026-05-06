@@ -1,118 +1,134 @@
 ---
 id: useabletargeteditem
 title: Useabletargeteditem
-description: Manages the targeted use behavior and tags for items that can be actively used on specific targets.
-tags: [inventory, interaction, tag, item]
+description: Manages targeted item usage states and tag synchronization for entities that can be used on specific targets.
+tags: [item, targeting, interaction]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: 04989bbe
-system_scope: inventory
+source_hash: 01d6263e
+system_scope: entity
 ---
 
 # Useabletargeteditem
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`Useabletargeteditem` is a component that tracks and manages the state of items which are used in a targeted manner — i.e., when an item is actively being used on a specific target entity. It maintains internal state flags (`inuse_targeted`, `inventory_disableable`, `useablemounted`) and automatically synchronizes them with entity tags for use by other systems (e.g., UI, AI, or gameplay logic). The component supports optional custom callback functions for the start and stop of item usage.
-
-This component does not directly handle the item's effect logic, but provides hooks (`onusefn`, `onstopusefn`) and state management to enable modular, reusable targeted item behaviors.
+`Useabletargeteditem` manages the state of items that require a target entity to be used. It tracks whether the item is currently in use, controls inventory disable behavior, and synchronizes entity tags based on property changes. This component is commonly used for weapons, tools, or consumables that must be directed at a specific target prefab or entity. Property changes automatically update entity tags to affect targeting and interaction systems.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
 inst:AddComponent("useabletargeteditem")
 
--- Configure target prefab (e.g., "tree") to attach a "tree_targeter" tag
-inst.components.useabletargeteditem:SetTargetPrefab("tree")
+inst.components.useabletargeteditem:SetTargetPrefab("beefalo")
+inst.components.useabletargeteditem:SetInventoryDisable(true)
+inst.components.useabletargeteditem:SetCanSelfTarget(false)
 
--- Set custom usage logic: succeeds always for this example
-inst.components.useabletargeteditem:SetOnUseFn(function(item, target, doer)
-    -- ... perform effect ...
+inst.components.useabletargeteditem:SetOnUseFn(function(inst, target, doer)
     return true
 end)
 
--- Set stop-usage logic (e.g., cleanup)
-inst.components.useabletargeteditem:SetOnStopUseFn(function(item)
-    print("Item usage stopped")
-end)
-
--- Start using the item on a target
-local success, reason = inst.components.useabletargeteditem:StartUsingItem(target_entity, doer_entity)
+inst.components.useabletargeteditem:StartUsingItem(target, doer)
+inst.components.useabletargeteditem:StopUsingItem()
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:**  
-- `inuse_targeted` — added/removed based on `inuse_targeted` state.  
-- `useabletargeteditem_inventorydisable` — added/removed based on `inventory_disableable` state.  
-- `<prefab_name>_targeter` — added/removed dynamically based on `useabletargetprefab`.  
-- `useabletargeteditem_mounted` — added/removed based on `useablemounted` state.
+**Components used:**
+None identified.
+
+**Tags:**
+- `inuse_targeted` -- added when `inuse_targeted` is true, removed when false
+- `useabletargeteditem_inventorydisable` -- added when `inventory_disableable` is true
+- `useabletargateditem_canselftarget` -- added/removed based on `canselftarget` value (note: typo in source)
+- `{prefab}_targeter` -- dynamic tag based on `useabletargetprefab` value
+- `useabletargeteditem_mounted` -- added when `useablemounted` is true
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inuse_targeted` | boolean | `false` | Whether the item is currently in use on a target. Controlled via the `inuse_targeted` tag. |
-| `inventory_disableable` | boolean | `false` | Whether the item should be disabled in inventory while in use. Controls the `useabletargeteditem_inventorydisable` tag. |
-| `useabletargetprefab` | string or `nil` | `nil` | Prefab name of the valid target, used to attach a dynamic `_targeter` tag. |
-| `useablemounted` | boolean or `nil` | `nil` | Whether the item is mounted (e.g., turret-like). Controls the `useabletargeteditem_mounted` tag. |
-| `onusefn` | function or `nil` | `nil` | Optional callback: `fn(item, target, doer)` → `success: boolean, failReason: string?`. |
-| `onstopusefn` | function or `nil` | `nil` | Optional callback: `fn(item)`. |
+| `inuse_targeted` | boolean | `false` | Whether the item is currently being used on a target. |
+| `inventory_disableable` | boolean | `false` | Whether inventory actions should be disabled while active. |
+| `canselftarget` | boolean | `false` | Whether the item can target the user itself. |
+| `useabletargetprefab` | string | `nil` | The prefab name that this item can target. |
+| `useablemounted` | boolean | `nil` | Whether the item is usable while mounted. |
+| `onusefn` | function | `nil` | Callback function called when starting item use. |
+| `onstopusefn` | function | `nil` | Callback function called when stopping item use. |
+| `usingdoesnottoggleuseability` | boolean | `nil` | Whether using the item toggles the useability state. |
 
 ## Main functions
+### `OnRemoveFromEntity()`
+* **Description:** Cleanup function called when the component is removed from an entity. Removes all tags that were added by this component.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
 ### `SetTargetPrefab(prefab_name)`
-*   **Description:** Sets the expected target prefab name and updates the corresponding `_targeter` tag. Removes any old `_targeter` tag if a previous prefab was set.
-*   **Parameters:** `prefab_name` (string) — the name of the prefab this item can target.
-*   **Returns:** Nothing.
+* **Description:** Sets the target prefab name and updates the entity's targeter tag accordingly. Removes old prefab tag if one existed.
+* **Parameters:** `prefab_name` -- string prefab name to target, or nil to clear
+* **Returns:** None
+* **Error states:** None
 
 ### `SetUseableMounted(enable)`
-*   **Description:** Enables or disables the "mounted" state for this item, affecting the `useabletargeteditem_mounted` tag.
-*   **Parameters:** `enable` (boolean) — whether the item is mounted.
-*   **Returns:** Nothing.
+* **Description:** Sets whether the item can be used while mounted. Updates the `useabletargeteditem_mounted` tag.
+* **Parameters:** `enable` -- boolean to enable or disable mounted usage
+* **Returns:** None
+* **Error states:** None
 
 ### `SetOnUseFn(fn)`
-*   **Description:** Sets the callback function invoked when item usage begins (via `StartUsingItem`). Used to define item-specific activation logic.
-*   **Parameters:** `fn` (function) — a function with signature `fn(item, target, doer)` returning `success: boolean, failReason: string?`.
-*   **Returns:** Nothing.
+* **Description:** Sets the callback function that is called when starting to use the item.
+* **Parameters:** `fn` -- function(inst, target, doer) returning success boolean and optional fail reason
+* **Returns:** None
+* **Error states:** None
 
 ### `SetOnStopUseFn(fn)`
-*   **Description:** Sets the callback function invoked when item usage ends (via `StopUsingItem`). Typically used for cleanup or state reset.
-*   **Parameters:** `fn` (function) — a function with signature `fn(item)`.
-*   **Returns:** Nothing.
+* **Description:** Sets the callback function that is called when stopping item use.
+* **Parameters:** `fn` -- function(inst) called on stop
+* **Returns:** None
+* **Error states:** None
 
 ### `SetInventoryDisable(value)`
-*   **Description:** Enables or disables inventory restrictions (e.g., prevents equipping or using elsewhere) while this item is in use.
-*   **Parameters:** `value` (boolean) — whether inventory usage should be disabled while active.
-*   **Returns:** Nothing.
+* **Description:** Sets whether inventory actions should be disabled. Updates the `useabletargeteditem_inventorydisable` tag.
+* **Parameters:** `value` -- boolean to enable or disable inventory actions
+* **Returns:** None
+* **Error states:** None
+
+### `SetCanSelfTarget(value)`
+* **Description:** Sets whether the item can target the user itself. Updates the `useabletargateditem_canselftarget` tag.
+* **Parameters:** `value` -- boolean to allow or disallow self-targeting
+* **Returns:** None
+* **Error states:** None
+
+### `SetUsingItemDoesNotToggleUseability(value)`
+* **Description:** Sets whether using the item toggles the useability state. If true, `inuse_targeted` will not be set to true on use.
+* **Parameters:** `value` -- boolean to toggle or maintain useability state
+* **Returns:** None
+* **Error states:** None
 
 ### `CanInteract()`
-*   **Description:** Checks whether the item can be interacted with (i.e., started being used again). Returns `false` if currently in use on a target.
-*   **Parameters:** None.
-*   **Returns:** `true` if not currently in use; `false` otherwise.
+* **Description:** Checks if the item can currently be interacted with. Returns false if already in use on a target.
+* **Parameters:** None
+* **Returns:** boolean -- true if not currently in use, false if `inuse_targeted` is true
+* **Error states:** None
 
 ### `StartUsingItem(target, doer)`
-*   **Description:** Attempts to start using the item on the given target. Invokes `onusefn` if set; otherwise assumes success. If successful, sets `inuse_targeted = true` and adds the `inuse_targeted` tag.
-*   **Parameters:**  
-    - `target` (Entity or `nil`) — the target entity the item is being used on.  
-    - `doer` (Entity or `nil`) — the entity performing the action (e.g., player or AI).
-*   **Returns:**  
-    - `usesuccess` (boolean) — `true` if usage succeeded, `false` otherwise.  
-    - `usefailreason` (string or `nil`) — optional reason string if usage failed.  
-*   **Error states:** Returns `false` and `nil` as `failreason` if `onusefn` explicitly returns `false`. Also returns early if `self.inst` becomes invalid mid-execution.
+* **Description:** Initiates item use on a target. Calls the `onusefn` callback if set. Sets `inuse_targeted` to true unless `usingdoesnottoggleuseability` is true.
+* **Parameters:**
+  - `target` -- entity instance being targeted
+  - `doer` -- entity instance performing the action
+* **Returns:** `success` (boolean), `failreason` (any) -- success status and optional failure reason from callback
+* **Error states:** None
 
 ### `StopUsingItem()`
-*   **Description:** Ends the current use session. Resets `inuse_targeted = false`, removes the `inuse_targeted` tag, and invokes `onstopusefn` if set.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Stops using the item. Sets `inuse_targeted` to false and calls the `onstopusefn` callback if set.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:**  
-    - `inuse_targeted` — sets the `inuse_targeted` tag.  
-    - `inventory_disableable` — sets the `useabletargeteditem_inventorydisable` tag.  
-    - `useabletargetprefab` — manages dynamic `_targeter` tag.  
-    - `useablemounted` — sets/removes the `useabletargeteditem_mounted` tag.  
-- **Pushes:** None identified.
+**Listens to:** None identified.
+
+**Pushes:** None identified.

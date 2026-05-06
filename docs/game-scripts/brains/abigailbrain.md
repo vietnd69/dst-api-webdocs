@@ -1,51 +1,77 @@
 ---
 id: abigailbrain
 title: Abigailbrain
-description: Controls the behavior tree logic for Abigail, determining her movement, combat, and social actions based on leader proximity, mode (defensive/aggressive), and environmental context.
-tags: [ai, boss, ghost]
+description: Defines the behavior tree AI for Abigail, Wendy's ghost sister companion.
+tags: [ai, brain, companion, ghost, abigail]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-18
+build_version: 722832
 change_status: stable
-category_type: brain
-source_hash: 025c19d9
+category_type: brains
+source_hash: 0248138c
 system_scope: brain
 ---
 
 # Abigailbrain
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-18
 
 ## Overview
-`Abigailbrain` defines the behavior tree (`BT`) for Abigail, a ghost entity in DST. It dynamically selects between defensive and aggressive behavioral modes, and handles interactions such as dancing with the leader, haunting targets, playing with other ghosts, watching minigames, and responding to traders. The brain relies heavily on external components: `follower` for leader tracking, `combat` for target management, `timer` for cooldowns, `trader` for trade detection, and `minigame_participator` for minigame observation.
+`AbigailBrain` defines the artificial intelligence behavior tree for Abigail, Wendy's spectral companion. It manages Abigail's decision-making across multiple modes including defensive combat, aggressive combat, dancing with her leader, haunting targets, and playful interactions with other ghosts. The brain evaluates priority nodes to determine appropriate actions based on Abigail's current state, leader proximity, and environmental conditions. Defensive/aggressive mode is controlled via `inst.is_defensive` on the entity (true for defensive, nil/false for aggressive).
 
 ## Usage example
 ```lua
-local inst = CreateEntity()
-inst:AddComponent("follower")
-inst:AddComponent("combat")
-inst:AddComponent("timer")
-inst:AddComponent("trader")
-inst:AddComponent("minigame_participator")
-inst.is_defensive = true  -- Set Abigail's mode
-inst:AddBrain("abigailbrain")
+local AbigailBrain = require("brains.abigailbrain")
+local inst = SpawnPrefab("abigail")
+
+-- Attach the brain to Abigail's entity
+RunBrain(inst, AbigailBrain:new(inst))
+
+-- The brain automatically manages behavior based on state
+-- Defensive mode: inst.is_defensive = true
+-- Aggressive mode: inst.is_defensive = nil or false
 ```
 
 ## Dependencies & tags
-**Components used:** `follower`, `combat`, `timer`, `trader`, `minigame_participator`  
-**Tags:** Checks `ghostkid`, `graveghost`, `busy`, `gestalt`, `swoop`; adds none.
+**External dependencies:**
+- `behaviours/doaction` -- provides DoAction behavior node for haunt actions
+- `behaviours/follow` -- provides Follow behavior node for leader following
+- `behaviours/wander` -- provides Wander behavior node for idle movement
+
+**Components used:**
+- `follower` -- retrieves leader via GetLeader() for positioning and state checks
+- `timer` -- tracks "played_recently" timer for ghost playmate cooldowns
+- `trader` -- checks IsTryingToTradeWithMe() for trade interactions with leader
+- `minigame_participator` -- checks GetMinigame() for minigame watching behavior
+- `combat` -- accesses target, InCooldown(), and GiveUp() for combat decisions
+
+**Tags:**
+- `busy` -- excluded when finding playmates (PLAYMATE_NO_TAGS)
+- `ghostkid` -- searched when finding playmates (PLAYMATE_ONEOF_TAGS)
+- `graveghost` -- searched when finding playmates (PLAYMATE_ONEOF_TAGS)
+- `dancing` -- checked on leader's stategraph to trigger dance party
+- `gestalt` -- triggers avoidance behavior when in cooldown during combat
+- `swoop` -- guards against behavior execution during swoop state
 
 ## Properties
-No public properties are initialized directly in the constructor. The behavior is driven by instance properties set externally (e.g., `inst.is_defensive`, `inst._haunt_target`, `inst._is_transparent`).
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `bt` | BehaviorTree | `nil` | The behavior tree instance created in OnStart(). |
+| `playfultarget` | Entity | `nil` | Current ghost playmate target for playful interactions. |
 
 ## Main functions
 ### `OnStart()`
-* **Description:** Initializes and starts the behavior tree for Abigail. Constructs a prioritized hierarchy of `WhileNode`s and `PriorityNode`s that define her behavior under varying conditions (e.g., dancing, watching, haunting, playing, fighting).
-* **Parameters:** None.
-* **Returns:** Nothing.
-* **Error states:** Does not return errors; failure occurs silently if required components are missing.
+* **Description:** Initializes and constructs the complete behavior tree for Abigail. Sets up priority nodes for dancing, minigame watching, transparent state, haunting, defensive mode, and aggressive mode. This is called automatically when the brain is attached to an entity via RunBrain().
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if `self.inst` is nil when accessing components or calling behavior node constructors — no nil guard present in the function body.
+
+### `new(inst)`
+* **Description:** Constructor inherited from Brain class. Creates a new AbigailBrain instance for the given entity. Calls Brain._ctor to initialize base brain functionality.
+* **Parameters:** `inst` -- the entity instance that will own this brain
+* **Returns:** AbigailBrain instance
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:** None (does not register event handlers).
-- **Pushes:** `dance`, `start_playwithghost` (with `{ target = playfultarget }`).
+- **Pushes:** `dance` -- fired when Abigail joins a dance party with her leader.
+- **Pushes:** `start_playwithghost` -- fired when Abigail begins playing with a ghost playmate, includes `target` data field.

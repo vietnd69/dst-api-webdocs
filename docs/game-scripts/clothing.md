@@ -5,11 +5,11 @@ description: This auto-generated file defines static configuration data for clot
 tags: [skins, data, inventory, account]
 sidebar_position: 10
 
-last_updated: 2026-03-21
-build_version: 714014
-change_status: stable
+last_updated: 2026-04-28
+build_version: 722832
+change_status: data_patched
 category_type: root
-source_hash: 2c1775d6
+source_hash: 2e68178d
 system_scope: inventory
 ---
 

@@ -1,431 +1,449 @@
 ---
 id: player_common_extensions
 title: Player Common Extensions
-description: Provides shared logic for player lifecycle management including death, resurrection, locomotion, actions, mini-map visibility, and commander/leader behaviors.
-tags: [player, lifecycle, animation, leadership, networking]
+description: A utility module providing shared helper functions for player entity lifecycle management, including death, resurrection, locomotion configuration, and network synchronization.
+tags: [player, lifecycle, network, utility]
 sidebar_position: 10
-
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: d9933ac7
+source_hash: 4e987437
 system_scope: player
 ---
 
 # Player Common Extensions
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-This component defines core player behavior shared across game modes and character variants. It manages player death and resurrection sequences (including ghost conversion, corpse handling, vine saves, and item-based revivals), locomotor configuration (walk/run speeds, platform hopping, creep behavior), action filtering (ghost/paused states), mini-map visibility, stage acting, client-authoritative settings synchronization, and leader/field commander interactions (e.g., fish repel). It integrates deeply with components like health, hunger, sanity, inventory, and locomotor, and interacts with systems like the map explorer, scrapbook, and skill tree.
+`player_common_extensions` is a utility module that consolidates shared logic for player entities to prevent the main `player_common` prefab file from becoming too large. It exports a table of functions used to configure player behavior, manage death and resurrection sequences, handle ghost transitions, synchronize network state (such as skill trees), and manage cosmetic or audio overrides. These functions are typically attached to player instances during initialization or registered as event callbacks.
 
 ## Usage example
 ```lua
--- Configure a new player's locomotion and actions
-local player = TheWorld:SpawnPrefab("wilson")
-player:AddComponent("player_common_extensions")
+local PlayerExtensions = require("prefabs.player_common_extensions")
 
-ConfigurePlayerLocomotor(player)
-ConfigurePlayerActions(player)
+-- During player initialization
+local inst = CreateEntity()
+PlayerExtensions.ConfigurePlayerLocomotor(inst)
+PlayerExtensions.SetupBaseSymbolVisibility(inst)
 
--- Trigger respawn from ghost using amulet
-player:PushEvent("respawnfromghost", { source = amulet_entity })
+-- Registering event handlers
+inst:ListenForEvent("respawnfromghost", function(inst, data)
+    PlayerExtensions.OnRespawnFromGhost(inst, data)
+end)
 
--- Handle spook event to reduce sanity
-player:PushEvent("spooked")
+-- Managing death sequence
+PlayerExtensions.OnPlayerDeath(inst, { cause = "starvation" })
 ```
 
 ## Dependencies & tags
+**External dependencies:**
+- `TUNING` -- access to game balance constants (speeds, health values, thresholds)
+- `STRINGS` -- localization strings for announcements
+- `TheNet` -- network announcements and session management
+- `TheSim` -- entity spawning and skeleton checks
+- `TheWorld` -- world state and event pushing
+- `TheSkillTree` -- skill tree backup and initialization
+- `TheScrapbookPartitions` -- codex/scrapbook state management
+- `RPC` -- remote procedure calls for client-server sync
+
 **Components used:**
-`health`, `hunger`, `temperature`, `sanity`, `burnable`, `freezable`, `grogginess`, `slipperyfeet`, `debuffable`, `sheltered`, `moisture`, `inventory`, `age`, `revivablecorpse`, `skinner`, `boomer`, `playercontroller`, `talker`, `cookbookupdater`, `plantregistryupdater`, `follower`, `leader`, `commander`, `container`, `frostybreather`, `propagator`, `light`, `playeractionpicker`, `MapExplorer`, `scrapbook`, `globalmapiconnamed`
+- `locomotor` -- configures walk/run speeds, path caps, and hopping
+- `playeractionpicker` -- manages action filters (ghost/paused states)
+- `inventory` -- manages item dropping, equipping, and visibility
+- `health` -- handles invincibility, healing, and current health values
+- `age` -- pauses/resumes aging during death states
+- `skilltreeupdater` -- synchronizes skill tree data
+- `revivablecorpse` -- manages corpse state and revive percentages
+- `leader` -- manages followers during death cleanup
+- `socketholder` -- unsockets items on death
+- `container` -- drops container contents on death
+- `talker` -- suppresses speech during death/revive
+- `burnable` -- configures burn time and charring
+- `freezable` -- resets freeze state and sets resistance
+- `grogginess` -- configures knockout tests and resistance
+- `moisture` -- forces dry state on death/revive
+- `sheltered` -- starts/stops shelter status
+- `debuffable` -- enables/disables debuffs
+- `sanity` -- sets percent and ignore flags
+- `hunger` -- pauses/resumes and sets percent
+- `temperature` -- sets temperature and resumes updates
+- `frostybreather` -- enables/disables breath effects
+- `skinner` -- switches skin modes (ghost/normal)
+- `bloomer` -- applies ghost bloom effects
+- `playercontroller` -- enables/disables input
+- `commander` -- shares targets with soldiers
+- `follower` -- stops followers on death
+- `petleash` -- checks pet status for death attribution
+- `maprevealable` -- updates map exploration state
+- `cookbookupdater` -- learns recipes on eat
+- `plantregistryupdater` -- learns plant stages and fertilizer data
+- `upgrademoduleowner` -- checks charge status for WX-78 revive
+- `slipperyfeet` -- added on resurrection
 
 **Tags:**
-`yawn`, `spiderwhisperer`, `playerghost`, `corpse`, `reviving`, `NOCLICK`, `player`, `reviver`, `multiplayer_portal`, `playerskeleton`, `spook_protection`, `preparedfood`, `wereplayer`, `winona_charlie_2`, `ghost`, `fish`, `merm`, `mermking`, `FX`, `INLIMBO`
+- `playerghost` -- added when becoming a ghost, removed on respawn
+- `corpse` -- added/removed by `revivablecorpse` component
+- `reviving` -- added during resurrection sequence
+- `NOCLICK` -- added during Lava Arena intermission respawn
+- `spook_protection` -- checked to prevent sanity drain
+- `spiderwhisperer` -- check -- determines creep interaction in locomotor configuration
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst._is_onstage_task` | Task | `nil` | Reference to active "acting" timer task. |
-| `inst.rotation_tracker` | Table | `{}` | History of rotation changes for gallop tripping logic. |
-| `inst.jousttrailtask` | Task | `nil` | Task spawned during joust for foot-dig FX. |
-| `inst.rezsource` | Entity | `nil` | Source used for resurrection (amulet, stone, etc.). |
-| `inst.remoterezsource` | Boolean | `false` | Indicates remote resurrection (e.g., from portal). |
-| `inst.last_death_position` | Vector3 | `nil` | Position where player died (used for respawn). |
-| `inst.last_death_shardid` | String/nil | `nil` | Shard ID at time of death (cross-shard respawn support). |
-| `inst.skeleton_prefab` | String/nil | `nil` | Prefab name for spawned skeleton. |
-| `inst._horseshoe_sound` | String/nil | `nil` | Track current horseshoe sound to avoid double-play. |
+| None | | | No properties are defined. This module returns a table of functions. |
 
 ## Main functions
 ### `ShouldKnockout(inst)`
-* **Description:** Determines if the player should be knocked out by combining the default knockout test with a check that the player is not currently in a yawn state.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `true` if knockout should occur, `false` otherwise.
-
-### `GetHopDistance(inst, speed_mult)`
-* **Description:** Returns the hop distance multiplier based on speed multiplier thresholds (0.8 and 1.2), selecting between short, normal, or far hop distances defined in `TUNING`.
-* **Parameters:** `inst` — entity instance (unused), `speed_mult` — multiplier for speed (e.g., 1.0 for normal).
-* **Returns:** One of `TUNING.WILSON_HOP_DISTANCE_SHORT`, `TUNING.WILSON_HOP_DISTANCE`, or `TUNING.WILSON_HOP_DISTANCE_FAR`.
+*   **Description:** Tests if player should be knocked out using DefaultKnockoutTest and checks for yawn state tag.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** Boolean.
+*   **Error states:** Errors if `inst.sg` is nil (calls HasStateTag without guard).
 
 ### `ConfigurePlayerLocomotor(inst)`
-* **Description:** Configures the player’s locomotor component with standard walk/run speeds, platform hopping enabled, hop delay, and creep sensitivity based on the `spiderwhisperer` tag.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `nil`.
+*   **Description:** Configures movement parameters for a living player, including speeds, path caps, and creep interaction. Calls `ExtraConfigurePlayerLocomotor` if defined on the instance.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** Errors if `inst` lacks a `locomotor` component.
 
 ### `ConfigureGhostLocomotor(inst)`
-* **Description:** Configures the player’s locomotor for ghost state: slower speeds, no platform hopping, and no creep triggering.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `nil`.
-
-### `GhostActionFilter(inst, action)`
-* **Description:** Filters actions available to ghosts, only allowing those marked `ghost_valid`.
-* **Parameters:** `inst` — entity instance (unused), `action` — action table.
-* **Returns:** `action.ghost_valid`.
+*   **Description:** Configures movement parameters for a ghost player (slower, no road bonus, no platform hopping).
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** Errors if `inst` lacks a `locomotor` component.
 
 ### `ConfigurePlayerActions(inst)`
-* **Description:** Removes the ghost action filter if present, restoring full action set.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `nil`.
+*   **Description:** Removes the ghost action filter, restoring normal action availability.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** None (checks for `playeractionpicker` existence).
 
 ### `ConfigureGhostActions(inst)`
-* **Description:** Pushes the `GhostActionFilter` with `ACTION_FILTER_PRIORITIES.ghost` to restrict available actions for ghosts.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `nil`.
-
-### `PausedActionFilter(inst, action)`
-* **Description:** Filters actions available during game pause, only allowing those marked `paused_valid`.
-* **Parameters:** `inst` — entity instance (unused), `action` — action table.
-* **Returns:** `action.paused_valid`.
-
-### `UnpausePlayerActions(inst)`
-* **Description:** Removes the paused action filter when resuming gameplay.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `nil`.
-
-### `PausePlayerActions(inst)`
-* **Description:** Removes any existing paused filter and reapplies `PausedActionFilter` with `ACTION_FILTER_PRIORITIES.paused`.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `nil`.
-
-### `OnWorldPaused(inst)`
-* **Description:** Detects whether the world/server is paused and synchronizes player action state accordingly (pause/unpause).
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `nil`.
-
-### `SpawnDeathProduct(inst)`
-* **Description:** Spawns an appropriate death product (corpse, skeleton, or shallow grave) based on game mode, settings, and entity properties.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** One of `DEATH_PRODUCTS.CORPSE`, `DEATH_PRODUCTS.SKELETON`, or `DEATH_PRODUCTS.SHALLOW_GRAVE`.
-
-### `RemoveDeadPlayer(inst, spawnskeleton)`
-* **Description:** Performs final cleanup after death: drops follower items, deserializes user session, and removes the entity.
-* **Parameters:** `inst` — the player entity instance, `spawnskeleton` — boolean indicating whether skeleton should be spawned.
-* **Returns:** `nil`.
-
-### `FadeOutDeadPlayer(inst, spawnskeleton)`
-* **Description:** Initiates screen fade-out and schedules `RemoveDeadPlayer` after a fixed delay.
-* **Parameters:** `inst` — the player entity instance, `spawnskeleton` — passed through to `RemoveDeadPlayer`.
-* **Returns:** `nil`.
-
-### `OnPlayerDied(inst, data)`
-* **Description:** Begins death sequence: schedules fade-out (3-second delay), handles death metadata and Charlie vine save logic.
-* **Parameters:** `inst` — the player entity instance, `data` — optional table containing `skeleton` flag.
-* **Returns:** `nil`.
-
-### `IsCharlieRose(item)`
-* **Description:** Checks if the given item is a `"charlierose"`.
-* **Parameters:** `item` — the item entity instance.
-* **Returns:** `true` if `item.prefab == "charlierose"`, else `false`.
+*   **Description:** Pushes the ghost action filter, restricting actions to ghost-valid ones.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** None (checks for `playeractionpicker` existence).
 
 ### `OnPlayerDeath(inst, data)`
-* **Description:** Initiates death handling: hides inventory, saves death metadata, handles Charlie vine save logic, suppresses announcements when appropriate.
-* **Parameters:** `inst` — the player entity instance, `data` — optional table containing `cause`, `afflicter`.
-* **Returns:** `nil`.
+*   **Description:** Initiates the death sequence. Handles inventory hiding, aging pause, death cause recording, and morgue records. Triggers `ms_closepopups`.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `data` -- table containing `cause` and `afflicter` info.
+*   **Returns:** None.
+*   **Error states:** Errors if `inst` lacks `inventory`, `age`, `skilltreeupdater`, or `health` components.
 
-### `CommonActualRez(inst)`
-* **Description:** Shared resurrection logic: re-enables health/hunger/temperature/sanity/etc., configures locomotor and actions, and announces resurrection if multiplayer.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `nil`.
+### `OnPlayerDied(inst, data)`
+*   **Description:** Callback after death is confirmed. Schedules the fade-out and removal sequence.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `data` -- optional data table (checks for `skeleton` flag).
+*   **Returns:** None.
+*   **Error states:** None.
 
-### `DoActualRez(inst, source, item)`
-* **Description:** Resurrects the player from ghost state using a resurrection source or item (e.g., amulet, pocketwatch, telltale heart).
-* **Parameters:** `inst` — the player entity instance, `source` — optional resurrection source entity (e.g., `"amulet"`), `item` — optional resurrection item (e.g., `"pocketwatch_revive"`).
-* **Returns:** `nil`.
-
-### `DoActualRezFromCorpse(inst, source)`
-* **Description:** Resurrects the player directly from their own corpse, applying revived health percent and optional `corpsereviver` bonuses.
-* **Parameters:** `inst` — the corpse entity instance (must have `"corpse"` tag), `source` — optional reviver entity.
-* **Returns:** `nil`.
-
-### `DoRezDelay(inst, source, delay)`
-* **Description:** Implements retry logic with countdown before resurrection, used for smooth transition timing. Recursively decrements delay.
-* **Parameters:** `inst` — the player entity instance, `source` — resurrection source entity, `delay` — remaining time (in frames).
-* **Returns:** `nil`.
-
-### `DoMoveToRezSource(inst, source, delay)`
-* **Description:** Moves the player to the resurrection source before resuming resurrection logic.
-* **Parameters:** `inst` — the player entity instance, `source` — resurrection source entity, `delay` — delay before `DoRezDelay`.
-* **Returns:** `nil`.
-
-### `DoMoveToRezPosition(inst, item, delay, fade_in)`
-* **Description:** Moves the player to their last death position (or resurrects immediately if position unavailable). Handles cross-shard migration.
-* **Parameters:** `inst` — the player entity instance, `item` — resurrection item (for logging), `delay` — delay before `DoActualRez`, `fade_in` — whether to fade screen in.
-* **Returns:** `nil`.
-
-### `OnRespawnFromGhost(inst, data)`
-* **Description:** Main entry point for ghost-to-player resurrection. Handles source detection, movement, and scheduling of resurrection steps.
-* **Parameters:** `inst` — the ghost entity instance, `data` — optional table containing `source`, `user`, `from_haunt`.
-* **Returns:** `nil`.
-
-### `CommonPlayerDeath(inst)`
-* **Description:** Shared cleanup logic during death/ghost conversion: disables damage-related components, pauses aging, sets health invincible, and respects game mode restrictions.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `nil`.
+### `OnWorldPaused(inst)`
+*   **Description:** Pauses or unpauses player actions based on server pause state.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** None (checks `TheNet:IsServerPaused`).
 
 ### `OnMakePlayerGhost(inst, data)`
-* **Description:** Converts the player entity into a ghost: updates state graph, physics, components, and fires `"ms_becameghost"`.
-* **Parameters:** `inst` — the player entity instance, `data` — optional table containing `loading`, `skeleton`.
-* **Returns:** `nil`.
-
-### `OnRespawnFromPlayerCorpse(inst, data)`
-* **Description:** Resurrects the player from a valid corpse (must have `"corpse"` tag). Calls `DoActualRezFromCorpse`.
-* **Parameters:** `inst` — the corpse entity instance, `data` — optional table containing `source`.
-* **Returns:** `nil`.
+*   **Description:** Transforms the player into a ghost. Switches stategraph, applies ghost visuals, configures ghost locomotion, and pushes `ms_becameghost`.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `data` -- optional table (checks for `loading` and `skeleton` flags).
+*   **Returns:** None.
+*   **Error states:** Errors if `inst` lacks `skinner`, `bloomer`, `health`, or `playercontroller` components.
 
 ### `OnMakePlayerCorpse(inst, data)`
-* **Description:** Converts the player entity into a corpse: removes physics colliders, sets ghost mode, and fires `"ms_becameghost"` with `{ corpse = true }`.
-* **Parameters:** `inst` — the player entity instance, `data` — optional table containing `loading`.
-* **Returns:** `nil`.
+*   **Description:** Transforms the player into a corpse (revivable). Removes physics, sets `revivablecorpse` state, and pushes `ms_becameghost`.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `data` -- optional table (checks for `loading` flag).
+*   **Returns:** None.
+*   **Error states:** Errors if `inst` lacks `revivablecorpse` component.
+
+### `OnRespawnFromGhost(inst, data)`
+*   **Description:** Handles the resurrection process from ghost state. Manages camera, movement to source, and triggers `DoActualRez` or `DoMoveToRezSource` based on the resurrection item.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `data` -- table containing `source` (resurrector item/entity) and `user`.
+*   **Returns:** None.
+*   **Error states:** Errors if `inst` lacks `playercontroller`, `talker`, or `sg` (stategraph).
+
+### `OnRespawnFromPlayerCorpse(inst, data)`
+*   **Description:** Handles resurrection specifically from a player corpse entity. Triggers `DoActualRezFromCorpse`.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `data` -- table containing `source`.
+*   **Returns:** None.
+*   **Error states:** None (checks for `corpse` tag).
 
 ### `OnDeathTriggerVineSave(inst)`
-* **Description:** Handles Charlie vine save event: always announces death and saves user session.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `nil`.
+*   **Description:** Handles death logic for Winona's Charlie vine save mechanic. Records morgue entry and serializes session.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** None.
 
 ### `OnRespawnFromVineSave(inst)`
-* **Description:** Handles resurrection after Charlie vine save: restores health/sanity/hunger, extinguishes fire, resets debuffs.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `nil`.
-
-### `GivePlayerStartingItems(inst, items, starting_item_skins)`
-* **Description:** Equips starting inventory items (with optional skins) to the player.
-* **Parameters:** `inst` — the player entity instance, `items` — array of prefab names, `starting_item_skins` — optional table mapping prefab → skin.
-* **Returns:** `nil`.
-
-### `DoSpookedSanity(inst)`
-* **Description:** Reduces sanity by `TUNING.SANITY_SMALL`.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `nil`.
+*   **Description:** Handles resurrection logic for Winona's Charlie vine save. Restores health, sanity, hunger, and clears death flags.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** Errors if `inst` lacks `inventory`, `burnable`, `freezable`, `grogginess`, `moisture`, `temperature`, `debuffable`, `sanity`, `hunger`, or `health` components.
 
 ### `OnSpooked(inst)`
-* **Description:** Schedules delayed sanity drain after spooked event (unless sanity disabled or spook protection equipped).
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** `nil`.
+*   **Description:** Applies sanity drain when spooked, unless protected by equipment or game mode.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** Errors if `inst` lacks `inventory` or `sanity` components.
 
 ### `OnLearnCookbookRecipe(inst, data)`
-* **Description:** Teaches a recipe to the player’s cookbook.
-* **Parameters:** `inst` — the player entity instance, `data` — optional table containing `product`, `ingredients`.
-* **Returns:** `nil`.
+*   **Description:** Updates cookbook knowledge when a recipe is learned.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `data` -- table containing `product` and `ingredients`.
+*   **Returns:** None.
+*   **Error states:** None (checks for `cookbookupdater`).
 
 ### `OnLearnCookbookStats(inst, product)`
-* **Description:** Teaches food stats for a product to the cookbook.
-* **Parameters:** `inst` — the player entity instance, `product` — optional prefab name.
-* **Returns:** `nil`.
+*   **Description:** Updates cookbook food stats knowledge when eating prepared food.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `product` -- food prefab name or basename.
+*   **Returns:** None.
+*   **Error states:** None (checks for `cookbookupdater` component).
 
 ### `OnEat(inst, data)`
-* **Description:** Handles post-eat logic, including learning stats for prepared foods.
-* **Parameters:** `inst` — the player entity instance, `data` — optional table containing `food`.
-* **Returns:** `nil`.
+*   **Description:** Triggers cookbook stat learning when eating prepared food.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `data` -- table containing `food` entity.
+*   **Returns:** None.
+*   **Error states:** None.
 
 ### `OnLearnPlantStage(inst, data)`
-* **Description:** Teaches a plant growth stage to the registry.
-* **Parameters:** `inst` — the player entity instance, `data` — optional table containing `plant`, `stage`.
-* **Returns:** `nil`.
+*   **Description:** Updates plant registry when a plant stage is observed.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `data` -- table containing `plant` and `stage`.
+*   **Returns:** None.
+*   **Error states:** None (checks for `plantregistryupdater`).
 
 ### `OnLearnFertilizer(inst, data)`
-* **Description:** Teaches fertilizer properties to the registry.
-* **Parameters:** `inst` — the player entity instance, `data` — optional table containing `fertilizer`.
-* **Returns:** `nil`.
+*   **Description:** Updates plant registry when fertilizer is learned.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `data` -- table containing `fertilizer`.
+*   **Returns:** None.
+*   **Error states:** None (checks for `plantregistryupdater` component).
 
 ### `OnTakeOversizedPicture(inst, data)`
-* **Description:** Records oversized plant picture data for registry.
-* **Parameters:** `inst` — the player entity instance, `data` — optional table containing `plant`, `weight`, `beardskin`, `beardlength`.
-* **Returns:** `nil`.
+*   **Description:** Records oversized plant picture in plant registry.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `data` -- table containing `plant`, `weight`, `beardskin`, `beardlength`.
+*   **Returns:** None.
+*   **Error states:** None (checks for `plantregistryupdater` component).
+
+### `GivePlayerStartingItems(inst, items, starting_item_skins)`
+*   **Description:** Equips or gives initial inventory items to the player. Handles equippables vs. non-equippables.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `items` -- array of prefab names.
+    - `starting_item_skins` -- optional table mapping prefab to skin name.
+*   **Returns:** None.
+*   **Error states:** None
 
 ### `CanSeeTileOnMiniMap(inst, tx, ty)`
-* **Description:** Checks if a given map tile (by tile coordinates) is visible on the minimap.
-* **Parameters:** `inst` — the player entity instance, `tx`, `ty` — world tile coordinates (integers).
-* **Returns:** `true` if visible, `false` otherwise.
+*   **Description:** Checks if a specific map tile is visible to the player.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `tx` -- tile X coordinate.
+    - `ty` -- tile Y coordinate.
+*   **Returns:** Boolean.
+*   **Error states:** Errors if `inst` lacks `player_classified.MapExplorer`.
 
 ### `CanSeePointOnMiniMap(inst, px, py, pz)`
-* **Description:** Convenience wrapper: converts world coordinates to tile and checks minimap visibility.
-* **Parameters:** `inst` — the player entity instance, `px`, `py`, `pz` — world coordinates.
-* **Returns:** Boolean indicating if the tile at the point is visible.
+*   **Description:** Checks if a world position is visible on the minimap by converting to tile coordinates.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `px` -- world position X coordinate.
+    - `py` -- world position Y coordinate.
+    - `pz` -- world position Z coordinate.
+*   **Returns:** Boolean.
+*   **Error states:** Errors if `TheWorld.Map` or `inst.player_classified.MapExplorer` is unavailable.
 
 ### `GetSeeableTilePercent(inst)`
-* **Description:** Returns the percentage of seeable tiles (relative to total seeable tiles), clamped to ≤1 and scaled by a tuning factor.
-* **Parameters:** `inst` — the player entity instance.
-* **Returns:** Float between `0` and `1`.
-
-### `GenericCommander_OnAttackOther(inst, data)`
-* **Description:** If attacked target is valid and not self, shares target with soldiers via commander component.
-* **Parameters:** `inst` — the entity instance, `data` — event data containing `target`.
-* **Returns:** `nil`.
+*   **Description:** Calculates the percentage of the map tiles seen by the player.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** Number (0 `<=` percent `<=` 1).
+*   **Error states:** Errors if `TheWorld.Map` or `inst.player_classified.MapExplorer` is unavailable.
 
 ### `MakeGenericCommander(inst)`
-* **Description:** Adds the `commander` component if missing and registers `onattackother` listener.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `nil`.
+*   **Description:** Adds the `commander` component if missing and sets up target sharing on attack.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** None.
 
 ### `OnMurderCheckForFishRepel(inst, data)`
-* **Description:** If a fish is killed non-negligently by an alive leader, all non-king merm followers disapprove and stop following.
-* **Parameters:** `inst` — the entity instance, `data` — event data containing `victim`, `negligent`.
-* **Returns:** `nil`.
-
-### `clear_onstage(inst)`
-* **Description:** Cancels and nullifies the `inst._is_onstage_task`.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `nil`.
+*   **Description:** Checks if killing a fish causes merm followers to disapprove and stop following.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `data` -- table containing `victim` and `negligent` flag.
+*   **Returns:** None.
+*   **Error states:** Errors if `inst` lacks `leader` or `health` components.
 
 ### `OnOnStageEvent(inst, duration)`
-* **Description:** Schedules `clear_onstage` after a duration (default `FRAMES`), canceling any prior task.
-* **Parameters:** `inst` — the entity instance, `duration` — optional time in frames.
-* **Returns:** `nil`.
+*   **Description:** Marks the player as acting/on-stage for a specific duration.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `duration` -- time in ticks (default `FRAMES`).
+*   **Returns:** None.
+*   **Error states:** None.
 
 ### `IsActing(inst)`
-* **Description:** Checks if the entity is currently "acting" (via stategraph tag or active onstage task).
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** Boolean.
+*   **Description:** Checks if the player is currently acting or on-stage.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** Boolean.
+*   **Error states:** Errors if `inst.sg` is nil.
 
 ### `StartStageActing(inst)`
-* **Description:** Hides actions UI if `inst.ShowActions` exists.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `nil`.
+*   **Description:** Hides action hints while acting.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** None (checks for `ShowActions`).
 
 ### `StopStageActing(inst)`
-* **Description:** Shows actions UI if `inst.ShowActions` exists.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `nil`.
-
-### `SynchronizeOneClientAuthoritativeSetting(inst, variable, value)`
-* **Description:** Sets client-authoritative setting locally and syncs to server (non-server only).
-* **Parameters:** `inst` — the entity instance, `variable` — setting identifier (uint), `value` — setting value (uint).
-* **Returns:** `nil`.
-
-### `SynchronizeAllClientAuthoritativeSettings(inst)`
-* **Description:** Syncs all known client-authoritative settings (currently only `PLATFORMHOPDELAY`).
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `nil`.
+*   **Description:** Shows action hints after acting ends.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** None (checks for `ShowActions`).
 
 ### `SetClientAuthoritativeSetting(inst, variable, value)`
-* **Description:** Stores client-authoritative settings with validation (special-case: `forced_platformhopdelay`).
-* **Parameters:** `inst` — the entity instance, `variable` — uint identifier, `value` — uint value.
-* **Returns:** `nil`.
+*   **Description:** Stores a client-authoritative setting on the player entity (e.g., platform hop delay). Validates input.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `variable` -- setting ID (uint).
+    - `value` -- setting value.
+*   **Returns:** None.
+*   **Error states:** None (returns early on invalid input).
 
-### `OnPostActivateHandshake_Client(inst, state)`
-* **Description:** Handles client-side post-activation handshake: triggers skill tree actions, fires `skilltreeinitialized_client` at `READY`.
-* **Parameters:** `inst` — the entity instance, `state` — numeric handshake state.
-* **Returns:** `nil`.
+### `SynchronizeOneClientAuthoritativeSetting(inst, variable, value)`
+*   **Description:** Sets a client-authoritative setting on the player entity and syncs to server if on client.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `variable` -- CLIENTAUTHORITATIVESETTINGS enum.
+    - `value` -- setting value.
+*   **Returns:** None.
+*   **Error states:** None (sends RPC to server if `TheWorld.ismastersim` is false).
 
-### `OnPostActivateHandshake_Server(inst, state)`
-* **Description:** Handles server-side post-activation handshake: sends state data and fires `ms_skilltreeinitialized` at `READY`.
-* **Parameters:** `inst` — the entity instance, `state` — numeric handshake state.
-* **Returns:** `nil`.
+
 
 ### `PostActivateHandshake(inst, state)`
-* **Description:** Orchestrates client/server handshake flow depending on context.
-* **Parameters:** `inst` — the entity instance, `state` — numeric handshake state.
-* **Returns:** `nil`.
+*   **Description:** Manages the handshake state machine for skill tree synchronization between client and server.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `state` -- `POSTACTIVATEHANDSHAKE` enum value.
+*   **Returns:** None.
+*   **Error states:** None.
 
 ### `OnClosePopups(inst)`
-* **Description:** Closes the `PLAYERINFO` popup.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `nil`.
+*   **Description:** Forces specific UI popups (like Player Info) to close.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** None.
 
 ### `UpdateScrapbook(inst)`
-* **Description:** Scans nearby entities and marks them as seen/inspected in scrapbook.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `nil`.
+*   **Description:** Updates scrapbook/codex entries for entities found near the player.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** Errors if `TheSim` or `TheScrapbookPartitions` is unavailable.
 
 ### `MapRevealable_OnIconCreatedFn(inst)`
-* **Description:** Sets display name on map icon if `globalmapiconnamed` icon exists.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `nil`.
+*   **Description:** Sets the display name on a globalmapiconnamed icon when created for maprevealable component.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** None (checks for `maprevealable` component and icon prefab).
 
 ### `EnableTargetLocking(inst, enable)`
-* **Description:** Enables/disables target locking in `playercontroller`.
-* **Parameters:** `inst` — the entity instance, `enable` — boolean.
-* **Returns:** `nil`.
+*   **Description:** Toggles controller target locking availability.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `enable` -- boolean.
+*   **Returns:** None.
+*   **Error states:** None (checks for `playercontroller`).
 
 ### `CommandWheelAllowsGameplay(inst, enable)`
-* **Description:** Enables/disables command wheel gameplay and optionally disables left-stick input in HUD.
-* **Parameters:** `inst` — the entity instance, `enable` — boolean.
-* **Returns:** `nil`.
+*   **Description:** Toggles whether the command wheel blocks other gameplay inputs.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `enable` -- boolean.
+*   **Returns:** None.
+*   **Error states:** None (checks for `playercontroller` and `HUD`).
 
 ### `OnStartJoust(inst)`
-* **Description:** Starts a periodic task to spawn plant-dug FX trail. Returns `true`.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `true`.
+*   **Description:** Starts the jousting trail effect task.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** Boolean (`true`).
+*   **Error states:** Errors if `inst.sg` is nil (no guard before accessing `inst.sg.mem.jousttrailtask`).
 
 ### `OnEndJoust(inst)`
-* **Description:** Cancels `jousttrailtask`.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** `nil`.
+*   **Description:** Cancels the jousting trail effect task.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** Errors if `inst.sg` is nil (no guard before accessing `inst.sg.mem.jousttrailtask`).
 
 ### `CalcGallopSpeedMult(inst, time_moving)`
-* **Description:** Computes gallop speed multiplier from movement time.
-* **Parameters:** `inst` — the entity instance (unused), `time_moving` — numeric duration in frames.
-* **Returns:** Float speed multiplier.
+*   **Description:** Calculates speed multiplier based on gallop duration for YotC knightstick.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `time_moving` -- number of seconds moving.
+*   **Returns:** Number (speed multiplier).
+*   **Error states:** Errors if `inst.sg` is nil (no guard before accessing `inst.sg.statemem`).
 
 ### `TryGallopTripUpdate(inst)`
-* **Description:** Tracks recent rotation changes to determine if gallop trip condition is met.
-* **Parameters:** `inst` — the entity instance.
-* **Returns:** Boolean: `true` if `stressrotation > max_stress`.
-
-### `_can_use_sound(inst, soundpath)`
-* **Description:** Helper to prevent double-playing horseshoe sounds.
-* **Parameters:** `inst` — the entity instance, `soundpath` — sound path or `nil`.
-* **Returns:** Boolean: `true` if sound allowed, `false` if double-play prevented.
+*   **Description:** Tracks rotation stress to determine if the player should trip while galloping.
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** Boolean (`true` if trip condition met).
+*   **Error states:** Errors if `inst.sg` is nil (no guard before accessing `inst.sg.statemem`).
 
 ### `FootstepOverrideFn(inst, volume, ispredicted)`
-* **Description:** Plays footstep sounds based on clothing skin overrides. Suppresses default if overridden.
-* **Parameters:** `inst` — the entity instance, `volume` — optional float, `ispredicted` — boolean.
-* **Returns:** Boolean: `true` if default footstep should be suppressed.
+*   **Description:** Plays custom footstep sounds based on clothing skins. Returns `true` to block default sounds.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `volume` -- sound volume.
+    - `ispredicted` -- boolean for prediction state.
+*   **Returns:** Boolean.
+*   **Error states:** Errors if `inst.AnimState` or `inst.SoundEmitter` is nil (no guard before member access).
 
 ### `FoleyOverrideFn(inst, volume, ispredicted)`
-* **Description:** Plays foley sounds based on clothing skin overrides. Suppresses default if overridden.
-* **Parameters:** `inst` — the entity instance, `volume` — optional float, `ispredicted` — boolean.
-* **Returns:** Boolean: `true` if default foley should be suppressed.
+*   **Description:** Plays custom foley sounds based on clothing skins. Returns `true` to block default sounds.
+*   **Parameters:**
+    - `inst` -- player entity instance.
+    - `volume` -- sound volume.
+    - `ispredicted` -- boolean for prediction state.
+*   **Returns:** Boolean.
+*   **Error states:** Errors if `inst.SoundEmitter` is nil (no guard before member access).
+
+### `SetupBaseSymbolVisibility(inst)`
+*   **Description:** Configures default animation symbol visibility (hides hats, shows hair/head).
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** Errors if `inst.AnimState` is nil.
+
+### `SetupOverrideBuilds(inst)`
+*   **Description:** Adds override builds for various player actions (fishing, farming, combat, etc.).
+*   **Parameters:** `inst` -- player entity instance.
+*   **Returns:** None.
+*   **Error states:** Errors if `inst.AnimState` is nil.
 
 ## Events & listeners
 - **Listens to:**
-  - `respawnfromghost` — triggers `OnRespawnFromGhost`
-  - `onattackother` — triggers `GenericCommander_OnAttackOther`
-  - `spooked` — triggers `OnSpooked`
-  - `closepopups` — triggers `OnClosePopups`
-  - `plant_stage_learned` — triggers `OnLearnPlantStage`
-  - `fertilizer_learned` — triggers `OnLearnFertilizer`
-  - `oversized_picture` — triggers `OnTakeOversizedPicture`
-  - `recipe_learned` — triggers `OnLearnCookbookRecipe`
-  - `eat` — triggers `OnEat`
-  - `death` — triggers `OnPlayerDeath`
-  - `died` — triggers `OnPlayerDied`
-  - `makeplayerghost` — triggers `OnMakePlayerGhost`
-  - `makeplayercorpse` — triggers `OnMakePlayerCorpse`
-  - `deathtriggervinesave` — triggers `OnDeathTriggerVineSave`
-  - `respawnfromvinesave` — triggers `OnRespawnFromVineSave`
-  - `respawnfromplayercorpse` — triggers `OnRespawnFromPlayerCorpse`
-  - `world_paused` — triggers `OnWorldPaused`
-  - `post_activate_handshake_client` — triggers `OnPostActivateHandshake_Client`
-  - `post_activate_handshake_server` — triggers `OnPostActivateHandshake_Server`
-
+  - `onattackother` -- registered in `MakeGenericCommander` to share targets.
 - **Pushes:**
-  - `ms_closepopups`
-  - `ms_becameghost`
-  - `ms_respawnedfromghost`
-  - `activateresurrection`
-  - `rez_player`
-  - `skilltreeinitialized_client` — fired on client at handshake `READY`
-  - `ms_skilltreeinitialized` — fired on server at handshake `READY`
-  - `ms_playerdespawnandmigrate` — used for cross-shard moves
-  - `ms_playerbottled` — used during resurrection
+  - `ms_closepopups` -- fired during death sequence.
+  - `ms_becameghost` -- fired when transitioning to ghost or corpse.
+  - `ms_respawnedfromghost` -- fired when resurrecting from ghost or corpse.
+  - `skilltreeinitialized_client` -- fired when client skill tree handshake completes.
+  - `ms_skilltreeinitialized` -- fired when server skill tree handshake completes.

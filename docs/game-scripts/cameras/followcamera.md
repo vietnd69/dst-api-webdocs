@@ -1,326 +1,380 @@
 ---
 id: followcamera
 title: Followcamera
-description: Manages camera positioning, movement, and update logic for following a target entity in the game world.
-tags: [camera, entity, movement, world]
+description: Manages third-person camera following for entities with smooth interpolation, zoom, and shake effects.
+tags: [camera, rendering, player]
 sidebar_position: 10
-
-last_updated: 2026-02-27
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
-category_type: camera
-system_scope: world
-source_hash: 3db43c9d
+category_type: cameras
+source_hash: e09c0df0
+system_scope: entity
 ---
 
 # Followcamera
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-The `FollowCamera` component controls the game's camera behavior when following a target entity. It calculates and applies camera position, orientation, field of view, and listener location based on the target's movement and configurable parameters (e.g., distance, pitch, gain values). It integrates with the `FocalPoint` component to dynamically adjust focus during gameplay. The camera updates occur every frame via `FollowCamera:Update(dt)` and ultimately call `TheSim` functions to set camera properties and audio listener position.
+`FollowCamera` is a camera component that tracks and follows a target entity with smooth interpolation for position, heading, pitch, and distance. It handles zoom controls, screen shake effects, and supports cutscene mode for cinematic sequences. The camera automatically adjusts pitch based on distance and integrates with the `FocalPoint` component on targets for dynamic focus management. Cave worlds use different default distance and pitch ranges than surface worlds.
 
 ## Usage example
-The following snippet shows how to attach the `FollowCamera` component to an entity and configure basic behavior:
-
 ```lua
-local entity = TheWorld:SpawnPrefab("mycamera_anchor")
-entity:AddComponent("followcamera")
-
-entity.components.followcamera:SetTarget(some_entity)
-entity.components.followcamera:SetDistance(30)
-entity.components.followcamera:SetControllable(true)
-entity.components.followcamera:SetOnUpdateFn(function(dt)
-    -- Custom camera update logic here
-end)
+local inst = CreateEntity()
+inst:AddComponent("followcamera")
+inst.components.followcamera:SetTarget(player)
+inst.components.followcamera:SetDistance(25)
+inst.components.followcamera:SetFOV(40)
+inst.components.followcamera:ZoomIn()
 ```
 
 ## Dependencies & tags
-**Components used:**
-- `focalpoint` — accessed via `target.components.focalpoint:CameraUpdate(dt)` to manage dynamic focus sources.
-- `camerashake` — used via `CameraShake(type, duration, speed, scale)` to generate screen shake effects.
+**External dependencies:**
+- `camerashake` -- creates CameraShake instances for screen shake effects
 
-**Tags:** None identified.
+**Components used:**
+- `focalpoint` -- calls `CameraUpdate(dt)` on target entity if present
+
+**Tags:**
+- None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `target` | `instance` or `nil` | `nil` | The entity the camera is currently following. |
-| `currentpos` | `Vector3` | `Vector3(0,0,0)` | Current 3D position of the camera. |
-| `targetpos` | `Vector3` | `Vector3(0,0,0)` | Target position (based on `target` + `targetoffset`). |
-| `targetoffset` | `Vector3` | `Vector3(0, 1.5, 0)` | Offset applied to the target's position when computing camera position. |
-| `heading` | `number` | `45` (initially) | Current camera heading (in degrees). |
-| `headingtarget` | `number` | `45` | Desired camera heading (in degrees). |
-| `distance` | `number` | `30` | Current camera distance from target. |
-| `distancetarget` | `number` | `30` | Target camera distance, modified by zooming. |
-| `mindist` | `number` | `15` (or `15` in caves) | Minimum allowed camera distance. |
-| `maxdist` | `number` | `50` (or `35` in caves) | Maximum allowed camera distance. |
-| `extramaxdist` | `number` | `0` | Extra maximum distance added to `maxdist`. |
-| `pitch` | `number` | Derived from `distance` | Camera pitch angle (interpolated between `mindistpitch` and `maxdistpitch`). |
-| `fov` | `number` | `35` | Field of view (in degrees). |
-| `pangain` | `number` | `4` | Gain factor for position interpolation during update. |
-| `headinggain` | `number` | `20` | Gain factor for heading interpolation. |
-| `distancegain` | `number` | `1` | Gain factor for distance interpolation. |
-| `continuousdistancegain` | `number` | `6` | Higher gain used during continuous zoom (e.g., analog camera movement). |
-| `zoomstep` | `number` | `4` | Incremental step size for discrete zoom in/out. |
-| `mindistpitch` | `number` | `30` (or `25` in caves) | Minimum pitch angle when camera is at `mindist`. |
-| `maxdistpitch` | `number` | `60` (or `40` in caves) | Maximum pitch angle when camera is at `maxdist`. |
-| `controllable` | `boolean` | `true` | Whether the camera can be manually controlled (e.g., zoom/rotate). |
-| `cutscene` | `boolean` | `false` | If true, camera moves linearly without gain-based smoothing. |
-| `paused` | `boolean` | `false` | Pauses camera update logic if `true`. |
-| `shake` | `CameraShake` or `nil` | `nil` | Active screen shake effect (see `camerashake.lua`). |
-| `screenoffsetstack` | `table` | `{}` | Stack of screen horizontal offsets, ordered by priority. |
-| `updatelisteners` | `table` | `{}` | Mapping of listener sources to callback arrays (called every frame). |
-| `largeupdatelisteners` | `table` | `{}` | Mapping of listener sources to callback arrays (called only when camera motion changes significantly). |
-| `large_dist_update` | `boolean` | `false` | Set to `true` when camera position/direction/up changed significantly since last update. |
+| `inst` | Entity | nil | The entity instance that owns this camera component. |
+| `target` | Entity | nil | The entity instance the camera is following. |
+| `currentpos` | Vector3 | (0, 0, 0) | Current interpolated camera position in world space. |
+| `currentscreenxoffset` | number | 0 | Current horizontal screen offset for UI effects. |
+| `distance` | number | 30 | Current camera distance from target (interpolated). |
+| `maxdist` | number | 50 | Maximum camera distance (35 in caves). |
+| `extramaxdist` | number | 0 | Extra distance added to maxdist for special cases. |
+| `screenoffsetstack` | table | {} | Stack of screen offset references for layered UI effects. |
+| `updatelisteners` | table | {} | Table of regular update listener callbacks. |
+| `largeupdatelisteners` | table | {} | Table of large update listener callbacks (significant camera movement). |
+| `targetoffset` | Vector3 | (0, 1.5, 0) | Offset from target position for camera focus point. |
+| `targetpos` | Vector3 | (0, 0, 0) | Target position including offset for camera calculations. |
+| `headingtarget` | number | 45 | Target heading angle in degrees. |
+| `fov` | number | 35 | Field of view in degrees. |
+| `pangain` | number | 4 | Gain factor for position interpolation speed. |
+| `headinggain` | number | 20 | Gain factor for heading interpolation speed. |
+| `distancegain` | number | 1 | Gain factor for distance interpolation speed (standard zoom). |
+| `continuousdistancegain` | number | 6 | Gain factor for distance interpolation speed (continuous zoom). |
+| `zoomstep` | number | 4 | Default step size for ZoomIn/ZoomOut functions. |
+| `time_since_zoom` | number | nil | Tracks time elapsed since last zoom action for zoom behavior logic. |
+| `distancetarget` | number | 30 | Target distance for interpolation (25 in caves). |
+| `mindist` | number | 15 | Minimum camera distance. |
+| `mindistpitch` | number | 30 | Minimum pitch angle (25 in caves). |
+| `maxdistpitch` | number | 60 | Maximum pitch angle (40 in caves). |
+| `paused` | boolean | false | Whether camera updates are paused. |
+| `shake` | CameraShake | nil | Active camera shake instance. |
+| `controllable` | boolean | true | Whether camera can be controlled by input. |
+| `cutscene` | boolean | false | Whether camera is in cutscene mode. |
+| `onupdatefn` | function | dummyfn | Custom callback function called every update. |
+| `gamemode_defaultfn` | function | result of GetGameModeProperty | Game mode override function for camera defaults, called in SetDefault() if present. |
+| `lockdistance` | boolean | nil | When true, prevents distance interpolation during Snap(). |
 
 ## Main functions
 ### `SetDefaultOffset()`
-* **Description:** Sets `targetoffset` to a default height offset (`Vector3(0, 1.5, 0)`).
-* **Parameters:** None.
-* **Returns:** None.
+* **Description:** Sets the default target offset to (0, 1.5, 0) for camera focus point.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `SetDefault()`
-* **Description:** Resets camera parameters to default values. Configures different values for cave worlds (`TheWorld:HasTag("cave")`). Calls `gamemode_defaultfn` if present.
-* **Parameters:** None.
-* **Returns:** None.
+* **Description:** Resets all camera properties to default values. Adjusts defaults for cave worlds automatically. Calls gamemode override function if present.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `GetRightVec()`
-* **Description:** Returns the world-space right vector based on `headingtarget`.
-* **Parameters:** None.
-* **Returns:** `Vector3` — Right vector (perpendicular to camera direction).
+* **Description:** Returns the right vector based on current heading target.
+* **Parameters:** None
+* **Returns:** Vector3 representing the right direction.
+* **Error states:** None
 
 ### `GetDownVec()`
-* **Description:** Returns the world-space forward/down vector (direction camera points) based on `headingtarget`.
-* **Parameters:** None.
-* **Returns:** `Vector3` — Down vector (direction of camera heading).
+* **Description:** Returns the down vector based on current heading target.
+* **Parameters:** None
+* **Returns:** Vector3 representing the down direction.
+* **Error states:** None
 
 ### `GetPitchDownVec()`
-* **Description:** Returns the 3D direction vector accounting for both `pitch` and `heading`.
-* **Parameters:** None.
-* **Returns:** `Vector3` — Pitch-adjusted down vector.
+* **Description:** Returns the down vector based on current pitch and heading.
+* **Parameters:** None
+* **Returns:** Vector3 representing the pitch-adjusted down direction.
+* **Error states:** None
 
 ### `SetPaused(val)`
-* **Description:** Pauses or resumes camera updates.
-* **Parameters:**
-  - `val` (`boolean`) — If `true`, disables camera updates in `Update(dt)`.
-* **Returns:** None.
+* **Description:** Sets whether camera updates are paused.
+* **Parameters:** `val` -- boolean to pause or unpause
+* **Returns:** None
+* **Error states:** None
 
 ### `SetMinDistance(distance)`
-* **Description:** Sets the minimum allowed camera distance (`mindist`).
-* **Parameters:**
-  - `distance` (`number`) — Minimum distance.
-* **Returns:** None.
+* **Description:** Sets the minimum camera distance from target.
+* **Parameters:** `distance` -- number for minimum distance
+* **Returns:** None
+* **Error states:** None
 
 ### `SetMaxDistance(distance)`
-* **Description:** Sets the maximum allowed camera distance (`maxdist`). The effective `maxdist` also accounts for `extramaxdist`.
-* **Parameters:**
-  - `distance` (`number`) — Maximum distance.
-* **Returns:** None.
+* **Description:** Sets the maximum camera distance from target.
+* **Parameters:** `distance` -- number for maximum distance
+* **Returns:** None
+* **Error states:** None
 
 ### `SetExtraMaxDistance(distance)`
-* **Description:** Sets extra allowable maximum distance beyond `maxdist`. Changes to this property may trigger `MaximizeDistance()` if the camera is controllable.
-* **Parameters:**
-  - `distance` (`number`) — Extra max distance offset.
-* **Returns:** None.
+* **Description:** Sets extra distance added to maxdist. Calls MaximizeDistance() if extramaxdist changes and camera is controllable, not in cutscene mode, and not paused.
+* **Parameters:** `distance` -- number for extra maximum distance
+* **Returns:** None
+* **Error states:** None
 
 ### `SetGains(pan, heading, distance)`
-* **Description:** Sets interpolation gains for camera behavior:
-  - `pan`: position interpolation gain (`pangain`)
-  - `heading`: heading interpolation gain (`headinggain`)
-  - `distance`: distance interpolation gain (`distancegain`)
+* **Description:** Sets interpolation gain factors for pan, heading, and distance.
 * **Parameters:**
-  - `pan` (`number`)
-  - `heading` (`number`)
-  - `distance` (`number`)
-* **Returns:** None.
+  - `pan` -- number for pan gain
+  - `heading` -- number for heading gain
+  - `distance` -- number for distance gain
+* **Returns:** None
+* **Error states:** None
 
 ### `GetGains()`
-* **Description:** Returns the current gain values.
-* **Parameters:** None.
-* **Returns:** `pan`, `heading`, `distance` — All numbers.
+* **Description:** Returns current interpolation gain factors.
+* **Parameters:** None
+* **Returns:** Three numbers: pangain, headinggain, distancegain
+* **Error states:** None
+
+### `SetPitchRange(min, max)`
+* **Description:** Sets the minimum and maximum pitch angles.
+* **Parameters:**
+  - `min` -- number for minimum pitch
+  - `max` -- number for maximum pitch
+* **Returns:** None
+* **Error states:** None
+
+### `GetPitchRange()`
+* **Description:** Returns current pitch range.
+* **Parameters:** None
+* **Returns:** Two numbers: mindistpitch, maxdistpitch
+* **Error states:** None
+
+### `SetFOV(fov)`
+* **Description:** Sets the camera field of view in degrees.
+* **Parameters:** `fov` -- number for field of view
+* **Returns:** None
+* **Error states:** None
+
+### `GetFOV()`
+* **Description:** Returns current field of view.
+* **Parameters:** None
+* **Returns:** Number representing FOV in degrees
+* **Error states:** None
+
+### `GetRawMaxDistance()`
+* **Description:** Returns maxdist minus extramaxdist (the base maximum distance).
+* **Parameters:** None
+* **Returns:** Number representing raw maximum distance
+* **Error states:** None
 
 ### `IsControllable()`
-* **Description:** Returns whether the camera can be controlled.
-* **Parameters:** None.
-* **Returns:** `boolean` — `true` if `controllable` is `true`.
+* **Description:** Returns whether the camera is controllable by input.
+* **Parameters:** None
+* **Returns:** Boolean
+* **Error states:** None
 
 ### `SetControllable(val)`
-* **Description:** Sets whether the camera can be controlled. Affects behavior when `extramaxdist` changes.
-* **Parameters:**
-  - `val` (`boolean`)
-* **Returns:** None.
+* **Description:** Sets whether the camera is controllable by input.
+* **Parameters:** `val` -- boolean for controllability
+* **Returns:** None
+* **Error states:** None
 
 ### `CanControl()`
-* **Description:** Alias for `IsControllable()`.
-* **Parameters:** None.
-* **Returns:** `boolean`.
+* **Description:** Returns whether the camera can be controlled (alias for IsControllable).
+* **Parameters:** None
+* **Returns:** Boolean
+* **Error states:** None
 
 ### `SetOffset(offset)`
-* **Description:** Sets `targetoffset` from a `Vector3`.
-* **Parameters:**
-  - `offset` (`Vector3`) — New target offset.
-* **Returns:** None.
+* **Description:** Sets the target offset from a Vector3 value.
+* **Parameters:** `offset` -- Vector3 with Get() method
+* **Returns:** None
+* **Error states:** Errors if offset does not have a Get() method.
 
 ### `PushScreenHOffset(ref, xoffset)`
-* **Description:** Adds a screen horizontal offset to the stack with a given priority (inserted at front). Automatically removes existing entries for the same `ref`.
+* **Description:** Pushes a horizontal screen offset onto the stack. Removes existing offset for same ref first.
 * **Parameters:**
-  - `ref` (`instance`) — Reference object for the offset (used for cleanup).
-  - `xoffset` (`number`) — Horizontal offset in screen-height units.
-* **Returns:** None.
+  - `ref` -- reference object for tracking this offset
+  - `xoffset` -- number for horizontal offset
+* **Returns:** None
+* **Error states:** None
 
 ### `PopScreenHOffset(ref)`
-* **Description:** Removes the first entry in the offset stack matching `ref`.
-* **Parameters:**
-  - `ref` (`instance`) — Reference object to remove.
-* **Returns:** None.
+* **Description:** Removes a horizontal screen offset from the stack by reference.
+* **Parameters:** `ref` -- reference object to match
+* **Returns:** None
+* **Error states:** None
 
 ### `LockDistance(lock)`
-* **Description:** Locks the camera distance if `lock` is truthy, preventing changes during updates.
-* **Parameters:**
-  - `lock` (`any`) — If truthy, locks distance; `nil` or `false` unlocks.
-* **Returns:** None.
+* **Description:** Locks or unlocks distance interpolation during Snap().
+* **Parameters:** `lock` -- boolean or nil to clear
+* **Returns:** None
+* **Error states:** None
 
 ### `GetDistance()`
-* **Description:** Returns the current target distance (`distancetarget`).
-* **Parameters:** None.
-* **Returns:** `number` — `distancetarget`.
+* **Description:** Returns the current target distance.
+* **Parameters:** None
+* **Returns:** Number representing target distance
+* **Error states:** None
 
 ### `SetDistance(dist)`
-* **Description:** Sets the target distance (`distancetarget`).
-* **Parameters:**
-  - `dist` (`number`) — New target distance.
-* **Returns:** None.
+* **Description:** Sets the target distance for interpolation.
+* **Parameters:** `dist` -- number for target distance
+* **Returns:** None
+* **Error states:** None
 
 ### `Shake(type, duration, speed, scale)`
-* **Description:** Applies a screen shake effect using `CameraShake`.
+* **Description:** Creates a camera shake effect if screen shake is enabled in profile settings.
 * **Parameters:**
-  - `type` (`string`) — Shake type (e.g., `"small"`, `"medium"`).
-  - `duration` (`number`) — Shake duration in seconds.
-  - `speed` (`number`) — Shake frequency.
-  - `scale` (`number`) — Shake magnitude.
-* **Returns:** None.
+  - `type` -- shake type identifier
+  - `duration` -- number for shake duration in seconds
+  - `speed` -- number for shake speed
+  - `scale` -- number for shake intensity scale
+* **Returns:** None
+* **Error states:** None
 
 ### `SetTarget(inst)`
-* **Description:** Sets the entity the camera should follow. Immediately updates `targetpos` based on the new target's position.
-* **Parameters:**
-  - `inst` (`instance` or `nil`) — The entity to follow, or `nil` to stop following.
-* **Returns:** None.
+* **Description:** Sets the target entity to follow. Updates target position immediately.
+* **Parameters:** `inst` -- entity instance or nil to clear target
+* **Returns:** None
+* **Error states:** Errors if inst is not nil but lacks a Transform component with GetWorldPosition().
 
 ### `MaximizeDistance()`
-* **Description:** Sets `distancetarget` to 70% of the distance range (above `mindist`).
-* **Parameters:** None.
-* **Returns:** None.
+* **Description:** Sets distancetarget to 70% of the range between mindist and maxdist.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `Apply()`
-* **Description:** Applies computed camera state (position, direction, up, FOV) to `TheSim`, and sets the audio listener location.
-* **Parameters:** None.
-* **Returns:** None.
+* **Description:** Applies current camera state to TheSim. Calculates position, direction, and up vectors. Updates listener if camera moved significantly.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ### `GetHeading()`
-* **Description:** Returns the current camera heading (`heading`).
-* **Parameters:** None.
-* **Returns:** `number` — Current heading in degrees.
+* **Description:** Returns current heading angle.
+* **Parameters:** None
+* **Returns:** Number representing heading in degrees
+* **Error states:** None
 
 ### `GetHeadingTarget()`
-* **Description:** Returns the target heading (`headingtarget`).
-* **Parameters:** None.
-* **Returns:** `number` — Target heading in degrees.
+* **Description:** Returns target heading angle.
+* **Parameters:** None
+* **Returns:** Number representing target heading in degrees
+* **Error states:** None
 
 ### `SetHeadingTarget(r)`
-* **Description:** Instantly sets `headingtarget`, resetting delta tracking for smooth rotation.
-* **Parameters:**
-  - `r` (`number`) — Target heading (normalized to `[0,360)`).
-* **Returns:** None.
+* **Description:** Sets the target heading angle with normalization to 0-360 range.
+* **Parameters:** `r` -- number for heading in degrees
+* **Returns:** None
+* **Error states:** None
 
 ### `SetContinuousHeadingTarget(r, delta)`
-* **Description:** Sets target heading and calculates average delta for smooth analog camera rotation (used in controller mods).
+* **Description:** Sets target heading for continuous rotation with analog control delta.
 * **Parameters:**
-  - `r` (`number`) — Target heading.
-  - `delta` (`number`) — Rotation speed/direction.
-* **Returns:** None.
+  - `r` -- number for heading in degrees
+  - `delta` -- number for rotation speed
+* **Returns:** None
+* **Error states:** None
 
 ### `ContinuousZoomDelta(delta)`
-* **Description:** Applies a zoom delta (e.g., from analog control), clamping between `mindist` and `maxdist`.
-* **Parameters:**
-  - `delta` (`number`) — Zoom amount (positive zooms out, negative zooms in).
-* **Returns:** None.
+* **Description:** Applies continuous zoom delta with smoothing. Clamps distance to mindist/maxdist range.
+* **Parameters:** `delta` -- number for zoom change
+* **Returns:** None
+* **Error states:** None
 
 ### `ZoomIn(step)`
-* **Description:** Decreases `distancetarget` by `step` (or `zoomstep`).
-* **Parameters:**
-  - `step` (`number` or `nil`) — Zoom increment.
-* **Returns:** None.
+* **Description:** Zooms camera in by step amount. Resets zoom delta tracking.
+* **Parameters:** `step` -- number for zoom step (defaults to zoomstep)
+* **Returns:** None
+* **Error states:** None
 
 ### `ZoomOut(step)`
-* **Description:** Increases `distancetarget` by `step` (or `zoomstep`).
-* **Parameters:**
-  - `step` (`number` or `nil`) — Zoom increment.
-* **Returns:** None.
+* **Description:** Zooms camera out by step amount. Resets zoom delta tracking.
+* **Parameters:** `step` -- number for zoom step (defaults to zoomstep)
+* **Returns:** None
+* **Error states:** None
 
 ### `Snap()`
-* **Description:** Instantly aligns current camera state (`currentpos`, `heading`, `distance`) to the target and applies settings.
-* **Parameters:** None.
-* **Returns:** None.
+* **Description:** Instantly snaps camera to target position and heading without interpolation. Updates listeners.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if target exists but lacks Transform component with GetWorldPosition().
 
 ### `CutsceneMode(b)`
-* **Description:** Sets whether the camera is in cutscene mode (linear movement vs. gain-based smoothing).
-* **Parameters:**
-  - `b` (`boolean`) — `true` enables linear interpolation in `Update(dt)`.
-* **Returns:** None.
+* **Description:** Sets cutscene mode which changes position interpolation behavior.
+* **Parameters:** `b` -- boolean for cutscene mode
+* **Returns:** None
+* **Error states:** None
 
 ### `SetCustomLocation(loc)`
-* **Description:** Overrides `targetpos` with a custom world position.
-* **Parameters:**
-  - `loc` (`Vector3`) — Custom target position.
-* **Returns:** None.
+* **Description:** Sets a custom target location instead of following an entity.
+* **Parameters:** `loc` -- Vector3 with Get() method
+* **Returns:** None
+* **Error states:** Errors if loc does not have a Get() method.
 
 ### `Update(dt, dontupdatepos)`
-* **Description:** Main update loop — computes new camera state using gains, handles zoom/heading smoothing, shake, screen offsets, and focal points.
+* **Description:** Main update function called every frame. Interpolates position, heading, distance, and pitch. Calls custom onupdatefn and updates listeners.
 * **Parameters:**
-  - `dt` (`number`) — Delta time.
-  - `dontupdatepos` (`boolean`) — If `true`, skips updating `currentpos`.
-* **Returns:** None.
+  - `dt` -- number for delta time in seconds
+  - `dontupdatepos` -- boolean to skip position updates
+* **Returns:** None
+* **Error states:** Errors if target exists but lacks Transform component with GetWorldPosition().
 
 ### `UpdateListeners(dt)`
-* **Description:** Invokes registered callbacks in `updatelisteners` (every frame) and `largeupdatelisteners` (only when camera motion changed significantly).
-* **Parameters:**
-  - `dt` (`number`) — Delta time.
-* **Returns:** None.
+* **Description:** Calls all registered update listeners. Calls large update listeners if camera moved significantly.
+* **Parameters:** `dt` -- number for delta time in seconds
+* **Returns:** None
+* **Error states:** None
 
 ### `SetOnUpdateFn(fn)`
-* **Description:** Sets the per-frame callback invoked at the end of `Update(dt)`. Use for custom camera logic.
-* **Parameters:**
-  - `fn` (`function` or `nil`) — Callback (`function(dt) end`). `nil` uses a no-op dummy function.
-* **Returns:** None.
+* **Description:** Sets custom callback function called every update. Uses dummyfn if nil.
+* **Parameters:** `fn` -- function or nil
+* **Returns:** None
+* **Error states:** None
 
 ### `AddListener(src, cb)`
-* **Description:** Registers a per-frame listener callback for a given source.
+* **Description:** Adds a regular update listener callback. Multiple callbacks per source supported.
 * **Parameters:**
-  - `src` (`any`) — Unique source identifier (used for removal).
-  - `cb` (`function`) — Callback (`function(dt) end`).
-* **Returns:** None.
+  - `src` -- source identifier for grouping listeners
+  - `cb` -- function callback receiving dt parameter
+* **Returns:** None
+* **Error states:** None
 
 ### `RemoveListener(src, cb)`
-* **Description:** Removes a per-frame listener callback for a source.
+* **Description:** Removes a specific listener callback or all listeners for a source.
 * **Parameters:**
-  - `src` (`any`) — Source identifier.
-  - `cb` (`function` or `nil`) — Specific callback or `nil` to remove all for `src`.
-* **Returns:** None.
+  - `src` -- source identifier
+  - `cb` -- function callback or nil to remove all
+* **Returns:** None
+* **Error states:** None
 
 ### `AddLargeUpdateListener(src, cb)`
-* **Description:** Registers a listener callback for only large camera motion changes.
+* **Description:** Adds a large update listener callback (called only on significant camera movement).
 * **Parameters:**
-  - `src` (`any`)
-  - `cb` (`function`)
-* **Returns:** None.
+  - `src` -- source identifier for grouping listeners
+  - `cb` -- function callback receiving dt parameter
+* **Returns:** None
+* **Error states:** None
 
 ### `RemoveLargeUpdateListener(src, cb)`
-* **Description:** Removes a large-update listener callback for a source.
+* **Description:** Removes a specific large update listener callback or all for a source.
 * **Parameters:**
-  - `src` (`any`)
-  - `cb` (`function` or `nil`)
-* **Returns:** None.
+  - `src` -- source identifier
+  - `cb` -- function callback or nil to remove all
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-None — the component does not register or push any DST events.
+- **Listens to:** None identified (no ListenForEvent calls in source)
+- **Pushes:** None identified (no PushEvent calls in source)
+- **Custom listeners:** Uses internal listener system via `AddListener()`, `RemoveListener()`, `AddLargeUpdateListener()`, and `RemoveLargeUpdateListener()` for update callbacks

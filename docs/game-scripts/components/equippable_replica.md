@@ -1,83 +1,94 @@
 ---
 id: equippable_replica
 title: Equippable Replica
-description: Manages network-replicated equipment slot and restriction logic for equippable items in DST's client-server architecture.
-tags: [network, inventory, equipment]
+description: Main component that handles equippable item state and synchronization, operating on both server and client sides.
+tags: [network, inventory, replication]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-22
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: 8e4d0899
+source_hash: 48992fd7
 system_scope: network
 ---
 
-# Equippable Replica
+# Equippable
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-22
 
 ## Overview
-`Equippable Replica` is a client-side component that provides synchronized access to equip slot and unequipping restriction state for equippable items. It mirrors data from the server-side `equippable` component and integrates with `inventoryitem` and `linkeditem` to enforce equip rules (e.g., owner-only restrictions) on the client. It does not own state but proxies networked values, enabling consistent behavior between server authority and client rendering.
+`Equippable` is the main component that handles equippable item state and synchronization. It uses network variables to synchronize equip slot assignment and unequipping restrictions across the network. This component operates on both server and client, with `IsEquipped()` delegating to the server-side implementation when available, otherwise using client-side logic to determine if an item is currently equipped.
 
 ## Usage example
 ```lua
--- Client-side check: determine if a held item is equipped in its slot
-if inst.replica.equippable:IsEquipped() then
-    print("Item is currently equipped.")
-end
+local inst = CreateEntity()
+inst:AddComponent("equippable")
 
--- Prevent a player from unequipping a critical item
-inst.replica.equippable:SetPreventUnequipping(true)
+-- Set the equip slot for this item
+inst.components.equippable:SetEquipSlot(EQUIPSLOT.HAND)
+
+-- Check if the item is currently equipped
+local isEquipped = inst.components.equippable:IsEquipped()
+
+-- Prevent the item from being unequipped
+inst.components.equippable:SetPreventUnequipping(true)
 ```
 
 ## Dependencies & tags
-**Components used:** `equippable` (server-side), `linkeditem` (server-side), `inventoryitem` (server-side), `equipslotutil`
-**Tags:** None identified.
+**External dependencies:**
+- `equipslotutil` -- provides EquipSlot utility functions for slot ID conversion
+
+**Components used:**
+- `linkeditem` -- checked in IsRestricted() for owner-based equipment restrictions
+
+**Tags:**
+- `player` -- checked in IsRestricted() to validate target is a player
+- `possessedbody` -- checked in IsRestricted() as alternative valid target type
+- Dynamic restriction tag -- retrieved from inventoryitem and checked against target
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `_equipslot` | `net_tinybyte` or `net_smallbyte` | `0` | Networked equip slot ID. Uses `net_tinybyte` if `EquipSlot.Count() <= 7`, otherwise `net_smallbyte`. |
-| `_preventunequipping` | `net_bool` | `false` | Networked flag indicating whether the item can be unequipped. |
+| `_equipslot` | net_tinybyte or net_smallbyte | `---` | Network variable storing the equip slot ID. Uses tinybyte if slot count `<= 7`, otherwise smallbyte. |
+| `_preventunequipping` | net_bool | `---` | Network variable that prevents the item from being unequipped when set to true. |
 
 ## Main functions
 ### `SetEquipSlot(eslot)`
-*   **Description:** Sets the networked equip slot ID for this item. Must be called server-side to trigger sync to clients.
-*   **Parameters:** `eslot` (EquipSlot constant) — a slot identifier from `equipslotutil.lua` (e.g., `EquipSlot.BACK`, `EquipSlot.HANDS`).
-*   **Returns:** Nothing.
-*   **Error states:** None — silently truncates or clamps invalid slot IDs via `EquipSlot.ToID()`.
+* **Description:** Sets the equip slot for this item using network synchronization. The slot value is converted to an ID via EquipSlot.ToID() before being stored.
+* **Parameters:** `eslot` -- equip slot constant from EQUIPSLOT table (e.g., EQUIPSLOT.HAND, EQUIPSLOT.HEAD)
+* **Returns:** None
+* **Error states:** None
 
 ### `EquipSlot()`
-*   **Description:** Returns the current equip slot ID as a symbolic constant.
-*   **Parameters:** None.
-*   **Returns:** (EquipSlot constant) — the slot identifier (e.g., `EquipSlot.HELMET`).
-*   **Error states:** May return `nil` if `EquipSlot.FromID()` receives an out-of-range ID.
+* **Description:** Returns the current equip slot for this item by converting the stored network ID back to an equip slot constant.
+* **Parameters:** None
+* **Returns:** Equip slot constant from EQUIPSLOT table.
+* **Error states:** None
 
 ### `IsEquipped()`
-*   **Description:** Determines whether the item is currently equipped on an entity. Falls back to client-side heuristics if the server-side `equippable` component is unavailable.
-*   **Parameters:** None.
-*   **Returns:** (boolean) — `true` if equipped, `false` otherwise.
-*   **Error states:** Returns `false` if no `equippable` or `inventoryitem` component is available on the target entity.
+* **Description:** Determines if this item is currently equipped. On server (when equippable component exists), delegates to server-side component. On client, checks inventoryitem held state and player's equipped item in the same slot.
+* **Parameters:** None
+* **Returns:** `true` if the item is equipped, `false` otherwise.
+* **Error states:** Errors if `ThePlayer` is nil on client when calling `ThePlayer.replica.inventory:GetEquippedItem()` — no nil guard present.
 
 ### `IsRestricted(target)`
-*   **Description:** Checks if a given entity (usually a player) is allowed to equip this item. Enforces `linkeditem` owner restrictions and `inventoryitem` tag-based restrictions.
-*   **Parameters:** `target` (Entity) — the entity attempting to equip the item.
-*   **Returns:** (boolean) — `true` if the item is restricted for `target`, `false` otherwise.
-*   **Error states:** Returns `false` for non-player entities (`target` must have `player` tag to trigger restrictions).
+* **Description:** Checks if this item has equipment restrictions for a given target entity. Returns true if the target cannot equip this item due to linkeditem owner restrictions or inventoryitem restriction tags.
+* **Parameters:** `target` -- entity to check restrictions against (typically a player)
+* **Returns:** `true` if the item is restricted for the target, `false` if the target can equip it.
+* **Error states:** Errors if `target` is nil when calling `target:HasAnyTag()` or `target:HasTag()` — no nil guard present.
 
 ### `ShouldPreventUnequipping()`
-*   **Description:** Returns whether unequipping this item is blocked.
-*   **Parameters:** None.
-*   **Returns:** (boolean) — `true` if unequipping is prevented.
-*   **Error states:** None.
+* **Description:** Returns whether unequipping this item is currently prevented via the network variable.
+* **Parameters:** None
+* **Returns:** `true` if unequipping is prevented, `false` otherwise.
+* **Error states:** None
 
 ### `SetPreventUnequipping(shouldprevent)`
-*   **Description:** Sets the networked flag to prevent or allow unequipping. Must be called server-side to sync to clients.
-*   **Parameters:** `shouldprevent` (boolean) — if `true`, the item cannot be unequipped.
-*   **Returns:** Nothing.
-*   **Error states:** None.
+* **Description:** Sets the prevent unequipping flag via network synchronization. When true, the item cannot be unequipped through normal means.
+* **Parameters:** `shouldprevent` -- boolean value to set the prevention state
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:** None.
-- **Pushes:** None.
+- **Listens to:** None identified.
+- **Pushes:** None identified.

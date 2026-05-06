@@ -1,59 +1,104 @@
 ---
 id: quagmire
 title: Quagmire
-description: Registers Quagmire as a custom game level preset with predefined world generation overrides and versioning.
-tags: [world, level, preset, configuration]
+description: Defines the level configuration and generation presets for the Quagmire event map.
+tags: [map, worldgen, event, configuration]
 sidebar_position: 10
-
-last_updated: 2026-02-27
-build_version: 714014
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
 category_type: map
+source_hash: fb80463c
 system_scope: world
-source_hash: c4a0ca86
 ---
 
 # Quagmire
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **722832** | Last updated: 2026-04-17
 
 ## Overview
-This script defines and registers the `QUAGMIRE` level preset for Don't Starve Together. It uses `AddLevel`, `AddWorldGenLevel`, and `AddSettingsPreset` to configure the Quagmire world type with specific gameplay overrides and metadata, including versioning, localization strings, and rule exclusions for certain world generation features (e.g., boons, touchstones, traps, POI, protected areas, disease delay, petrification, and wildfires). It does not define a traditional ECS component; instead, it serves as a world generation configuration manifest consumed by the level setup system.
+`quagmire.lua` registers the Quagmire event level preset with the world generation system. It executes global registration functions (`AddLevel`, `AddWorldGenLevel`, `AddSettingsPreset`) during initialization to define level metadata, override settings, and background node ranges. This file does not return a table or define a class; it performs side effects to populate the level registry used by the map generation system.
 
 ## Usage example
-This file is automatically loaded during game initialization to register the Quagmire level preset. It does not need manual instantiation. Modders may extend it by defining new overrides or presets for custom world types using the same `AddLevel`, `AddWorldGenLevel`, and `AddSettingsPreset` APIs.
+```lua
+-- This file is executed by the engine during initialization.
+-- Modders typically do not require this file directly.
+-- Below is the structure used to define a level preset:
+
+AddLevel(LEVELTYPE.QUAGMIRE, {
+    id = "QUAGMIRE",
+    name = STRINGS.UI.CUSTOMIZATIONSCREEN.PRESETLEVELS.QUAGMIRE,
+    desc = STRINGS.UI.CUSTOMIZATIONSCREEN.PRESETLEVELDESC.QUAGMIRE,
+    location = "quagmire",
+    version = 4,
+    overrides = {
+        boons = "never",
+        wildfires = "never",
+        -- ... other overrides
+    },
+    background_node_range = {0, 1},
+})
+```
 
 ## Dependencies & tags
-**Components used:** None — this script does not interact with entity components.  
-**Tags:** None — no tags are applied or checked.
+**External dependencies:**
+- `STRINGS` -- Used for localized level name and description text.
+- `LEVELTYPE` -- Enum used to specify the level type (e.g., `LEVELTYPE.QUAGMIRE`).
+
+**Components used:**
+None identified
+
+**Tags:**
+None identified
 
 ## Properties
-This file does not define any persistent properties or instance variables. All configuration is provided inline via function arguments.
+`<`!-- Configuration fields used in the registration tables passed to global functions. -->
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `LevelConfig` | table | --- | Conceptual table structure passed to registration functions (`AddLevel`, etc.). |
+| `id` | string | --- | Unique identifier for the level preset (e.g., `"QUAGMIRE"`). |
+| `name` | string | --- | Localized display name retrieved from `STRINGS`. |
+| `desc` | string | --- | Localized description retrieved from `STRINGS`. |
+| `location` | string | --- | Prefab name or identifier for the location type (e.g., `"quagmire"`). |
+| `version` | number | --- | Version number of the level definition (e.g., `4` for levels, `1` for presets). |
+| `overrides` | table | --- | Table of world generation override settings forcing specific rules. |
+| `overrides.boons` | string | --- | Setting for boons generation (e.g., `"never"`). |
+| `overrides.touchstone` | string | --- | Setting for touchstone generation (e.g., `"never"`). |
+| `overrides.traps` | string | --- | Setting for trap generation (e.g., `"never"`). |
+| `overrides.poi` | string | --- | Setting for points of interest generation (e.g., `"never"`). |
+| `overrides.protected` | string | --- | Setting for protected area generation (e.g., `"never"`). |
+| `overrides.disease_delay` | string | --- | Setting for disease spread delay (e.g., `"none"`). |
+| `overrides.prefabswaps_start` | string | --- | Setting for initial prefab swaps (e.g., `"classic"`). |
+| `overrides.petrification` | string | --- | Setting for petrification mechanics (e.g., `"none"`). |
+| `overrides.wildfires` | string | --- | Setting for wildfire events (e.g., `"never"`). |
+| `background_node_range` | table | --- | Array of two numbers defining the background node range (e.g., `{0, 1}`). |
 
 ## Main functions
-### `AddLevel(level_type, config)`
-* **Description:** Registers a basic level preset entry for Quagmire. Used for UI and internal level listing. Version 4 includes all overrides defined in the config.
-* **Parameters:**
-  * `level_type`: Enum `LEVELTYPE.QUAGMIRE` — identifies the level type.
-  * `config`: Table — contains `id`, `name`, `desc`, `location`, `version`, `overrides`, and `background_node_range`.
-* **Returns:** None — registers the preset internally.
-* **Error states:** None documented. Misconfigurations (e.g., invalid `location`) may cause fallback to defaults or silent failure.
+`<`!-- This file calls global registration functions rather than defining local ones. -->
 
-### `AddWorldGenLevel(level_type, config)`
-* **Description:** Registers a world generation–specific level preset for Quagmire. Contains settings used during world tilemap and worldgen task generation. Version 4 includes a reduced set of overrides compared to `AddLevel`.
+### `AddLevel(type, config)`
+* **Description:** Global function called by this file to register a standard level definition.
 * **Parameters:**
-  * `level_type`: Enum `LEVELTYPE.QUAGMIRE`.
-  * `config`: Table — identical structure to `AddLevel`, but omits `disease_delay`, `petrification`, and `wildfires` overrides.
-* **Returns:** None — registers the preset internally.
-* **Error states:** None documented.
+  - `type` -- Level type enum (e.g., `LEVELTYPE.QUAGMIRE`).
+  - `config` -- Table containing level definition data (id, name, overrides, etc.).
+* **Returns:** None (Global registration side effect).
+* **Error states:** None.
 
-### `AddSettingsPreset(level_type, config)`
-* **Description:** Registers a settings preset that can be selected directly from the world creation UI. Contains minimal overrides focused on Quagmire-specific gameplay (e.g., disabling disease delay, petrification, and wildfires). Version 1.
+### `AddWorldGenLevel(type, config)`
+* **Description:** Global function called by this file to register a world generation level definition (deprecated/legacy variant in this file).
 * **Parameters:**
-  * `level_type`: Enum `LEVELTYPE.QUAGMIRE`.
-  * `config`: Table — same structure, with overrides limited to `disease_delay`, `petrification`, and `wildfires`.
-* **Returns:** None — registers the preset internally.
-* **Error states:** None documented.
+  - `type` -- Level type enum.
+  - `config` -- Table containing level definition data.
+* **Returns:** None (Global registration side effect).
+* **Error states:** None.
+
+### `AddSettingsPreset(type, config)`
+* **Description:** Global function called by this file to register a settings preset associated with the level.
+* **Parameters:**
+  - `type` -- Level type enum.
+  - `config` -- Table containing preset data (id, name, overrides).
+* **Returns:** None (Global registration side effect).
+* **Error states:** None.
 
 ## Events & listeners
-None — this file performs static registration at load time and does not define or interact with events.
+None.

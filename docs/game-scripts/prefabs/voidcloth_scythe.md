@@ -1,87 +1,158 @@
 ---
 id: voidcloth_scythe
 title: Voidcloth Scythe
-description: A multiplayer-ready weapon that synergizes with the Voidcloth Set, providing increased damage and planar damage when equipped alongside a Voidcloth Hat, while also enabling shadow-empowered area attacks and harvest automation.
-tags: [combat, setbonus, shadow, inventory, fx]
+description: A shadow-themed scythe weapon that degrades with use and grants set bonuses when paired with Voidcloth armor.
+tags: [combat, weapon, shadow, durability, setbonus]
 sidebar_position: 10
-
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: a18342ac
+source_hash: 38a5ce82
 system_scope: combat
 ---
 
 # Voidcloth Scythe
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-17
 
 ## Overview
-`voidcloth_scythe` is a composite prefab consisting of two main entities: the `voidcloth_scythe` weapon itself and its associated local-effect entity `voidcloth_scythe_fx`. The scythe functions as a high-utility harvesting and combat tool with built-in set-bonus logic and shadow-skill synergies. It integrates tightly with the `equippable`, `weapon`, `tool`, `finiteuses`, `planardamage`, `floater`, `inspectable`, `inventoryitem`, and `shadowlevel` components. It dynamically responds to being equipped/unequipped, repaired, or broken, and coordinates a set of client-side follow effects (`voidcloth_scythe_fx`) via `FollowSymbol` and `HighlightChild` systems.
+The Voidcloth Scythe is a durable weapon prefab that functions as both a melee weapon and a harvesting tool. It features a degradation system where it breaks after exhausting its uses, becoming repairable at a Forge station. When the owner equips the Voidcloth Hat, the scythe activates a set bonus that increases damage and adds planar damage. It also includes shadow-themed visual effects and dialogue capabilities when wielded by shadow-aligned players.
 
 ## Usage example
-The scythe is typically instantiated as a prefabricated item and added to a player's inventory or equipped directly:
 ```lua
--- Typical usage within a prefab's OnEquip or crafting logic:
 local scythe = SpawnPrefab("voidcloth_scythe")
-player.components.inventory:GiveItem(scythe)
-player.components.equippable:Equip(scythe, EQUIPSLOTS.HAND)
-
--- Equipping with a matching Voidcloth Hat triggers set-bonus effects:
-player.components.inventory:Equip("voidclothhat", EQUIPSLOTS.HEAD)
+-- Check durability
+local uses = scythe.components.finiteuses:GetUses()
+-- Use scythe harvesting action
+scythe:DoScythe(target, ThePlayer)
+-- Enable shadow dialogue
+scythe:ToggleTalking(true, ThePlayer)
 ```
 
 ## Dependencies & tags
-**Components used:** `equippable`, `weapon`, `tool`, `finiteuses`, `planardamage`, `floater`, `inspectable`, `inventoryitem`, `shadowlevel`, `damagetypebonus`, `talker`, `highlightchild`, `colouraddersync`, `follower`, `pickable`, `combat`, `domesticatable`, `saltlicker`, `follower`, `skilltreeupdater`.
+**External dependencies:**
+- `TUNING` -- damage values, use count, talk intervals
+- `ACTIONS` -- defines SCYTHE action
+- `TheSim` -- entity finding for AoE harvest
+- `TheWorld` -- mastersim check for classified entity
+- `TheNet` -- PVP and dedicated server checks
+- `STRINGS` -- dialogue lines
+- `EQUIPSLOTS` -- equipment slot constants
 
-**Tags added:** `sharp`, `show_broken_ui`, `weapon`, `shadowlevel`, `shadow_item`, `broken` (when broken). Also adds `FX` to internal effect entities.
+**Components used:**
+- `equippable` -- handles equip/unequip logic and dapperness
+- `weapon` -- defines damage and attack callback
+- `tool` -- enables harvesting action
+- `finiteuses` -- tracks durability and consumption
+- `floater` -- manages floating animation state
+- `talker` -- enables entity dialogue
+- `inspectable` -- overrides name when broken
+- `inventoryitem` -- allows pickup and storage
+- `planardamage` -- adds planar damage component
+- `damagetypebonus` -- adds bonus damage vs lunar aligned
+- `shadowlevel` -- sets shadow level for interactions
+- `highlightchild` -- used on FX child entity (`inst.fx`) for highlighting
+- `colouraddersync` -- used on FX child entity (`inst.fx`) for colour syncing
+
+**Tags:**
+- `sharp` -- added on creation
+- `show_broken_ui` -- added on creation
+- `weapon` -- added on creation
+- `shadowlevel` -- added on creation
+- `shadow_item` -- added on creation
+- `broken` -- added when durability reaches zero
 
 ## Properties
-No public properties are exposed directly on the `voidcloth_scythe` entity beyond `inst._classified`, `inst._owner`, `inst._fxowner`, `inst.fx`, `inst.isbroken`, and `inst.talktask`. These are internal use and not part of the public API.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `isbroken` | net_bool | `false` | Networked boolean indicating if the scythe is broken. |
+| `_bonusenabled` | boolean | `false` | Internal flag for Voidcloth set bonus activation. |
+| `_owner` | entity | `nil` | Reference to the current owner of the scythe. |
+| `_classified` | entity | `nil` | Reference to the classified child entity for shadow interactions. |
+| `localsounds` | entity | `nil` | Client-side entity for talk sound emission (created only on non-dedicated servers). |
+| `fx` | entity | `nil` | Reference to the visual effects child entity. |
+| `talktask` | task | `nil` | Scheduled task for periodic talking dialogue. Cancelled when talking is disabled. |
 
 ## Main functions
-### `SetBuffEnabled(inst, enabled)`
-*   **Description:** Enables or disables the Voidcloth Set bonus (increased weapon damage and planar damage) when the scythe is equipped and the owner has a `voidclothhat` equipped.
-*   **Parameters:** `enabled` (boolean) — whether the set bonus should be active.
-*   **Returns:** Nothing.
-*   **Error states:** Safe to call when `inst.components.weapon` or `inst.components.planardamage` are absent.
 
-### `SetBuffOwner(inst, owner)`
-*   **Description:** Assigns the owner and sets up `equip`/`unequip` event listeners to monitor changes to the owner's head slot, automatically toggling the set bonus.
-*   **Parameters:** `owner` (entity or `nil`) — the player entity currently holding the scythe.
-*   **Returns:** Nothing.
+### `AttachClassified(classified)`
+* **Description:** Attaches a classified child entity to the scythe for shadow interactions and sets up removal listeners.
+* **Parameters:** `classified` -- entity instance to attach as classified.
+* **Returns:** None.
+* **Error states:** None.
 
-### `SetFxOwner(inst, owner)`
-*   **Description:** Updates the parent and follow behavior for the `voidcloth_scythe_fx` entity, syncing it to the owner or the scythe itself.
-*   **Parameters:** `owner` (entity or `nil`) — the entity that currently has the scythe equipped.
-*   **Returns:** Nothing.
+### `DetachClassified()`
+* **Description:** Detaches the classified child entity and cleans up listeners.
+* **Parameters:** None.
+* **Returns:** None.
+* **Error states:** None.
 
-### `DoScythe(inst, target, doer)`
-*   **Description:** Simulates harvesting behavior — scans for pickable entities within range and in front of the doer, then harvests each valid target.
-*   **Parameters:**
-    *   `target` (entity) — the primary target, used to derive position.
-    *   `doer` (entity) — the actor performing the scything; used for rotation and sound.
-*   **Returns:** Nothing.
-*   **Error states:** Harvesting proceeds only if `target.components.pickable` is present and the target is within `TUNING.VOIDCLOTH_SCYTHE_HARVEST_RADIUS` and within `TUNING.VOIDCLOTH_SCYTHE_HARVEST_ANGLE_WIDTH` degrees of the doer's facing direction.
+### `OnRemoveEntity()`
+* **Description:** Cleanup function called when the entity is removed. Handles classified entity removal based on simulation authority.
+* **Parameters:** None.
+* **Returns:** None.
+* **Error states:** None.
 
-### `OnAttack(inst, attacker, target)`
-*   **Description:** Attack callback; triggers spark FX and initiates Shadow AoE if the attacker has the `wortox_allegiance_shadow` skill activated and successfully portals-hops.
-*   **Parameters:**
-    *   `attacker` (entity) — the entity performing the attack.
-    *   `target` (entity) — the primary combat target.
-*   **Returns:** Nothing.
+### `SayRandomLine(str_list, owner)`
+* **Description:** Triggers a random dialogue line from the provided list if the owner is shadow-aligned. Schedules the next line.
+* **Parameters:**
+  - `str_list` -- table of string keys from STRINGS.
+  - `owner` -- player entity owning the scythe.
+* **Returns:** None.
+* **Error states:** Errors if owner is nil (no nil guard before owner:HasTag() call). Caller must ensure owner is non-nil player entity.
 
-### `OnBroken(inst)`
-*   **Description:** Disables core weapon/tool components when the item breaks, updates visual state, and marks the item as broken.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+### `ToggleTalking(turnon, owner)`
+* **Description:** Enables or disables the periodic talking task for the scythe.
+* **Parameters:**
+  - `turnon` -- boolean to enable or disable talking.
+  - `owner` -- player entity owning the scythe.
+* **Returns:** None.
+* **Error states:** Errors if owner is nil when turnon is true (no nil guard before owner:HasTag() call).
 
-### `OnRepaired(inst)`
-*   **Description:** Re-initializes weapon/tool components when repaired, restores visuals, and clears broken status.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+### `DoScythe(target, doer)`
+* **Description:** Performs the scythe harvesting action in an area of effect around the doer. Triggers dialogue and harvests pickable entities in front of the doer.
+* **Parameters:**
+  - `target` -- target entity of the action.
+  - `doer` -- player entity performing the action.
+* **Returns:** None.
+* **Error states:** Errors if `doer` or `target` is nil (no nil guard before `doer:GetPosition()` or `target.components.pickable` access). Both parameters must be valid entities.
+
+### `IsEntityInFront(entity, doer_rotation, doer_pos)`
+* **Description:** Checks if an entity is within the scythe's harvesting angle relative to the doer's facing.
+* **Parameters:**
+  - `entity` -- entity to check position for.
+  - `doer_rotation` -- number representing doer's rotation.
+  - `doer_pos` -- vector representing doer's position.
+* **Returns:** Boolean indicating if entity is in front.
+* **Error states:** Errors if `entity` is nil (no nil guard before `entity:GetPosition()` call).
+
+### `HarvestPickable(ent, doer)`
+* **Description:** Attempts to pick a pickable entity and launches the loot towards the doer. Plays pick sound if available.
+* **Parameters:**
+  - `ent` -- pickable entity to harvest.
+  - `doer` -- player entity receiving the loot.
+* **Returns:** Boolean success status from the pickable component.
+* **Error states:** Errors if `doer` is nil (no nil guard before `doer.SoundEmitter:PlaySound()` call).
+
+### `DoShadowAoE(attacker, target)`
+* **Description:** Triggers a shadow area-of-effect attack using the attacker's combat component. Validates targets to exclude allies and specific tags.
+* **Parameters:**
+  - `attacker` -- player entity performing the attack.
+  - `target` -- primary target entity of the attack.
+* **Returns:** None.
+* **Error states:** Errors if `attacker` is nil (no nil guard before `attacker.components.combat` access).
 
 ## Events & listeners
-- **Listens to:** `onremove` (used to clean up `_classified` reference), `ontalk` / `donetalking` (local sound FX), `floater_stopfloating` (animation reset), `equip` / `unequip` (owner events, used to toggle set bonus), `isbrokendirty`, `equiptoggledirty` (client-only event for fx syncing).
-- **Pushes:** `equipskinneditem`, `unequipskinneditem`, `onareaattackother` (via `combat.DoAreaAttack`).
+- **Listens to:**
+  - `onremove` -- detaches classified entity.
+  - `equip` -- checks for Voidcloth Hat to enable set bonus.
+  - `unequip` -- disables set bonus if head slot changes.
+  - `ontalk` -- plays talk sound.
+  - `donetalking` -- stops talk sound.
+  - `floater_stopfloating` -- resets animation loop.
+  - `isbrokendirty` -- updates visual state when `isbroken` changes.
+- **Pushes:**
+  - `equipskinneditem` -- pushed on owner entity (`owner:PushEvent`).
+  - `unequipskinneditem` -- pushed on owner entity (`owner:PushEvent`).
+  - `picksomethingfromaoe` -- pushed on doer entity (`doer:PushEvent`).

@@ -1,243 +1,354 @@
 ---
 id: SGbearger
 title: Sgbearger
-description: Manages the complete behavioral stategraph for the Bearger entity, including movement, combat, attacks, staggering, yawn-based crowd control, and state transitions during special actions.
-tags: [entity, combat, locomotion, physics, fx]
+description: This stategraph defines the complete animation state machine for the Bearger boss entity, including combat states (melee, combo, ground pound, butt slam, yawn), locomotion (walk, run, stand transitions), sleep mechanics, and common state integrations.
+tags: [stategraph, boss, combat, ai, behaviour]
 sidebar_position: 10
 
-last_updated: 2026-03-08
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
 category_type: stategraphs
-source_hash: f8d4d748
-system_scope: entity
+source_hash: 2f9ce8c5
+system_scope: combat
 ---
 
 # Sgbearger
 
-> Based on game build **714014** | Last updated: 2026-03-08
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-`SGbearger` is the stategraph component that defines the full behavioral state machine for the Bearger entity. It orchestrates transitions between movement states (walking, running, jumping), idle states (sleeping, waking), combat states (attack initiation, combo attacks, butt attacks), and special states (yawn, stagger, death). The stategraph integrates with core systems such as combat targeting, inventory, locomotion, and terrain interaction to handle complex AI logic, including arc and radial area-of-effect attacks, terrain destruction, camera shake, and coordination with mounted entities. State transitions are driven by internal logic, animation events, and external events like damage or stagger requests.
+
+Stategraphs are animation state machines accessed via `StartStateGraph()`, not called as utility functions. This stategraph controls the Bearger boss entity's complete behavior including combat (melee attacks, combo attacks, ground pound, butt slam, yawn), locomotion (walking, running, stand state transitions between bi and quad), and sleep/yawn mechanics that affect nearby entities. The Bearger uses a targeting system with tracking arcs and supports multiple attack patterns based on hibernation state and target type. CommonStates are integrated for frozen, electrocute, death, and sink behaviors.
 
 ## Usage example
+
 ```lua
+-- Bearger stategraph is attached to the Bearger entity prefab
+-- State transitions are triggered by events or AI brain decisions
 local bearger = SpawnPrefab("bearger")
-bearger:AddComponent("combat")
-bearger:AddComponent("health")
-bearger:AddComponent("locomotor")
-bearger:AddStateGraph("bearger", "stategraphs/SGbearger.lua")
--- The Bearger will automatically begin in the 'init' state, transitioning to 'idle'.
-bearger.sg:GoToState("run") -- initiates running
-bearger.sg:GoToState("sleep") -- begins sleep state
+
+-- Trigger attack sequence
+bearger:PushEvent("doattack", { target = player })
+
+-- Check current state for AI decisions
+if bearger.sg:HasStateTag("attack") then
+    -- Bearger is in attack animation, don't approach
+end
+
+-- Listen for state completion
+bearger:ListenForEvent("animover", function(inst)
+    -- Animation finished, transition to next state
+end)
+
+-- Handle being hit
+bearger:ListenForEvent("attacked", function(inst, data)
+    -- Hit recovery or stagger logic
+end)
 ```
 
 ## Dependencies & tags
+
+**External dependencies:**
+- `stategraphs/commonstates` -- CommonStates.AddCorpseStates, AddFrozenStates, AddElectrocuteStates, AddSinkAndWashAshoreStates, AddVoidFallStates, AddLunarRiftMutationStates, AddInitState, OnLocomote, OnSleepEx, OnWakeEx, OnFreeze, OnElectrocute, OnDeath, OnSink, OnFallInVoid, OnCorpseChomped, OnCorpseDeathAnimOver, TryElectrocuteOnAttacked, HitRecoveryDelay, UpdateHitRecoveryDelay, OnNoSleepFrameEvent
+- `easing` -- imported but never referenced (unused import)
+- `TheSim` -- FindEntities to search for entities in range
+- `TUNING` -- BEARGER_YAWN_RANGE, BEARGER_YAWN_SLEEPTIME, BEARGER_MELEE_RANGE, BEARGER_YAWN_COOLDOWN, BEARGER_NORMAL_GROUNDPOUND_COOLDOWN, BEARGER_ANGRY_WALK_SPEED, BEARGER_CALM_WALK_SPEED, BEARGER_RUN_SPEED, MUTATED_BEARGER_STAGGER_TIME
+- `DEGREES` -- rotation conversion constant
+- `RADIANS` -- angle conversion constant
+- `PI` -- math constant for angle calculations
+- `FRAMES` -- animation frame timing constant
+- `CAMERASHAKE` -- camera shake type constants (FULL, VERTICAL)
+- `ACTIONS` -- GOHOME, STEAL, HAMMER, EAT, PICKUP, HARVEST, PICK, ATTACK action handlers
+
 **Components used:**
-- `combat` — for targeting, attack coordination, and cooldowns
-- `health` — for death and state validation (`IsDead`)
-- `eater` — for inventory filtering (`CanEat`)
-- `inventory` — for item removal, armor tag checks (`ArmorHasTag`)
-- `sleeper` — for sleepiness/grogginess effects during yawn
-- `grogginess` — for grogginess accumulation
-- `locomotor` — for movement control (`StopMoving`, `Stop`)
-- `timer` — for cooldown and stagger timers
-- `freezable` / `pinnable` / `fossilizable` — conditional checks in `yawnfn`
-- `rider` — for mounted entity handling during yawn
-- `groundpounder` — for ground pound execution
-- `Transform` — for position, rotation, and parent updates
-- `Physics` — for motor velocity overrides and collision toggling
-- `SoundEmitter` — for sound playback
-- `AnimState` — for animation management, FX parent, and stand state
+- `combat` -- StartAttack, DoAttack, CanTarget, TargetIs, CalcAttackRangeSq, ignorehitrange, target
+- `eater` -- CanEat to filter inventory items
+- `freezable` -- IsFrozen to skip frozen entities in yawn
+- `pinnable` -- IsStuck to skip pinned entities in yawn
+- `fossilizable` -- IsFossilized to skip fossilized entities in yawn
+- `rider` -- GetMount to apply sleep to mounted entities
+- `sleeper` -- AddSleepiness, IsAsleep, WakeUp for sleep state management
+- `grogginess` -- AddGrogginess for yawn effect
+- `inventory` -- FindItem, ArmorHasTag for inventory clearing and heavy armor detection
+- `timer` -- StartTimer, StopTimer, TimerExists for yawn, groundpound, and stagger cooldowns
+- `locomotor` -- StopMoving, Stop, WalkForward, RunForward, walkspeed, runspeed
+- `workable` -- GetWorkAction, CanBeWorked, Destroy for collapsing structures
+- `health` -- IsDead to skip dead entities in attacks
+- `groundpounder` -- GroundPound for ground pound and butt slam attacks
 
 **Tags:**
-- Entity tags:
-  - `"playerghost"`, `"FX"`, `"DECOR"`, `"INLIMBO"` — excluded from yawn targets (`YAWNTARGET_CANT_TAGS`)
-  - `"sleeper"`, `"player"` — required for yawn targets (`YAWNTARGET_ONEOF_TAGS`)
-  - `"NPC_workable"`, `"CHOP_workable"`, `"DIG_workable"`, `"HAMMER_workable"`, `"MINE_workable"` — workable types destroyable by Bearger
-  - `"heavyarmor"`, `"heavybody"` — checked for knockback reduction
-  - `"INLIMBO"`, `"flight"`, `"invisible"`, `"notarget"`, `"noattack"` — excluded from AOE targets
-  - `"_combat"` — required for AOE targets
-- State tags (via `inst.sg`):
-  - `"busy"`, `"idle"`, `"canrotate"`, `"attack"`, `"hit"`, `"caninterrupt"`, `"staggered"`, `"frozen"`, `"yawn"`, `"weapontoss"`, `"jumping"`, `"nointerrupt"`
-  - `"noelectrocute"`, `"dead"`, `"wantstoeat"`, `"moving"`, `"running"`, `"atk_pre"`, `"sleeping"`, `"nowake"`, `"waking"`, `"nosleep"`
+- `busy`, `idle`, `canrotate`, `hit`, `yawn`, `attack`, `weapontoss`, `moving`, `running`, `atk_pre`, `sleeping`, `nowake`, `waking`, `nosleep`, `staggered`, `noelectrocute`, `dead`, `noattack`, `caninterrupt`, `jumping`, `nointerrupt` -- add
+- `playerghost`, `FX`, `DECOR`, `INLIMBO`, `sleeper`, `player`, `beehive`, `hibernation`, `NPC_workable`, `_combat`, `flight`, `invisible`, `notarget`, `heavyarmor`, `heavybody`, `honeyed` -- check
 
 ## Properties
-| Property | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| `inst.swipefx` | `string` | `nil` | Prefab name for swipe FX (e.g., `"bearger_swipe"`) |
-| `TUNING.BEARGER_YAWN_RANGE` | `number` | `20` | Max range for yawn targets (derived from `TUNING`) |
-| `TRACKING_ARC` | `number` | `math.PI / 2` | Cone angle (radians) for target tracking/validity checks |
+
+### State Reference
+
+| State name | Tags | Description |
+|------------|------|-------------|
+| `bi` | `busy` | Transition state for two-legged stance |
+| `quad` | `busy` | Transition state for four-legged stance |
+| `idle` | `idle`, `canrotate` | Default idle state |
+| `targetstolen` | `busy`, `canrotate` | Reaction when combat target is stolen |
+| `hit` | `hit`, `busy` | Hit recovery from quad stance |
+| `standing_hit` | `hit`, `busy` | Hit recovery from bi stance |
+| `yawn` | `yawn`, `busy` | Yawn animation applying sleepiness to nearby entities |
+| `attack_action` | None | Buffered action handler for attack |
+| `attack` | `attack`, `busy`, `weapontoss` | Basic melee attack with swipe |
+| `attack_combo1` | `attack`, `busy`, `jumping`, `weapontoss` | First combo attack with jump |
+| `attack_combo2` | `attack`, `busy`, `jumping`, `weapontoss` | Second combo attack with jump |
+| `attack_combo1a` | `attack`, `busy`, `jumping`, `weapontoss` | Alternate first combo attack |
+| `pound` | `attack`, `busy` | Ground pound attack |
+| `butt_pre` | `attack`, `busy` | Butt slam windup (standing) |
+| `running_butt_pre` | `attack`, `busy` | Butt slam windup (from run) |
+| `butt` | `attack`, `busy`, `jumping`, `nointerrupt` | Main butt slam attack |
+| `butt_pst` | `attack`, `busy`, `jumping`, `noelectrocute` | Butt slam recovery |
+| `butt_face_hit` | `hit`, `busy`, `noelectrocute` | Special hit state during butt recovery |
+| `death` | `dead`, `busy`, `noattack` | Death animation |
+| `action` | `busy` | Generic action (pick, harvest) |
+| `eat_loop` | `busy` | Eating loop animation |
+| `eat_pst` | `busy`, `caninterrupt` | Eat post-animation |
+| `steal` | `busy` | Steal action (hammer, steal) |
+| `walk_start` | `moving`, `canrotate` | Walk start transition |
+| `walk` | `moving`, `canrotate` | Walking loop |
+| `walk_stop` | `canrotate` | Walk stop transition |
+| `run_start` | `moving`, `running`, `atk_pre`, `canrotate` | Run start transition |
+| `run` | `moving`, `running`, `canrotate` | Running loop |
+| `run_stop` | `canrotate` | Run stop transition |
+| `sleep` | `busy`, `sleeping`, `nowake`, `caninterrupt` | Sleep transition |
+| `sleeping` | `busy`, `sleeping` | Sleeping loop |
+| `wake` | `busy`, `waking`, `nosleep` | Wake up transition |
+| `stagger_pre` | `staggered`, `busy`, `nosleep`, `noelectrocute` | Stagger windup |
+| `stagger_pre_timeline_from_frame3` | `staggered`, `busy`, `nosleep`, `noelectrocute` | Stagger pre from frame 3 |
+| `stagger_idle` | `staggered`, `busy`, `caninterrupt`, `nosleep` | Stagger idle loop |
+| `stagger_hit` | `staggered`, `busy`, `hit`, `nosleep` | Stagger from hit |
+| `stagger_pst` | `staggered`, `busy`, `nosleep` | Stagger recovery |
+
+**Injected states:** CommonStates.AddCorpseStates, AddFrozenStates, AddElectrocuteStates, AddSinkAndWashAshoreStates, AddVoidFallStates, AddLunarRiftMutationStates inject additional states for corpse, frozen, electrocute, sink, void fall, and mutation behaviors.
+
+### File-scope constants
+
+| Constant | Type | Value | Description |
+|----------|------|-------|-------------|
+| `SHAKE_DIST` | constant (local) | `40` | Camera shake distance threshold |
+| `YAWNTARGET_CANT_TAGS` | table (local) | `{"playerghost", "FX", "DECOR", "INLIMBO"}` | Tags excluded from yawn targeting |
+| `YAWNTARGET_ONEOF_TAGS` | table (local) | `{"sleeper", "player"}` | Tags required for yawn targeting |
+| `COLLAPSIBLE_WORK_ACTIONS` | table (local) | `{CHOP=true, DIG=true, HAMMER=true, MINE=true}` | Work actions that trigger structure collapse |
+| `COLLAPSIBLE_TAGS` | table (local) | `NPC_workable` + `_workable` variants | Tags for collapsible entities |
+| `NON_COLLAPSIBLE_TAGS` | table (local) | `{"FX", "DECOR", "INLIMBO"}` | Tags excluded from destruction |
+| `ARC` | constant (local) | `90 * DEGREES` | Arc angle for arc attacks (degrees to each side) |
+| `AOE_RANGE_PADDING` | constant (local) | `3` | Padding added to AOE attack radius |
+| `AOE_TARGET_MUSTHAVE_TAGS` | table (local) | `{"_combat"}` | Required tags for AOE targeting |
+| `AOE_TARGET_CANT_TAGS` | table (local) | `{"INLIMBO", "flight", "invisible", "notarget", "noattack"}` | Tags excluded from AOE targeting |
+| `MAX_SIDE_TOSS_STR` | constant (local) | `0.8` | Maximum knockback strength multiplier for side toss |
+| `COMBO_ARC_OFFSET` | constant (local) | `0.5` | Distance offset for combo arc attacks |
+| `TRACKING_ARC` | constant (local) | `90` | Angle threshold for target tracking |
+| `IDLE_FLAGS` | table (local) | `{Aggro=0x01, Calm=0x02, NoFaced=0x04}` | Bit flags for idle state behavior |
 
 ## Main functions
+
 ### `yawnfn(inst)`
-* **Description:** Finds eligible targets within `TUNING.BEARGER_YAWN_RANGE`, applies sleepiness and grogginess, and handles mounted entities separately. Skips invalid, frozen, pinned, or fossilized targets, and entities lacking required tags.
-* **Parameters:** `inst` — the Bearger entity instance.
-* **Returns:** `true` (always, regardless of target count).
+* **Description:** Applies sleepiness or grogginess to nearby entities within yawn range. Checks for frozen, pinned, or fossilized status before applying effects. Pushes ridersleep event to mounts, yawn event to players, or AddSleepiness/AddGrogginess to other entities.
+* **Parameters:**
+  - `inst` -- entity instance owning the stategraph
+* **Returns:** `true`
+* **Error states:** None
 
 ### `ClearInventory(inst)`
-* **Description:** Removes all items from the Bearger's inventory that it can eat (via `CanEat` check), using the eater component.
-* **Parameters:** `inst` — the Bearger entity instance.
-* **Returns:** `nil` (early return if no inventory component).
+* **Description:** Removes all eatable items from the entity's inventory by repeatedly finding and removing items that pass the CanEat test.
+* **Parameters:**
+  - `inst` -- entity instance whose inventory to clear
+* **Returns:** `nil`
+* **Error states:** None - guards against nil inventory component
 
 ### `ChooseAttack(inst, target)`
-* **Description:** Determines and triggers an appropriate attack state based on current state, target type (e.g., beehive), hibernation status, timers, and `canrunningbutt` flags. Clears inventory on interruption.
+* **Description:** Determines which attack state to transition to based on target type, running state, hibernation status, and timer existence. Clears inventory if interrupted. Prioritizes beehive attacks, running butt, yawn, ground pound, or standard attack.
 * **Parameters:**
-  - `inst` — the Bearger instance.
-  - `target` — optional override for combat target; defaults to `inst.components.combat.target`.
-* **Returns:** `true` if a state transition occurs; `false` if no valid target or transition skipped.
+  - `inst` -- entity instance owning the stategraph
+  - `target` -- optional target entity; defaults to combat.target
+* **Returns:** boolean - true if attack state was entered, false if no valid target
+* **Error states:** None - guards against invalid targets
 
 ### `DestroyStuff(inst, dist, radius, arc, nofx)`
-* **Description:** Destroys collapsible workables (e.g., campfires, walls) in a cone-shaped area. Respects `COLLAPSIBLE_WORK_ACTIONS`, `COLLAPSIBLE_TAGS`, and `NON_COLLAPSIBLE_TAGS`. Skips FX spawn when `nofx` is `true`.
+* **Description:** Destroys workable entities within range that match collapsible tags. Calculates position offset based on rotation and distance. Spawns collapse_small prefab for visual effect unless nofx is true.
 * **Parameters:**
-  - `inst` — the Bearger instance.
-  - `dist` — forward offset distance to adjust hit position.
-  - `radius` — detection radius.
-  - `arc` — angular cone limit (radians); `nil` disables arc check.
-  - `nofx` — if `true`, skips FX spawn.
-* **Returns:** `nil`.
+  - `inst` -- entity instance performing destruction
+  - `dist` -- distance offset from entity position
+  - `radius` -- search radius for entities
+  - `arc` -- angle arc constraint in radians; nil for full circle
+  - `nofx` -- boolean to skip spawning collapse FX
+* **Returns:** `nil`
+* **Error states:** None
 
 ### `DoArcAttack(inst, dist, radius, heavymult, mult, forcelanded, targets)`
-* **Description:** Performs an AOE arc attack, damaging and applying knockback to eligible targets in a forward-facing cone. Handles heavy armor/`heavybody` knockback reduction.
+* **Description:** Performs arc-shaped melee attack hitting entities within angle constraint. Sets ignorehitrange on combat component. Applies knockback event with strength multiplier adjusted for heavy armor. Tracks targets in provided table.
 * **Parameters:**
-  - `inst` — the Bearger instance.
-  - `dist` — forward offset for attack origin.
-  - `radius` — base detection radius (plus padding).
-  - `heavymult`, `mult` — knockback strength multipliers (`nil` disables knockback).
-  - `forcelanded` — passed to knockback event.
-  - `targets` — optional table to track already-hit targets.
-* **Returns:** `nil`.
+  - `inst` -- entity instance performing attack
+  - `dist` -- distance offset from entity position
+  - `radius` -- attack radius
+  - `heavymult` -- knockback multiplier for heavy armor targets
+  - `mult` -- standard knockback multiplier
+  - `forcelanded` -- boolean to force landed state on knockback
+  - `targets` -- table to track hit targets
+* **Returns:** `nil`
+* **Error states:** None
 
 ### `DoComboArcAttack(inst, targets)`
-* **Description:** Wrapper for `DoArcAttack` with fixed combo parameters (no knockback, default radius and distance).
-* **Parameters:** 
-  - `inst` — the Bearger instance.
-  - `targets` — table of pre-collided targets.
-* **Returns:** `nil`.
+* **Description:** Wrapper for DoArcAttack with combo-specific parameters (COMBO_ARC_OFFSET offset, BEARGER_MELEE_RANGE radius, multiplier of 1).
+* **Parameters:**
+  - `inst` -- entity instance performing attack
+  - `targets` -- table to track hit targets
+* **Returns:** `nil`
+* **Error states:** None
 
 ### `DoComboArcWork(inst)`
-* **Description:** Wrapper for `DestroyStuff` with fixed combo parameters (no FX).
-* **Parameters:** `inst` — the Bearger instance.
-* **Returns:** `nil`.
-
-### `DoAOEAttack(inst, dist, radius, min_dmg, max_dmg, dir, targets, extra_knockback)`
-* **Description:** Performs a radial AOE attack centered at a position offset from `inst`. Supports `extra_knockback` to re-knock already-hit targets.
+* **Description:** Calls DestroyStuff with combo-specific parameters to destroy workables during combo attack.
 * **Parameters:**
-  - `inst` — the Bearger instance.
-  - `dist` — distance offset (scalar, negative = backward) to compute center.
-  - `radius` — AOE radius.
-  - `min_dmg`, `max_dmg` — damage range.
-  - `dir` — direction (`nil` for omnidirectional).
-  - `targets` — pre-collided target list.
-  - `extra_knockback` — if `true`, knocks back already-hit targets.
-* **Returns:** `nil`.
+  - `inst` -- entity instance performing work
+* **Returns:** `nil`
+* **Error states:** None
+
+### `DoAOEAttack(inst, dist, radius, heavymult, mult, forcelanded, targets, knockback_existing_targets)`
+* **Description:** Performs area-of-effect attack hitting all entities within radius. Attacks new targets via combat:DoAttack. Applies knockback to new or existing targets based on knockback_existing_targets flag.
+* **Parameters:**
+  - `inst` -- entity instance performing attack
+  - `dist` -- distance offset from entity position
+  - `radius` -- attack radius
+  - `heavymult` -- knockback multiplier for heavy armor targets
+  - `mult` -- standard knockback multiplier
+  - `forcelanded` -- boolean to force landed state on knockback
+  - `targets` -- table to track hit targets
+  - `knockback_existing_targets` -- boolean to apply knockback to already-hit targets
+* **Returns:** `nil`
+* **Error states:** None
 
 ### `TryStagger(inst)`
-* **Description:** Attempts to transition to `"stagger_pre"` state. Does not validate preconditions (assumes state transition succeeds).
-* **Parameters:** `inst` — the Bearger instance.
-* **Returns:** `true`.
+* **Description:** Transitions entity to stagger_pre state. Used as a helper for stagger transitions from various states.
+* **Parameters:**
+  - `inst` -- entity instance to stagger
+* **Returns:** `true`
+* **Error states:** None
 
 ### `IsAggro(inst)`
-* **Description:** Returns `true` if Bearger has a combat target that is not a beehive.
-* **Parameters:** `inst` — the Bearger instance.
-* **Returns:** `true`/`false`.
+* **Description:** Returns true if entity has a combat target that is not a beehive. Used to determine aggressive vs calm behavior.
+* **Parameters:**
+  - `inst` -- entity instance to check
+* **Returns:** boolean
+* **Error states:** None
 
 ### `StartTrackingTarget(inst, target)`
-* **Description:** Records target info in `statemem`, and rotates Bearger toward target if within `TRACKING_ARC`. Silently skips invalid or `nil` targets.
+* **Description:** Stores target reference and position in state memory. Rotates entity toward target if within TRACKING_ARC degrees. Sets tracking flag in statemem.
 * **Parameters:**
-  - `inst` — the Bearger instance.
-  - `target` — the target entity.
-* **Returns:** `nil`.
+  - `inst` -- entity instance doing tracking
+  - `target` -- target entity to track
+* **Returns:** `nil`
+* **Error states:** None - guards against nil or invalid target
 
 ### `UpdateTrackingTarget(inst)`
-* **Description:** Continuously rotates Bearger toward tracked target's latest position while tracking is active.
-* **Parameters:** `inst` — the Bearger instance.
-* **Returns:** `nil`.
+* **Description:** Updates stored target position each frame while tracking is active. Smoothly rotates entity toward target position, clamping rotation change to 1 unit per update.
+* **Parameters:**
+  - `inst` -- entity instance doing tracking
+* **Returns:** `nil`
+* **Error states:** None
 
 ### `StopTrackingTarget(inst)`
-* **Description:** Disables target tracking (`statemem.tracking = false`).
-* **Parameters:** `inst` — the Bearger instance.
-* **Returns:** `nil`.
+* **Description:** Clears the tracking flag in state memory, ending target tracking behavior.
+* **Parameters:** None
+* **Returns:** `nil`
+* **Error states:** None
 
 ### `ShouldComboTarget(inst, target)`
-* **Description:** Checks if a target is valid for a combo attack: in range and facing within `TRACKING_ARC`.
+* **Description:** Checks if target is valid for combo attack continuation. Verifies target is current combat target, within attack range, and within TRACKING_ARC degrees of entity rotation.
 * **Parameters:**
-  - `inst` — the Bearger instance.
-  - `target` — the target entity.
-* **Returns:** `true`/`false`.
+  - `inst` -- entity instance checking target
+  - `target` -- potential combo target
+* **Returns:** boolean
+* **Error states:** None
 
 ### `ShouldButtTarget(inst, target)`
-* **Description:** Checks if a target is within range for a butt attack (≤8 units) and facing within `TRACKING_ARC` *behind* the Bearger.
+* **Description:** Checks if target is valid for butt attack. Verifies target is valid and not dead/ghost, within 64 distance units, and within TRACKING_ARC degrees behind entity (180 degree offset).
 * **Parameters:**
-  - `inst` — the Bearger instance.
-  - `target` — the target entity.
-* **Returns:** `true`/`false`.
+  - `inst` -- entity instance checking target
+  - `target` -- potential butt attack target
+* **Returns:** boolean
+* **Error states:** None
 
 ### `TryButt(inst)`
-* **Description:** Attempts to initiate a butt attack if target meets `ShouldButtTarget` criteria and butt recovery is not active.
-* **Parameters:** `inst` — the Bearger instance.
-* **Returns:** `true` if butt state triggered; `false` otherwise.
+* **Description:** Attempts to transition to butt_pre state if butt recovery is not active and a valid butt target exists. Checks stored statemem target first, then combat target.
+* **Parameters:**
+  - `inst` -- entity instance attempting butt attack
+* **Returns:** boolean - true if butt state was entered
+* **Error states:** None
 
 ### `SpawnSwipeFX(inst, offset, reverse)`
-* **Description:** Spawns FX prefab (`inst.swipefx`) attached to Bearger, optionally reversed.
+* **Description:** Spawns swipe visual effect prefab if inst.swipefx is set. Parents FX to entity, positions at offset, and optionally reverses animation. Stores FX reference in statemem.
 * **Parameters:**
-  - `inst` — the Bearger instance.
-  - `offset` — X-offset for FX spawn.
-  - `reverse` — if `true`, plays FX in reverse.
-* **Returns:** `nil`.
+  - `inst` -- entity instance spawning FX
+  - `offset` -- X offset for FX position
+  - `reverse` -- boolean to reverse the FX animation
+* **Returns:** `nil`
+* **Error states:** None
 
 ### `KillSwipeFX(inst)`
-* **Description:** Safely removes active swipe FX from `statemem.fx`, if any.
-* **Parameters:** `inst` — the Bearger instance.
-* **Returns:** `nil`.
+* **Description:** Removes and clears the stored swipe FX from statemem if it exists and is valid.
+* **Parameters:**
+  - `inst` -- entity instance owning the FX
+* **Returns:** `nil`
+* **Error states:** None
 
-### `ShakeIfClose(inst)`, `ShakeIfClose_Pound(inst)`, `ShakeIfClose_Footstep(inst)`
-* **Description:** Triggers camera shake via `TheSim.ShakeAllCameras` if Bearger is within `40` units.
-* **Parameters:** `inst` — the Bearger instance.
-* **Returns:** `nil`.
+### `ShakeIfClose(inst)`
+* **Description:** Triggers full camera shake for all cameras within 40 units. Used for death and major impacts.
+* **Parameters:**
+  - `inst` -- entity instance causing shake
+* **Returns:** `nil`
+* **Error states:** None
+
+### `ShakeIfClose_Pound(inst)`
+* **Description:** Triggers vertical camera shake for all cameras within 40 units. Used for ground pound and butt slam attacks.
+* **Parameters:**
+  - `inst` -- entity instance causing shake
+* **Returns:** `nil`
+* **Error states:** None
+
+### `ShakeIfClose_Footstep(inst)`
+* **Description:** Triggers lighter full camera shake for all cameras within 40 units. Used for footstep impacts.
+* **Parameters:**
+  - `inst` -- entity instance causing shake
+* **Returns:** `nil`
+* **Error states:** None
 
 ### `DoFootstep(inst)`
-* **Description:** Plays step sound; triggers camera shake on stomp (non-quadruped).
-* **Parameters:** `inst` — the Bearger instance.
-* **Returns:** `nil`.
+* **Description:** Plays footstep sound based on stand state (soft for quad, stomp for bi). Triggers footstep camera shake for bi state.
+* **Parameters:**
+  - `inst` -- entity instance taking step
+* **Returns:** `nil`
+* **Error states:** None
 
 ### `GoToStandState(inst, state, customtrans, params)`
-* **Description:** Transitions to `"bi"` or `"quad"` stand state if not already in it.
+* **Description:** Transitions entity to specified stand state (bi or quad) if not already in that state. Uses customtrans animation if provided, otherwise uses standard transition.
 * **Parameters:**
-  - `inst` — the Bearger instance.
-  - `state` — `"bi"` or `"quad"` (case-insensitive).
-  - `customtrans`, `params` — passed to `GoToState`.
-* **Returns:** `true` if state transition was made; `false` if already in state.
-
-### `ToggleOnCharacterCollisions(inst)`
-* **Description:** Re-enables character collisions (likely via `inst.Physics:SetCanCollide(true)`).
-* **Parameters:** `inst` — the Bearger instance.
-* **Returns:** `nil`.
-
-### `ToggleOffCharacterCollisions(inst)`
-* **Description:** Disables character collisions (likely via `inst.Physics:SetCanCollide(false)`). Called via timeline FrameEvent; may be a closure.
-* **Parameters:** Called with `inst` implicitly or via closure.
-* **Returns:** `nil`.
-
-### `SpawnPrefab(prefabname)`
-* **Description:** Spawns a new prefab (e.g., `"bearger_sinkhole"`).
-* **Parameters:** `prefabname` — string name of prefab.
-* **Returns:** The new prefab instance.
+  - `inst` -- entity instance transitioning
+  - `state` -- target stand state name (bi or quad)
+  - `customtrans` -- optional custom transition animation
+  - `params` -- optional parameters for transition
+* **Returns:** boolean - true if transition occurred
+* **Error states:** None
 
 ## Events & listeners
-**Events listened to:**
-- `"doattack"` — triggers `ChooseAttack` or buffers attack in busy states.
-- `"attacked"` — handles hit/stagger logic, including electrocution fallback (`CommonHandlers.TryElectrocuteOnAttacked`) and inventory clearing.
-- `"animover"` / `"animqueueover"` — transitions to next state upon animation completion.
-- `"stagger"` — queues stagger via `statemem.dostagger`.
-- `"timerdone"` — triggers transition from `"stagger"` state.
-- `"onmissother"` — pushed when combo/attack hits no targets.
-- CommonHandlers events: `OnLocomote`, `OnSleepEx`, `OnWakeEx`, `OnFreeze`, `OnElectrocute`, `OnDeath`, `OnSink`, `OnFallInVoid`, `OnCorpseChomped`.
 
-**Events pushed:**
-- `"ridersleep"` — for mounted entities during yawn.
-- `"yawn"` — for players during yawn.
-- `"knockedout"` — fallback for non-sleeper entities.
-- `"knockback"` — from arc/AOE attacks.
-- `"onmissother"` — when attack misses (e.g., `butt_pst`).
-- `"docollapse"` — pushed on sinkhole prefab (`bearger_sinkhole`).
+**Listens to:**
+- `doattack` -- Triggers ChooseAttack to enter attack state; guarded by busy and dead checks
+- `attacked` -- Handles hit recovery, stagger, and electrocute; clears inventory if interrupted
+- `animover` -- Transitions to next state when animation completes
+- `animqueueover` -- Transitions to next state when animation queue completes
+- `timerdone` -- Handles stagger timer completion to transition to stagger_pst
+- `stagger` -- Triggers stagger state; sets dostagger flag if already busy
+
+**Pushes:**
+- `ridersleep` -- Pushed to mounts during yawn; applies sleepiness to riders
+- `yawn` -- Pushed to players during yawn; applies grogginess and knockout duration
+- `knockedout` -- Pushed to entities without sleeper/grogginess components during yawn
+- `knockback` -- Pushed during arc and AOE attacks; applies knockback force with strength multiplier
+- `onmissother` -- Pushed when attack hits no targets; used by ChaseAndAttack behavior
+- `docollapse` -- Pushed to sinkhole prefab to trigger collapse animation

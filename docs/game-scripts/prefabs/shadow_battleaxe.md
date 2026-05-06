@@ -1,157 +1,291 @@
 ---
 id: shadow_battleaxe
 title: Shadow Battleaxe
-description: A leveled, sentient weapon that evolves through epic creature kills, providing life steal, planar damage, and dynamic chat behavior while requiring hunger management and durability tracking.
-tags: [combat, consumable, dialogue, inventory, weapon]
+description: A levelable shadow weapon prefab with life steal, talking AI, and visual FX systems that progresses through epic creature kills.
+tags: [combat, weapon, shadow, prefab, leveling]
 sidebar_position: 10
-
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: abbafbee
+source_hash: 2f487c84
 system_scope: combat
 ---
 
 # Shadow Battleaxe
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-The `shadow_battleaxe` is a unique, hierarchical weapon prefab with dynamic behavior based on its current level and equipped state. It integrates with multiple systems: leveling via epic creature kills, life steal on damage, hunger consumption over time, planar and standard damage modification, and persistent state across sessions. It features a companion `shadow_battleaxe_classified` for localized speech and visuals. The weapon degrades over time (`finiteuses`), may become broken (losing functional components), and supports upgrades when repaired in a forge.
+`shadow_battleaxe` is a complex weapon prefab that features a leveling system based on defeating epic creatures. The axe progresses through multiple levels, gaining increased damage, life steal, and unique dialogue. It includes a classified entity for server-authoritative logic, visual FX that follow the weapon, and integration with the Void Cloth armor set bonus. The weapon can break and be repaired through the Forge system, and it features a hunger component that depletes while equipped at higher levels.
 
 ## Usage example
 ```lua
+-- Spawn the shadow battleaxe
 local axe = SpawnPrefab("shadow_battleaxe")
-axe.entity:AddTransform()
-axe.entity:AddAnimState()
-axe.entity:AddSoundEmitter()
-axe.entity:AddNetwork()
 
--- Initialize components via the built-in constructor
-local inst = axe
-inst:SetLevel(2, false) -- Set to level 2
-inst:TryLevelingUp()    -- Attempt to level up based on kill count
+-- Set level directly (normally happens through epic kills)
+axe:SetLevel(3)
 
--- Equip and unequip logic is triggered automatically via equippable component
-inst.components.equippable:OnEquip(player)
-inst.components.equippable:OnUnequip(player)
+-- Check current state
+print(axe.debugstringfn())
+
+-- The axe levels up automatically when epic creatures are defeated
+-- while tracked by the weapon's tracking system
 ```
 
 ## Dependencies & tags
-**Components used:** `equippable`, `weapon`, `tool`, `hunger`, `floater`, `inspectable`, `inventoryitem`, `planardamage`, `damagetypebonus`, `finiteuses`, `shadowlevel`, `talker`, `highlightchild`, `colouraddersync`  
-**Tags added on creation:** `sharp`, `show_broken_ui`, `weapon`, `shadowlevel`, `shadow_item`, `broken` (when broken)
+**External dependencies:**
+- `TUNING` -- damage values, level thresholds, hunger rates, talk intervals
+- `STRINGS` -- dialogue strings for different levels and situations
+- `ACTIONS` -- chop action for tool component
+- `EQUIPSLOTS` -- head slot checking for set bonus
+
+**Components used:**
+- `equippable` -- equip/unequip callbacks, dapperness values
+- `weapon` -- damage setting, on attack callback
+- `tool` -- chopping action with efficiency
+- `hunger` -- depletes while equipped at level 2+, starvation callback
+- `floater` -- floating animation and visual effects
+- `talker` -- dialogue display with custom colour and offset
+- `inventoryitem` -- image name changes, drop/inventory callbacks
+- `planardamage` -- base damage and set bonus damage
+- `damagetypebonus` -- lunar aligned damage bonus
+- `finiteuses` -- durability consumption on chop
+- `shadowlevel` -- shadow level tracking
+- `inspectable` -- name override when broken
+- `highlightchild` -- FX highlighting owner
+- `colouraddersync` -- FX colour synchronization
+
+**Tags:**
+- `sharp` -- added on creation
+- `show_broken_ui` -- added on creation
+- `weapon` -- added on creation
+- `shadowlevel` -- added on creation
+- `shadow_item` -- added on creation
+- `broken` -- added when weapon breaks, removed on repair
+- `FX` -- added to FX prefabs
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `level` | number | `1` | Current level (1–4), determines damage, life steal, chopping efficiency, and hunger rate. |
-| `epic_kill_count` | number | `0` | Number of epic creature kills recorded; used to determine leveling. |
-| `_lifesteal` | number | `TUNING.SHADOW_BATTLEAXE.LEVEL[1].LIFE_STEAL` | Amount of health restored per attack (based on current level). |
-| `_owner` | `Entity?` | `nil` | Entity currently equipped (only relevant on master). |
-| `_fxowner` | `Entity?` | `nil` | Entity whose transform symbol the FX follows. |
-| `_classified` | `Entity?` | `nil` | Reference to `shadow_battleaxe_classified` instance used for speech and talking visuals. |
-| `isbroken` | `net_bool` | `false` | Networked boolean indicating whether the weapon is broken. |
-| `fx` | `Entity?` | `nil` | FX entity used for visual follow effects. |
+| `level` | number | `1` | Current weapon level (1-4 based on TUNING thresholds) |
+| `epic_kill_count` | number | `0` | Number of epic creatures defeated with this weapon |
+| `_lifesteal` | number | `TUNING.SHADOW_BATTLEAXE.LEVEL[1].LIFE_STEAL` | Current life steal amount per hit |
+| `_classified` | entity | `shadow_battleaxe_classified` | Server-authoritative classified entity |
+| `_owner` | entity | `nil` | Current owner entity when equipped |
+| `_fxowner` | entity | `nil` | Entity that FX follows |
+| `_bonusenabled` | boolean | `false` | Whether Void Cloth set bonus is active |
+| `_trackedentities` | table | `{}` | Table of tracked epic creature targets |
+| `_talktime` | table | `{}` | Cooldown tracking for dialogue lines |
+| `isbroken` | net_bool | `false` | Networked broken state |
+| `fx` | entity | `shadow_battleaxe_fx` | Visual FX entity |
+| `localsounds` | entity | `nil` | Local sound emitter (client only) |
+| `scrapbook_planardamage` | table | `{min, max}` | Planar damage range for scrapbook |
 
 ## Main functions
 ### `SetLevel(level, loading)`
-*   **Description:** Sets the axe's level and updates all level-specific parameters: damage, life steal, planar damage, chopping efficiency, hunger rate, chat lines, sound, and inventory image. May trigger level-up if thresholds are met (not invoked directly by this function unless `TryLevelingUp` is used).
-*   **Parameters:**  
-    * `level` (number) – Target level (1 to `#TUNING.SHADOW_BATTLEAXE.LEVEL_THRESHOLDS`). No-op if invalid or same as current.  
-    * `loading` (boolean) – If `true`, skips clamping `epic_kill_count` to current level threshold (used during save/load).  
-*   **Returns:** Nothing.
-*   **Error states:** Does nothing if `level < 1` or `level > max_levels`, or if `level == self.level`.
+* **Description:** Sets the weapon to a specific level, updating damage, animations, hunger rate, and visual appearance. Triggers level-up sound effects.
+* **Parameters:**
+  - `level` -- target level number (1-4)
+  - `loading` -- boolean, if true skips epic_kill_count clamping
+* **Returns:** None
+* **Error states:** None (returns early if level is invalid or unchanged)
 
 ### `TryLevelingUp()`
-*   **Description:** Checks whether `epic_kill_count` meets or exceeds the threshold for the next level and, if so, calls `SetLevel(level + 1, false)` to advance the weapon.
-*   **Parameters:** None.
-*   **Returns:** `boolean` — `true` if a level-up occurred, otherwise `false`.
+* **Description:** Checks if epic_kill_count meets the threshold for the next level and levels up if so.
+* **Parameters:** None
+* **Returns:** `true` if leveled up, `false` otherwise
 
 ### `SetBuffOwner(owner)`
-*   **Description:** Assigns an owner for voidcloth set bonus tracking. When the owner equips or unequips a `voidclothhat`, this component toggles the set bonus (increased damage and planar damage). If `owner` is `nil`, bonus is disabled.
-*   **Parameters:**  
-    * `owner` (`Entity?`) – Entity that may wear the companion hat.  
-*   **Returns:** Nothing.
+* **Description:** Sets the owner for Void Cloth set bonus tracking. Listens for equip/unequip events on head slot to enable/disable set bonus.
+* **Parameters:** `owner` -- player entity or nil
+* **Returns:** None
+* **Error states:** None
+
+### `_SetBuffEnabled(enabled)`
+* **Description:** Enables or disables the Void Cloth set bonus damage. Called internally when owner equips/unequips Void Cloth hat.
+* **Parameters:** `enabled` -- boolean
+* **Returns:** None
+* **Error states:** None
 
 ### `SetFxOwner(owner)`
-*   **Description:** Manages attachment/detachment of the FX entity (`inst.fx`) to/from the owner's `swap_object` symbol, including parent hierarchy and highlighting logic. Used during equip/unequip cycles.
-*   **Parameters:**  
-    * `owner` (`Entity?`) – Entity to attach the FX to, or `nil` to detach and revert to `self`.  
-*   **Returns:** Nothing.
+* **Description:** Sets which entity the visual FX should follow. Attaches FX to owner when equipped, returns to weapon when unequipped.
+* **Parameters:** `owner` -- player entity or nil
+* **Returns:** None
+* **Error states:** None
 
-### `DoAttackEffects(owner, target)`
-*   **Description:** Spawns a `hitsparks_fx` entity with red color override and black blend enabled. Modding-friendly (returns the spawned spark for modification).
-*   **Parameters:**  
-    * `owner` (`Entity`) – Attacking entity.  
-    * `target` (`Entity`) – Hit target.  
-*   **Returns:** `Entity` (hitsparks_fx) — The spawned spark prefab.
-
-### `CheckForEpicCreatureKilled(target)`
-*   **Description:** Determines if `target` qualifies as an epic creature kill (non-smallepic, non-invalid epic prefab), increments `epic_kill_count`, and attempts to level up. Speaks the appropriate chat line.
-*   **Parameters:**  
-    * `target` (`Entity`) – Killed entity.  
-*   **Returns:** `boolean` — `true` if target was an epic creature kill (even if max level reached).
-
-### `DoLifeSteal(owner, target)`
-*   **Description:** Heals the owner's health and reduces sanity proportionally if the target is not a lifeless entity and the owner is hurt. Healing amount is based on `_lifesteal`.
-*   **Parameters:**  
-    * `owner` (`Entity`) – Attacking entity.  
-    * `target` (`Entity`) – Target being attacked.  
-*   **Returns:** Nothing.
-*   **Error states:** Early exit if `_lifesteal <= 0` or target is lifeless.
-
-### `SayRegularChatLine(list, owner)`
-*   **Description:** Plays a randomized chat line from the appropriate talk group (`list`) for the current level, respecting cooldowns, and optionally schedules an overtime chat task.
-*   **Parameters:**  
-    * `list` (string or `nil`) – Key from `STRINGS.SHADOW_BATTLEAXE_TALK` (e.g., `"chopping"`, `"hungry"`, `"overtime"`, or `nil` to auto-select via `GetOvertimeChatLine`).  
-    * `owner` (`Entity?`) – Owner used for overtime context (woodcutter detection).  
-*   **Returns:** Nothing.
-*   **Error states:** Early exit if `_classified` is `nil` or if cooldown is still active.
-
-### `ToggleTalking(turnon, owner)`
-*   **Description:** Starts or cancels the recurring overtime chat task.
-*   **Parameters:**  
-    * `turnon` (boolean) – Whether to enable chatting.  
-    * `owner` (`Entity?`) – Owner to pass to `StartOvertimeChatTask`.  
-*   **Returns:** Nothing.
+### `SetIsBroken(isbroken)`
+* **Description:** Sets the broken state, disabling components and changing visuals when broken, restoring them when repaired.
+* **Parameters:** `isbroken` -- boolean
+* **Returns:** None
+* **Error states:** None
 
 ### `TrackTarget(target)`
-*   **Description:** Begins tracking an epic target for death resolution. Registers listeners for `death` and `onremove` events and stores the kill timestamp.
-*   **Parameters:**  
-    * `target` (`Entity`) – Epic creature to track.  
-*   **Returns:** Nothing.
+* **Description:** Starts tracking an epic creature target for kill credit. Listens for death and onremove events.
+* **Parameters:** `target` -- entity to track
+* **Returns:** None
+* **Error states:** None
 
 ### `ForgetTarget(target)`
-*   **Description:** Stops tracking a target, removing event callbacks and deleting its entry.
-*   **Parameters:**  
-    * `target` (`Entity`) – Target to forget.  
-*   **Returns:** Nothing.
+* **Description:** Stops tracking a specific target and removes event listeners.
+* **Parameters:** `target` -- entity to stop tracking
+* **Returns:** None
+* **Error states:** None
 
-### `OnBroken(inst)`
-*   **Description:** Invoked on forge repair failure or manual break. Removes core components (`equippable`, `weapon`, `tool`, `hunger`), resets level to 1, sets broken state, and updates UI label to `"BROKEN_FORGEDITEM"`.
-*   **Parameters:** `inst` (Entity) – This instance.  
-*   **Returns:** Nothing.
+### `ForgetAllTargets()`
+* **Description:** Clears all tracked targets, called on unequip.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
-### `OnRepaired(inst)`
-*   **Description:** Invoked on successful forge repair. Restores removed components, resets broken state, updates level animation, and clears the broken label.
-*   **Parameters:** `inst` (Entity) – This instance.  
-*   **Returns:** Nothing.
+### `CheckForEpicCreatureKilled(target)`
+* **Description:** Validates if target is an epic creature and increments kill count. Triggers level up if threshold met.
+* **Parameters:** `target` -- defeated creature entity
+* **Returns:** `true` if target was epic, `false` otherwise
+* **Error states:** None
+
+### `IsEpicCreature(target)`
+* **Description:** Checks if target qualifies as an epic creature (has "epic" tag, not "smallepic", not in invalid list).
+* **Parameters:** `target` -- entity to check
+* **Returns:** boolean
+* **Error states:** None
+
+### `DoAttackEffects(owner, target)`
+* **Description:** Spawns hit spark FX on attack with colour override.
+* **Parameters:**
+  - `owner` -- attacking player entity
+  - `target` -- target entity
+* **Returns:** Spawned spark FX entity
+
+### `DoLifeSteal(owner, target)`
+* **Description:** Heals owner based on life steal value if owner is hurt and target is a lifeform. Also drains sanity.
+* **Parameters:**
+  - `owner` -- player entity
+  - `target` -- attacked entity
+* **Returns:** None
+* **Error states:** None
+
+### `SayRegularChatLine(list, owner)`
+* **Description:** Plays dialogue line with cooldown tracking. Supports different line categories (overtime, hungry, chopping, etc.).
+* **Parameters:**
+  - `list` -- dialogue category string or nil for overtime
+  - `owner` -- player entity
+* **Returns:** None
+* **Error states:** None
+
+### `SayEpicKilledLine(levelup, random)`
+* **Description:** Plays special dialogue when epic creature is killed or weapon levels up.
+* **Parameters:**
+  - `levelup` -- boolean, if true plays level-up dialogue
+  - `random` -- boolean, if true picks random line from list
+* **Returns:** None
+* **Error states:** None
+
+### `ToggleTalking(turnon, owner)`
+* **Description:** Enables or disables the overtime chat task that triggers periodic dialogue.
+* **Parameters:**
+  - `turnon` -- boolean
+  - `owner` -- player entity (optional, defaults to _owner)
+* **Returns:** None
+* **Error states:** None
+
+### `StartOvertimeChatTask(owner)`
+* **Description:** Schedules the next overtime dialogue line after the configured interval.
+* **Parameters:** `owner` -- player entity (optional)
+* **Returns:** None
+* **Error states:** None
+
+### `AttachClassified(classified)`
+* **Description:** Attaches the classified entity and sets up onremove listener for cleanup.
+* **Parameters:** `classified` -- classified entity
+* **Returns:** None
+* **Error states:** None
+
+### `DetachClassified()`
+* **Description:** Detaches the classified entity and cleans up listeners.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `OnRemoveEntity()`
+* **Description:** Cleanup function called when the weapon is removed. Removes classified entity appropriately based on sim type.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `GetDebugString()`
+* **Description:** Returns debug information including level, boss defeats, life steal, and tracked entities.
+* **Parameters:** None
+* **Returns:** Formatted debug string
+* **Error states:** None
+
+### `SetFxLevel(level)`
+* **Description:** (FX prefab) Sets the FX animation level and triggers level dirty event.
+* **Parameters:** `level` -- level number
+* **Returns:** None
+* **Error states:** None
+
+### `ToggleEquipped(equipped)`
+* **Description:** (FX prefab) Toggles whether FX is in equipped state, spawning or removing follow frames.
+* **Parameters:** `equipped` -- boolean
+* **Returns:** None
+* **Error states:** None
+
+### `OnSave(data)`
+* **Description:** Saves epic_kill_count to save data if greater than 0.
+* **Parameters:** `data` -- save data table
+* **Returns:** None
+* **Error states:** None
+
+### `OnLoad(data)`
+* **Description:** Loads epic_kill_count from save data and restores weapon level based on kill count thresholds.
+* **Parameters:** `data` -- save data table or nil
+* **Returns:** None
+* **Error states:** None
+
+### `OnEntityWake()`
+* **Description:** Resumes idle sound loop when entity wakes from limbo or sleep (if not already playing).
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `OnEntitySleep()`
+* **Description:** Kills idle sound loop when entity enters limbo or sleep.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `OnDropped()`
+* **Description:** Clears classified entity target when weapon is dropped from inventory.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `OnPutInInventory(owner)`
+* **Description:** Sets classified entity target when weapon is put into owner's inventory.
+* **Parameters:** `owner` -- player entity that owns the inventory
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:**  
-  * `"onremove"` — on classified (`_classified`) entity removal to clear `_classified` reference.  
-  * `"working"` — on owner working (chopping wood) to trigger hunger gain and chat lines.  
-  * `"equip"` / `"unequip"` — on owner equip/unequip events to detect voidcloth hat for set bonus.  
-  * `"death"` — on tracked epic targets to register kills.  
-  * `"onremove"` — on tracked epic targets for cleanup.  
-  * `"floater_stopfloating"` — to restore idle animation after floating ends.  
-  * `"enterlimbo"` / `"exitlimbo"` — to manage idle sound loops.  
-  * `"isbrokendirty"` (client) — to update visual state.  
-  * `"equiptoggledirty"` / `"leveldirty"` (client) — to update FX on network events.  
-  * `"ontalk"` / `"donetalking"` (local sound entity) — for localized speech shake effects.  
-- **Pushes:**  
-  * `"percentusedchange"` — via `finiteuses` when uses change.  
-  * `"imagechange"` — via `inventoryitem` when level changes image name.  
-  * `"healthdelta"` — via `health` during life steal.  
-  * `"sanitydelta"` — via `sanity` during life steal (sanity cost).
+**Listens to:**
+- `onremove` -- detaches classified entity on weapon removal
+- `equip` -- checks for Void Cloth hat to enable set bonus
+- `unequip` -- disables set bonus when head slot unequipped
+- `working` -- triggers chopping dialogue and sound on owner work
+- `death` -- checks if tracked epic creature died for kill credit
+- `floater_stopfloating` -- restores idle animation after floating ends
+- `ontalk` -- plays talk sound and shakes text widget
+- `donetalking` -- kills talk sound and cancels shake task
+- `exitlimbo` -- resumes idle sound loop
+- `enterlimbo` -- kills idle sound loop
+- `isbrokendirty` -- (client) updates broken visual state
+- `equiptoggledirty` -- (FX) toggles FX follow frames
+- `leveldirty` -- (FX) updates FX animation level
+
+**Pushes:**
+- `percentusedchange` -- via finiteuses component on durability change
+- `imagechange` -- via inventoryitem when level changes
+- `healthdelta` -- via health component on life steal
+- `sanitydelta` -- via sanity component on life steal sanity loss

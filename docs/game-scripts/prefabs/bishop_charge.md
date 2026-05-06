@@ -1,68 +1,156 @@
 ---
 id: bishop_charge
 title: Bishop Charge
-description: Implements the projectile and area-of-effect explosion logic for the Bishop chesspiece's attack, handling both outdated and current attack variants in DST's clockwork arenas.
-tags: [combat, fx, ai, boss, projectile]
+description: Defines projectile and visual effect prefabs for the Chess Bishop's charge attack, including deprecated and updated versions.
+tags: [combat, prefab, fx, boss, chess]
 sidebar_position: 10
-
-last_updated: 2026-03-04
-build_version: 714014
+last_updated: 2026-04-22
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: d803d87f
+source_hash: e4f41992
 system_scope: combat
 ---
 
 # Bishop Charge
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **722832** | Last updated: 2026-04-22
 
 ## Overview
-`bishop_charge` defines three prefabs used to simulate the Bishop chesspiece's attack in DST's Clockwork Arena: two deprecated projectile/hit variants (`bishop_charge`, `bishop_charge_hit`) and one current area-of-effect variant (`bishop_charge2_fx`). The current variant (`bishop_charge2_fx`) uses an entity-based AoE explosion with dynamic target detection, light effects, and electric damage application. It relies on the `combat`, `updatelooper`, and `projectile` components for behavior, and integrates with `clockwork_common` for AoE target acquisition.
+`bishop_charge` defines three related prefabs for the Chess Bishop enemy's charge attack mechanic. The file contains both deprecated legacy implementations (`bishop_charge`, `bishop_charge_hit`) and a newer improved version (`bishop_charge2_fx`) that handles area-of-effect damage, visual effects, and lighting. The new prefab uses the `combat` and `updatelooper` components to process hits over time while displaying animated electrical effects.
 
 ## Usage example
 ```lua
--- Create the current Bishop attack effect entity
-local inst = SpawnPrefab("bishop_charge2_fx")
--- Assign the entity responsible for this attack
-if inst.SetupCaster then
-    inst:SetupCaster(bishop_entity)
-end
+-- Spawn the new bishop charge effect at a position
+local charge = SpawnPrefab("bishop_charge2_fx")
+charge.Transform:SetPosition(x, y, z)
+
+-- Link the charge to its caster (the bishop entity)
+charge.SetupCaster(charge, bishop_inst)
+
+-- The charge will automatically process AOE hits and remove itself
+-- after HIT_DURATION frames
 ```
 
 ## Dependencies & tags
-**Components used:** `combat`, `updatelooper`, `network`, `soundemitter`, `light`, `animator`, `transform`, `physics`
-**Tags:** Adds `projectile` (deprecated), `FX`, `NOCLICK`, `notarget`; checks `electricdamageimmune`.
+**External dependencies:**
+- `prefabs/clockwork_common` -- provides `FindAOETargetsAtXZ` for area-of-effect target detection
+- `easing` -- provides `inQuad` function for light intensity fade animation
+
+**Components used:**
+- `projectile` -- (deprecated) handles projectile movement and hit detection on `bishop_charge`
+- `combat` -- processes damage output and target acquisition on `bishop_charge2_fx`
+- `updatelooper` -- runs per-frame update logic for effects and hit processing on `bishop_charge2_fx`
+- `transform`, `animstate`, `soundemitter`, `light`, `network` -- standard entity components
+
+**Tags:**
+- `projectile` -- added to `bishop_charge` (deprecated)
+- `FX` -- added to `bishop_charge_hit` and `bishop_charge2_fx`
+- `NOCLICK` -- added to `bishop_charge2_fx` to prevent player interaction
+- `notarget` -- added to `bishop_charge2_fx` to prevent being targeted by AI
 
 ## Properties
-No public properties are initialized in the constructor. Runtime state is stored on the instance (e.g., `inst.caster`, `inst.targets`, `inst.fadet`, `inst.fadeflicker`).
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `caster` | entity | `nil` | Reference to the bishop entity that fired this charge. |
+| `targets` | table | `{}` | Tracks entities already hit to prevent duplicate damage. |
+| `fadet` | number | `0` | Timer for light intensity fade animation. |
+| `fadeflicker` | number | `0` | Counter for light flicker effect (cycles 0-3). |
+| `_soundplayed` | boolean | `nil` | Flag indicating if the explosion sound has been played. |
+| `persists` | boolean | `false` | Prevents the entity from being saved in world state. |
 
 ## Main functions
+### `fn()`
+* **Description:** Constructor for the deprecated `bishop_charge` prefab. Creates a projectile entity that moves forward and triggers a hit effect on impact.
+* **Parameters:** None
+* **Returns:** Entity instance configured as a homing projectile.
+* **Error states:** None
+
+### `hit_fn()`
+* **Description:** Constructor for the deprecated `bishop_charge_hit` prefab. Creates a non-networked FX entity that plays the hit sound effect at the impact location.
+* **Parameters:** None
+* **Returns:** Entity instance that plays sound and removes itself after 0.5 seconds.
+* **Error states:** None
+
+### `fx2fn()`
+* **Description:** Constructor for the new `bishop_charge2_fx` prefab. Creates an area-of-effect damage entity with animated electrical effects, dynamic lighting, and per-frame hit processing.
+* **Parameters:** None
+* **Returns:** Entity instance with combat, updatelooper, and light components configured.
+* **Error states:** Errors if `TUNING.BISHOP_DAMAGE` is not defined when setting combat damage.
+
 ### `SetupCaster(inst, caster)`
-*   **Description:** Assigns the attacking entity as `caster`, sets the prefab override for death announcements, plays the explosion sound once, and triggers an immediate AoE check if attacks have already occurred (e.g., if reattached).
-*   **Parameters:**  
-    `inst` (Entity) – The `bishop_charge2_fx` instance.  
-    `caster` (Entity) – The entity performing the attack (typically a Bishop chesspiece).
-*   **Returns:** Nothing.
+* **Description:** Links the charge effect to the bishop that fired it. Sets prefab name override for death announcements and triggers initial hit processing if targets table exists.
+* **Parameters:**
+  - `inst` -- the charge FX entity
+  - `caster` -- the bishop entity that fired the charge
+* **Returns:** None
+* **Error states:** Errors if `caster` is invalid when calling `caster.prefab` or `caster.components.combat`.
 
 ### `OnUpdate(inst, dt)`
-*   **Description:** Periodic function called via `updatelooper` that applies electric AoE damage to nearby entities within radius `RADIUS`, plays sound once, animates light fade/flicker using `easing.inQuad`, and ensures targets are only hit once. Ignores hit range checks on the `combat` component while active.
-*   **Parameters:**  
-    `inst` (Entity) – The `bishop_charge2_fx` instance.  
-    `dt` (number) – Delta time in seconds since last frame.
-*   **Returns:** Nothing.
-*   **Error states:** Does nothing if `caster` is invalid or not attached (falls back to `inst.components.combat`).
+* **Description:** Per-frame update function that processes area-of-effect damage, manages light intensity animation, and tracks hit targets. Plays explosion sound on first update.
+* **Parameters:**
+  - `inst` -- the charge FX entity
+  - `dt` -- delta time since last frame
+* **Returns:** None
+* **Error states:** Errors if `inst.caster` is invalid and `inst.components.combat` is nil when accessing combat damage.
 
 ### `DisableHits(inst)`
-*   **Description:** Removes the `OnUpdate` callback from `updatelooper`, disables the entity's light, and clears the `targets` table to stop further damage application.
-*   **Parameters:** `inst` (Entity) – The `bishop_charge2_fx` instance.
-*   **Returns:** Nothing.
+* **Description:** Stops hit processing by removing the update function and disabling the light component. Called when the charge effect duration expires.
+* **Parameters:** `inst` -- the charge FX entity
+* **Returns:** None
+* **Error states:** Errors if `inst.components.updatelooper` is nil when calling `RemoveOnUpdateFn`.
+
+### `ShowBase(inst)`
+* **Description:** Creates a child FX entity displaying the electrical crackle animation. Used for both server and client visual effects.
+* **Parameters:** `inst` -- parent charge entity
+* **Returns:** Child FX entity instance
+* **Error states:** None
+
+### `ShowBase_Client(inst)`
+* **Description:** Client-side variant of `ShowBase` that adds an updatelooper component to synchronize animation frames with the parent entity.
+* **Parameters:** `inst` -- parent charge entity
+* **Returns:** Child FX entity instance with post-update function
+* **Error states:** None
+
+### `Base_PostUpdate_Client(fx)`
+* **Description:** Post-update function that synchronizes the child FX animation frame with the parent entity's current frame, then removes itself after one execution.
+* **Parameters:** `fx` -- child FX entity
+* **Returns:** None
+* **Error states:** Errors if `fx.entity:GetParent()` returns nil or invalid entity.
+
+### `PlayHitSound(proxy)`
+* **Description:** Creates a temporary non-networked entity to play the hit explosion sound at the specified proxy location, then removes itself.
+* **Parameters:** `proxy` -- entity with GUID to get transform position from
+* **Returns:** None
+* **Error states:** Errors if `proxy.GUID` is nil or invalid.
+
+### `OnHit(inst, owner, target)`
+* **Description:** Deprecated hit callback for `bishop_charge`. Spawns a hit effect prefab at the impact location and removes the projectile.
+* **Parameters:**
+  - `inst` -- the projectile entity
+  - `owner` -- the entity that fired the projectile
+  - `target` -- the entity that was hit
+* **Returns:** None
+* **Error states:** None
+
+### `OnAnimOver(inst)`
+* **Description:** Deprecated callback that removes the projectile entity 0.3 seconds after animation completes.
+* **Parameters:** `inst` -- the projectile entity
+* **Returns:** None
+* **Error states:** None
+
+### `OnThrown(inst)`
+* **Description:** Deprecated callback registered when projectile is thrown. Sets up animation over listener for cleanup.
+* **Parameters:** `inst` -- the projectile entity
+* **Returns:** None
+* **Error states:** None
 
 ### `KeepTargetFn(inst)`
-*   **Description:** Used by the `combat` component; always returns `false` to prevent the Bishop attack from maintaining target lock.
-*   **Parameters:** `inst` (Entity) – The entity (unused).
-*   **Returns:** `false`.
+* **Description:** Combat component callback that always returns false, preventing the charge FX from maintaining a combat target.
+* **Parameters:** `inst` -- the charge FX entity
+* **Returns:** `false` (boolean)
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:** `animover` (on deprecated `bishop_charge` and FX entities) – triggers delayed removal.
-- **Pushes:** `electrocute` (via `PushEventImmediate`) to each affected target with `{ attacker = combat.inst, stimuli = "electric", numforks = 0 }`.
+- **Listens to:** `animover` -- triggers entity removal when animation completes (deprecated prefabs and child FX entities)
+- **Pushes:** `electrocute` -- fired on each hit target with attacker, stimuli type, and fork count data

@@ -1,87 +1,204 @@
 ---
 id: upgrademodulesdisplay
-title: UpgradeModulesDisplay
-description: Renders and manages the visual display of upgrade modules and energy charge level for the WX-78 character's HUD.
-tags: [ui, character, hud, wx78]
+title: Upgrademodulesdisplay
+description: UI widget that displays WX-78's upgrade module slots, energy levels, and circuit chip status.
+tags: [ui, widget, wx78]
 sidebar_position: 10
-
-last_updated: 2026-03-08
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: widgets
-source_hash: 22e3fa32
+source_hash: 926a91d8
 system_scope: ui
 ---
 
-# UpgradeModulesDisplay
+# Upgrademodulesdisplay
 
-> Based on game build **714014** | Last updated: 2026-03-08
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`UpgradeModulesDisplay` is a UI widget responsible for visually representing WX-78's installed upgrade modules and current electric charge level. It manages animation states for the battery indicator, slot indicators, and individual module chips, updating them in response to energy changes and module additions/removals. It does not manage state directly but reacts to updates from the owner entity's components (e.g., `wx78`). The widget supports mirroring for the second player instance by conditionally scaling and reversing animations.
+`UpgradeModulesDisplay` is a UI widget that renders WX-78's upgrade module interface, showing energy capacity, current charge level, and installed circuit chips. It extends the base `Widget` class and manages animated UI elements for module bars, chip slots, and cooldown indicators. The widget responds to energy changes, module additions/removals, and ability cooldowns from the `wx78_abilitycooldowns` component.
 
 ## Usage example
 ```lua
--- Assume `owner` is an entity with the `wx78` component.
--- This widget is typically added and managed by the player's HUD screen.
-local display = owner:AddChild(UpgradeModulesDisplay(owner, IsGameInstance(Instances.Player2)))
-display:UpdateEnergyLevel(3, 0) -- Set energy to 3/6 units
-display:OnModuleAdded(5)          -- Add module with net ID 5
+local UpgradeModulesDisplay = require "widgets/upgrademodulesdisplay"
+
+-- Create the widget attached to a WX-78 player instance
+local owner = ThePlayer
+local display = UpgradeModulesDisplay(owner, false)
+
+-- Update energy levels when they change
+display:UpdateMaxEnergy(7, 5)
+display:UpdateEnergyLevel(6, 5, false)
+
+-- Handle module changes
+display:OnModuleAdded(CIRCUIT_BARS.ALPHA, module_def_index)
+
+-- Open/close the expanded view
+display:Open()
+display:Close()
 ```
 
 ## Dependencies & tags
-**Components used:** None (this is a widget, not a component; relies on `TheFrontEnd:GetSound()`, `TUNING`, and `Instances` global access)
-**Tags:** None identified
+**External dependencies:**
+- `widgets/uianim` -- UIAnim widget for animated elements
+- `widgets/widget` -- Widget base class
+- `wx78_moduledefs` -- Module definition lookup via GetModuleDefinitionFromNetID
+
+**Components used:**
+- `wx78_abilitycooldowns` -- accessed in OnUpdate() to retrieve ability cooldown percentages for chip displays
+
+**Tags:**
+- None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `owner` | Entity | `nil` | The entity (typically the player) this display belongs to. |
-| `reversed` | boolean | `false` | Whether the display should be mirrored (used for Player2). |
-| `energy_level` | number | `TUNING.WX78_MAXELECTRICCHARGE` | Current electric charge level (0 to `TUNING.WX78_MAXELECTRICCHARGE`). |
-| `slots_in_use` | number | `0` | Total number of module slots currently occupied across all installed modules. |
-| `chip_poolindex` | number | `1` | Index of the next available module slot in `chip_objectpool`. |
-| `chip_objectpool` | table of UIAnim | `{}` | Array of 6 UIAnim objects representing module chips; managed as a pool. |
-| `battery_frame` | UIAnim | (created in constructor) | Static frame background animation. |
-| `energy_backing` | UIAnim | (created in constructor) | Background energy bar (slot 3). |
-| `energy_blinking` | UIAnim | (created in constructor) | Blinking yellow indicator of current charge level. |
-| `anim` | UIAnim | (created in constructor) | Static green energy bar showing full charge level. |
+| `owner` | entity | `nil` | The WX-78 character entity that owns this display. |
+| `max_energy` | number | `owner:GetMaxEnergy()` | Maximum energy capacity for module slots. |
+| `energy_level` | number | `max_energy` | Current energy charge level. |
+| `module_bars` | table | `{}` | Array of UIAnim elements for each module bar frame. |
+| `chip_objectpools` | table | `{}` | Nested tables containing chip UI objects per bar type. |
+| `chip_poolindexes` | table | `{}` | Tracks the next available chip slot index per bar type. |
+| `chip_slotsinuse` | table | `{}` | Tracks number of slots currently used per bar type. |
+| `focus_box` | Image | `nil` | Invisible focus highlight box that triggers open/close on focus. |
+| `open` | boolean | `nil` | Whether the display is in expanded/open state. |
+| `is_upgrade_modules_display_hidden` | boolean | `nil` | Whether the display is hidden off-screen. |
+| `original_pos` | Vector3 | `nil` | Stored position before hiding for restore. |
 
 ## Main functions
+### `UpgradeModulesDisplay(owner, reversed)`
+* **Description:** Constructor that initializes the upgrade modules display widget. Creates all UI elements for energy bars, module frames, and chip slots. Sets up focus box handlers and starts the update loop.
+* **Parameters:**
+  - `owner` -- WX-78 character entity that owns this display
+  - `reversed` -- boolean for layout direction (currently unused, commented out)
+* **Returns:** UpgradeModulesDisplay instance
+* **Error states:** Errors if `owner` is nil when `owner:GetMaxEnergy()` is called -- no nil guard present.
+
+### `IsExtended()`
+* **Description:** Checks if the display should use extended layout based on energy capacity.
+* **Parameters:** None
+* **Returns:** `true` if `max_energy >= 7`, `false` otherwise.
+
+### `UpdateSlotCount()`
+* **Description:** Updates focus box scale and switches between normal and extended frame animations for battery and module bars.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
 ### `UpdateChipCharges(plugging_in)`
-*   **Description:** Updates the power status (on/off) of each installed module chip based on current `energy_level`. Turns chips off when energy drops below their required threshold, turns them on when energy is sufficient. Also plays related sound effects.
-*   **Parameters:** `plugging_in` (boolean) — if `true`, skips animation playback during module insertion for smoother sequential updates.
-*   **Returns:** Nothing.
-*   **Error states:** No-op if no modules are installed (`chip_poolindex <= 1`).
+* **Description:** Updates chip power state animations based on current energy level. Plays on/off animations and sounds when chips gain or lose power.
+* **Parameters:** `plugging_in` -- boolean indicating if modules are being plugged in (affects animation behavior)
+* **Returns:** None
+* **Error states:** None
 
-### `UpdateEnergyLevel(new_level, old_level)`
-*   **Description:** Updates all energy-related animations to reflect the new charge level, toggles slot indicators, handles the blinking "charging" effect, and plays charging sounds.
-*   **Parameters:**  
-    *   `new_level` (number) — the current electric charge value (0 to `TUNING.WX78_MAXELECTRICCHARGE`).  
-    *   `old_level` (number) — the previous charge value, used to determine charge direction for sound effects.
-*   **Returns:** Nothing.
+### `UpdateMaxEnergy(new_level, old_level)`
+* **Description:** Updates the maximum energy capacity display. Shows/hides energy slot animations and removes excess modules if new max is lower than current usage.
+* **Parameters:**
+  - `new_level` -- new maximum energy level
+  - `old_level` -- previous maximum energy level
+* **Returns:** None
+* **Error states:** None
 
-### `OnModuleAdded(moduledefinition_index)`
-*   **Description:** Adds a new module to the display using a pre-allocated chip object from the pool. Configures its visual representation, calculates position based on slot usage, and shows it with an insertion animation.
-*   **Parameters:** `moduledefinition_index` (number) — network ID of the module definition to display (used with `GetModuleDefinitionFromNetID`).
-*   **Returns:** Nothing.
-*   **Error states:** No-op if `GetModuleDefinitionFromNetID` returns `nil`.
+### `UpdateEnergyLevel(new_level, old_level, skipsound)`
+* **Description:** Updates the current energy charge level display. Manages slot visibility, flicker animation for charging state, and plays charge up/down sounds.
+* **Parameters:**
+  - `new_level` -- new current energy level
+  - `old_level` -- previous current energy level
+  - `skipsound` -- boolean to skip sound playback
+* **Returns:** None
+* **Error states:** None
 
-### `OnModulesDirty(modules_table)`
-*   **Description:** Synchronizes the display with a table of installed module indices. Adds new modules or removes the most recent one as needed, then refreshes chip charge states.
-*   **Parameters:** `modules_table` (table of numbers) — ordered list of module net IDs (0 means no module in that slot).
-*   **Returns:** Nothing.
+### `GetChipXOffset(chiptypeindex)`
+* **Description:** Calculates the X position offset for a chip based on its circuit bar type index.
+* **Parameters:** `chiptypeindex` -- circuit bar type index from CIRCUIT_BARS
+* **Returns:** X offset value (number), or `nil` if chiptypeindex is not found in CIRCUIT_BARS table.
+* **Error states:** None
 
-### `PopOneModule()`
-*   **Description:** Removes the most recently added module, triggers a falling animation, and hides it afterward. Updates `slots_in_use` and `chip_poolindex`.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+### `OnModuleAdded(bartype, moduledefinition_index)`
+* **Description:** Handles adding a new module chip to the display. Creates chip UI, sets animations, positions the chip, and updates slot tracking.
+* **Parameters:**
+  - `bartype` -- circuit bar type (ALPHA, BETA, GAMMA) or nil to use module_def.type
+  - `moduledefinition_index` -- net ID index for module definition lookup
+* **Returns:** None
+* **Error states:** Returns early if `GetModuleDefinitionFromNetID()` returns nil -- no error thrown.
 
-### `PopAllModules()`
-*   **Description:** Removes all installed modules sequentially by triggering falling animations for each and resets `slots_in_use` to `0`.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+### `PopModuleAtIndex(bartype, startindex)`
+* **Description:** Removes a module at a specific index and shifts remaining modules down. Animates the removed chip falling.
+* **Parameters:**
+  - `bartype` -- circuit bar type
+  - `startindex` -- index of module to remove
+* **Returns:** None
+* **Error states:** Errors if bartype is not in chip_objectpools or startindex is out of bounds (nil dereference on falling_chip._used_modslots — no guard present in source).
+
+### `OnModulesDirty(modules_data)`
+* **Description:** Handles batch module data changes. Detects added, removed, or swapped modules and triggers appropriate animations and sounds.
+* **Parameters:** `modules_data` -- table of module data per bar type
+* **Returns:** None
+* **Error states:** None
+
+### `DropChip(falling_chip)`
+* **Description:** Animates a chip falling off the display and hides it after animation completes.
+* **Parameters:** `falling_chip` -- chip UI object to drop
+* **Returns:** None
+* **Error states:** None
+
+### `PopOneModule(bartype)`
+* **Description:** Removes the topmost module from the specified bar type.
+* **Parameters:** `bartype` -- circuit bar type
+* **Returns:** None
+* **Error states:** Errors if `self.chip_poolindexes[bartype] - 1` index is invalid -- no bounds check present.
+
+### `PopAllModules(skip_sound)`
+* **Description:** Removes all modules from all bar types. Animates each chip falling.
+* **Parameters:** `skip_sound` -- boolean to skip removal sound
+* **Returns:** None
+* **Error states:** None
+
+### `Open()`
+* **Description:** Expands the display to show module bars and chips. Plays open animation and sound.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `Close()`
+* **Description:** Collapses the display to hide module bars and chips. Plays close animation and sound.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `UpdateFocusBox()`
+* **Description:** Updates the focus box scale based on open state and whether display is extended.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `PlayUpgradeModuleSound(soundpath, onlyifopen)`
+* **Description:** Plays a UI sound for module interactions. Respects hidden state and widget visibility checks.
+* **Parameters:**
+  - `soundpath` -- sound path string
+  - `onlyifopen` -- boolean to only play if display is open
+* **Returns:** None
+* **Error states:** None
+
+### `HideUpgradeModulesDisplay()`
+* **Description:** Hides the display by animating it off-screen. Stores original position for restore.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `ShowUpgradeModulesDisplay()`
+* **Description:** Shows the display by animating it back to original position.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
+
+### `OnUpdate()`
+* **Description:** Per-frame update that refreshes ability cooldown indicators on chips. Only runs when display is open and owner has wx78_abilitycooldowns component.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:** None (does not register event listeners directly).
-- **Pushes:** None (does not fire custom events).
+- **Listens to:** None identified
+- **Pushes:** None identified

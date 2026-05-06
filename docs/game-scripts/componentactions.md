@@ -1,221 +1,230 @@
 ---
 id: componentactions
 title: Componentactions
-description: This component defines the core action system for Don't Starve Together, implementing component-based action handlers that determine valid player interactions with entities and world positions across INVENTORY, POINT, and EQUIPPED contexts, while providing modding support through action registration, collection, and validation methods.
-tags: [actions, interactions, components, modding, player]
+description: This file defines the COMPONENT_ACTIONS table mapping component names to action functions, along with helper functions for fishing, rowing, plant research, target validation, and entity action component management in Don't Starve Together.
+tags: [actions, components, player, interaction, system]
 sidebar_position: 10
 
-last_updated: 2026-03-21
-build_version: 714014
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
 category_type: root
-system_scope: player
-source_hash: b7084665
+source_hash: 8c337571
+system_scope: entity
 ---
 
 # Componentactions
 
-> Based on game build **714014** | Last updated: 2026-03-21
+> Based on game build **722832** | Last updated: 2026-04-17
 
 ## Overview
-
-The `componentactions` component serves as the central action determination system in Don't Starve Together, responsible for computing which interactions are available to players based on entity states, component presence, tags, and contextual constraints. It implements a comprehensive framework of action handler functions that cover all major interaction types including combat, crafting, deployment, storage, cooking, healing, repairing, mounting, and specialized equipment actions. The component supports both built-in game actions and modded actions through a flexible registration system that maintains separate registries for vanilla and mod-provided handlers. Core query methods like `CollectActions`, `IsActionValid`, and `HasActionComponent` enable entities to dynamically determine available actions at runtime, while helper functions for rowing, fishing, scything, and plant research provide specialized interaction logic. The system respects network replication constraints, rider/mounting states, heavy-lifting restrictions, and game mode properties to ensure action validity across client and server environments.
-
+`componentactions.lua` is a core system file that defines the global `COMPONENT_ACTIONS` table, which maps component names to action handler functions for all player interaction types in Don't Starve Together. Other systems access this module via `require 'componentactions'` to use the `COMPONENT_ACTIONS` table and helper functions. It provides the action resolution framework that the game uses to determine which actions are available when a player interacts with entities, items, or the environment. The system supports various action types and allows mod-specific action registration. Helper functions handle specialized contexts like fishing, rowing, plant research, and target validation. EntityScript methods `RegisterComponentActions`, `UnregisterComponentActions`, `CollectActions`, `IsActionValid`, and `HasActionComponent` allow entities to manage their available actions dynamically.
 ## Usage example
-
 ```lua
--- Register a custom component action handler for mods
-AddComponentAction("INVENTORY", "mycomponent", function(inst, doer, actions)
-    if inst.components.mycomponent and inst.components.mycomponent:IsActive() then
-        table.insert(actions, ACTIONS.USE_MY_COMPONENT)
+-- Modders can register custom component actions for existing action types
+local function CustomAction(inst, doer, actions)
+    if inst:HasTag("custom_interactable") then
+        table.insert(actions, ACTIONS.INTERACT)
     end
-end, "mymod")
-
--- Check if an entity has a specific action component
-if inst:HasActionComponent("inventory") then
-    -- Entity supports inventory actions
 end
 
--- Collect available actions for an entity
-local actions = {}
-inst:CollectActions("INVENTORY", inst, doer, actions, false)
+-- Register the action handler (typically in modmain.lua)
+AddComponentAction("INTERACT", "mycomponent", CustomAction, "mymod")
 
--- Validate if an action is permitted
-if inst:IsActionValid(action, right_click) then
-    -- Action is valid for this entity
+-- Component scripts register their action components on entities
+-- This is called automatically when components are added to entities
+-- Example: inventoryitem component registers actions in its OnAddedToEntity callback
+
+-- Check if entity supports specific action components
+local inst = ThePlayer
+if inst:HasActionComponent("container") then
+    -- Entity supports container interactions
+    inst.components.container:Open()
+end
+
+-- Validate if an action is currently valid for an entity
+-- Second parameter is boolean for right-click context (true = right-click, false = left-click)
+if inst:IsActionValid(ACTIONS.HARVEST, true) then
+    -- Action can be performed
 end
 ```
-
 ## Dependencies & tags
-
 **External dependencies:**
-- `vecutil` -- Provides VecUtil_LengthSq, VecUtil_Normalize, VecUtil_Dist
-- `TheWorld` -- Used for map operations: IsOceanAtPoint, IsVisualGroundAtPoint, GetPlatformAtPoint
-- `TheNet` -- Used to check if game is dedicated server
-- `ThePlayer` -- Used to compare with doer to adjust test_length during rowing
-- `ACTIONS` -- Enum-like table of action constants used throughout component actions
-- `TUNING` -- Provides constants like OVERRIDE_ROW_ACTION_DISTANCE and KITCOON_NEAR_DEN_DIST
-- `ThePlantRegistry` -- Used for plant/fertilizer knowledge checks
-- `FindVirtualOceanEntity` -- Called by CanCastFishingNetAtPoint to detect virtual ocean
-- `FindEntity` -- Used by Kitcoon handler to detect nearby dens
-- `IsEntityDead` -- Used in SCENE.combat to determine if target can be attacked
-- `IsInValidHermitCrabDecorArea` -- Used in crittertraits handler to validate decor placement area
-- `TROPHYSCALE_TYPES` -- Global constant table used in trophyscale handler to iterate over scale types for comparison
-- `FOODGROUP` -- Global constant table used in edible handler to match edible tags to eater tags by food group
-- `FOODTYPE` -- Global constant table used in edible handler to match edible tags to eater tags by food type
-- `EQUIPSLOTS` -- Global constant used to reference EQUIPSLOTS.BODY for item slot checks
-- `SPECIAL_EVENTS` -- Global constant table used in yotb_stager to check if YOTB event is active via IsSpecialEventActive
-- `LOCKTYPE` -- Used in key action to iterate lock types and match keys
-- `OCCUPANTTYPE` -- Used in occupier to match occupant types to occupiable targets
-- `MATERIALS` -- Used in repairer and forgerepair to match repair materials
-- `FORGEMATERIALS` -- Used in forgerepair to check forgerepair_ tags on inst and target
-- `UPGRADETYPES` -- Used in upgrader to match upgrade types and user/target tags
-- `TOOLACTIONS` -- Used in tool action to iterate tool action types and match tags (e.g., 'axe_tool')
-- `FUELTYPE` -- Used in fuel to iterate fuel types and match _fuel and _fueled tags
-- `GetValidRecipe` -- Called to validate recipes for recipescanner action
-- `AllRecipes` -- Used in recipescanner to look up recipes by prefab name
-- `GetGameModeProperty` -- Used in inventoryitem and other actions to check game mode flags like non_item_equips
-- `FunctionOrValue` -- Used in recipescanner to evaluate per-target no_deconstruction configuration
-- `TheInput` -- Used in playercontroller.IsControlPressed for CONTROL_FORCE_STACK detection
-- `CONTROL_FORCE_STACK` -- Referenced in inventoryitem to control GIVEALLTOPLAYER behavior
-- `CONTROLS` -- Used to define control constants such as CONTROL_FORCE_STACK (via Controls table)
-- `SPELLTYPES` -- Iterated for spellcaster tags
-- `CLIENT_REQUESTED_ACTION` -- Compared for specific deployment actions
-- `CheckRowOverride` -- Used to determine row override for oar actions
-- `Row` -- Called to generate rowing action for oar
-- `IsTeleportingPermittedFromPointToPoint` -- Called for blink staff teleport validity
-- `CanCastFishingNetAtPoint` -- Called for fishing net/cast validity
-- `GetFishingAction` -- Called to get contextual fishing action
-- `orderedPairs` -- Used to iterate over COMPONENT_ACTIONS and MOD_COMPONENT_ACTIONS tables for remapping
-- `COMPONENT_ACTIONS` -- Global table mapping action type names to component action tables
-- `ACTION_COMPONENT_NAMES` -- Global table mapping built-in component names to IDs used for indexing
-- `CheckModComponentActions` -- Function called to retrieve modded component action tables
-- `CheckModComponentNames` -- Function called to retrieve modded component name-to-ID mapping
-- `CheckModComponentIds` -- Function called to retrieve modded component IDs by name
+- `util` -- Required module for utility functions
+- `vecutil` -- Required module for vector math operations (VecUtil_LengthSq, VecUtil_Normalize, VecUtil_Dist)
+- `TheWorld` -- Accessed for Map:IsOceanAtPoint(), Map:GetPlatformAtPoint(), Map:IsVisualGroundAtPoint()
+- `ThePlayer` -- Compared against doer to determine test_length for row action
+- `TheNet` -- Called via TheNet:IsDedicated() to check server type
+- `ThePlantRegistry` -- Called via :KnowsPlantStage() and :KnowsFertilizer() for research state
+- `ACTIONS` -- Global actions table referenced for all action types (ROW, ATTACK, HARVEST, etc.)
+- `CLIENT_REQUESTED_ACTION` -- Global variable for client-requested action state
+- `TUNING` -- Accessed for TUNING.OVERRIDE_ROW_ACTION_DISTANCE and TUNING.KITCOON_NEAR_DEN_DIST constants
+- `EQUIPSLOTS` -- Accessed for EQUIPSLOTS.HANDS and EQUIPSLOTS.BODY slot references
+- `CONTROL_FORCE_STACK` -- Control constant for force stack input check
+- `FindVirtualOceanEntity` -- Global function to find ocean entities at point
+- `FindEntity` -- Global function to find entities by distance and tags
+- `IsInValidHermitCrabDecorArea` -- Global function to check hermit crab decor area validity
+- `IsFlyingPermittedFromPoint` -- Global function to check flight permission at position
+- `IsEntityDead` -- Global function to check if entity is dead
+- `TROPHYSCALE_TYPES` -- Table iterated for trophy scale type matching
+- `FOODGROUP` -- Table iterated for food group eater type matching
+- `FOODTYPE` -- Table iterated for food type eater matching
+- `SPECIAL_EVENTS` -- References YOTB event constant
+- `IsSpecialEventActive` -- Function called to check if YOTB event is active
+- `PlantRegistryResearch` -- Function called for plant research interactions
+- `FORGEMATERIALS` -- Iterated in forgerepair function for material tag matching
+- `FUELTYPE` -- Iterated in fuel function for fuel type tag matching
+- `LOCKTYPE` -- Iterated in key function for lock type matching
+- `OCCUPANTTYPE` -- Iterated in occupier function for occupant type matching
+- `MATERIALS` -- Iterated in repairer function for material type matching
+- `TOOLACTIONS` -- Iterated in tool function for tool action types
+- `UPGRADETYPES` -- Iterated in upgrader function for upgrade type matching
+- `AllRecipes` -- Accessed in recipescanner function for recipe lookup
+- `GetValidRecipe` -- Called in recipescanner function to validate recipes
+- `FunctionOrValue` -- Called in recipescanner function for deconstruction check
+- `GetGameModeProperty` -- Called in inventoryitem function for game mode property checks
+- `TheInput` -- Referenced via connected playercontroller.lua for IsControlPressed
+- `SPELLTYPES` -- Global table for spell type validation
+- `GLOBAL` -- Implicit global context for helper functions like CanCastFishingNetAtPoint
+- `orderedPairs` -- Used to iterate COMPONENT_ACTIONS table in RemapComponentActions
+- `dumptable` -- Used in ModComponentWarning to print table contents
+- `IsValidScytheTarget` -- Called by pickable ISVALID function
+- `CONTROL_FORCE_INSPECT` -- Referenced in magiciantool function for control check
+- `EntityScript` -- RegisterComponentActions method defined on EntityScript prototype
+- `ACTION_COMPONENT_IDS` -- Global table mapping component names to numeric IDs for lookup
+- `ACTION_COMPONENT_NAMES` -- Global table mapping component IDs back to names for collector/validator lookup
+- `COMPONENT_ACTIONS` -- Global table containing action collectors and validators organized by action type
+- `CheckModComponentIds` -- Function to retrieve mod-specific component ID mappings
+- `CheckModComponentActions` -- Function to retrieve mod-specific action component tables
+- `CheckModComponentNames` -- Function to retrieve mod-specific component name mappings
 
 **Components used:**
-- `attuner` -- Used in SCENE.attunable to call IsAttunedTo on doer
-- `boatringdata` -- Used in SCENE.boatrotator and CheckRowOverride to get radius and rotation state
-- `constructionbuilderuidata` -- Used in SCENE.container to determine if builder is in use
-- `container_proxy` -- Used in SCENE.container_proxy and SCENE.container via replica.container to check CanBeOpened
-- `floater` -- Used in SCENE.machine to check if item is floating
-- `playercontroller` -- Used in SCENE.ROW and many others to check isclientcontrollerattached, HasAOETargeting, and IsControlPressed
-- `skilltreeupdater` -- Used in SCENE.ghostgestalter to check if skill is activated
-- `revivablecorpse` -- Used in revivablecorpse action handler via inst.components.revivablecorpse:CanBeRevivedBy(doer)
-- `spellbook` -- Used in spellbook action handler via inst.components.spellbook:CanBeUsedBy(doer)
-- `rider` -- doer.replica.rider:IsRiding() used to restrict actions while mounted
-- `inventoryitem` -- Used to check ownership (IsGrandOwner, IsHeld, IsEquipped) and tags (CanOnlyGoInPocket)
-- `container` -- target.replica.container:CanBeOpened() and IsOpenedBy() used to allow storing into containers
-- `health` -- target.replica.health:CanHeal() used in healer/maxhealer to validate healability
-- `inventory` -- doer.replica.inventory:IsHeavyLifting() used to prevent actions while carrying heavy items
-- `equippable` -- target.replica.equippable:IsEquipped() and:IsRestricted(doer) used to check equipping status and restrictions
-- `stackable` -- target.replica.stackable:IsFull() and IsStack() used in stackable logic
-- `follower` -- target.replica.follower:GetLeader() compared to doer in summoningitem logic
-- `builder` -- target.replica.builder present for teacher action (doer==target)
-- `pumpkincarvable` -- target.components.pumpkincarvable existence checks for carving (client-safe)
-- `pumpkinhatcarvable` -- target.components.pumpkinhatcarvable existence checks for pumpkin hat carving
-- `snowmandecoratable` -- target.components.snowmandecoratable existence checks for snowman decoration (client-safe)
-- `constructionsite` -- Accessed via target.replica.constructionsite for build actions
-- `combat` -- Checked via doer.replica.combat and target.replica.combat for targeting, ally, and attack validity
-- `aoetargeting` -- Accessed via inst.components.aoetargeting to check enabled state and constraints
-- `fishingrod` -- Accessed via inst.replica.fishingrod to check caught fish and target
-- `oceanfishingrod` -- Accessed via inst.replica.oceanfishingrod for ocean fishing target and actions
-- `containerinstallableitem` -- Calls GetValidOpenContainer on the item's component
-- `singinginspiration` -- Calls IsSongActive to check if song is active
+- `attuner` -- Called via doer.components.attuner:IsAttunedTo() to check attunement state
+- `boatringdata` -- Called via boat.components.boatringdata:GetRadius() and :IsRotating() for boat rotation state
+- `constructionbuilderuidata` -- Called via doer.components.constructionbuilderuidata:GetContainer() to check container match
+- `container_proxy` -- Called via inst.components.container_proxy:CanBeOpened() to check openability
+- `floater` -- Called via inst.components.floater:IsFloating() to check if entity is floating
+- `playercontroller` -- Called via doer.components.playercontroller.isclientcontrollerattached, :HasAOETargeting(), and :IsControlPressed()
+- `skilltreeupdater` -- Called via doer.components.skilltreeupdater:IsActivated() to check skill activation
+- `revivablecorpse` -- Calls CanBeRevivedBy method to check if corpse can be revived
+- `spellbook` -- Calls CanBeUsedBy method to check if spellbook can be used
+- `snowmandecoratable` -- Checks if equipped item has snowmandecoratable component
+- `container` -- Accesses replica.container for inventory and opening state checks
+- `inventory` -- Accesses replica.inventory for item checks and heavy lifting state
+- `rider` -- Accesses replica.rider for mount state and riding checks
+- `inventoryitem` -- Accesses replica.inventoryitem for ownership and held state
+- `health` -- Checks CanHeal method for self-fertilization
+- `fishingrod` -- Checks HasCaughtFish and GetTarget methods
+- `pumpkincarvable` -- Checked via target.components.pumpkincarvable in pumpkincarver function
+- `pumpkinhatcarvable` -- Checked via target.components.pumpkinhatcarvable in pumpkincarver function
+- `constructionsite` -- Accessed via target.replica.constructionsite for build state checks
+- `stackable` -- Accessed via inst.replica.stackable and target.replica.stackable for stack operations
+- `equippable` -- Accessed via inst.replica.equippable and target.replica.equippable for equip restrictions
+- `follower` -- Accessed via target.replica.follower for leader checks in summoningitem
+- `builder` -- Accessed via target.replica.builder in teacher function
+- `aoetargeting` -- Accessed via inst.components.aoetargeting for spell validation
+- `combat` -- Accessed via replica.combat for targeting validation
+- `oceanfishingrod` -- Accessed via replica.oceanfishingrod for fishing state
+- `containerinstallableitem` -- Accessed via inst.components.containerinstallableitem:GetValidOpenContainer()
+- `singinginspiration` -- Accessed via doer.components.singinginspiration:IsSongActive()
+- `actionreplica` -- Accessed via self.actionreplica to sync network state when action components are unregistered
 
 **Tags:**
+- `boat` -- check
+- `is_row_failing` -- check
+- `is_rowing` -- check
+- `plantinspector` -- check
+- `plantkin` -- check
+- `plantresearchable` -- check
+- `fertilizerresearchable` -- check
+- `farmplantstress` -- check
+- `weedplantstress` -- check
+- `fishing_idle` -- check
+- `projectile` -- check
+- `oceanfishing_catchable` -- check
+- `fishinghook` -- check
+- `overriderowaction` -- check
+- `plant` -- check
+- `lichen` -- check
+- `oceanvine` -- check
+- `kelp` -- check
+- `kitcoonden` -- check
 - `inactive` -- check
 - `engineering` -- check
 - `portableengineer` -- check
 - `activatable_forceright` -- check
 - `smolder` -- check
 - `fire` -- check
+- `burnt` -- check
 - `anchor_raised` -- check
 - `anchor_transitioning` -- check
-- `paired` -- check
-- `turnedoff` -- check
-- `ammoloaded` -- check
-- `occupied` -- check
-- `is_rowing` -- check
-- `is_row_failing` -- check
-- `overriderowaction` -- check
-- `boat` -- check
-- `fishing_idle` -- check
-- `projectile` -- check
-- `oceanfishing_catchable` -- check
-- `fishinghook` -- check
-- `plantresearchable` -- check
-- `fertilizerresearchable` -- check
-- `farmplantstress` -- check
-- `weedplantstress` -- check
-- `plantinspector` -- check
-- `plantkin` -- check
-- `reader` -- check
-- `controlled_burner` -- check
-- `stokeablefire` -- check
-- `cancatch` -- check
-- `channelable` -- check
-- `channeled` -- check
-- `burnt` -- check
 - `battery` -- check
 - `batteryuser` -- check
-- `bathingpool` -- check
+- `paired` -- check
+- `turnedoff` -- check
+- `occupied` -- check
+- `ammoloaded` -- check
+- `channelable` -- check
+- `channeling` -- check
+- `channeled` -- check
+- `cancatch` -- check
 - `bundle` -- check
 - `oceantrawler` -- check
 - `trawler_lowered` -- check
-- `rider` -- check
-- `isriding` -- check
-- `pickable` -- check
-- `activatable` -- check
-- `groundonlymachine` -- check
-- `enabled` -- check
-- `turnedon` -- check
+- `noabandon` -- check
+- `readyforharvest` -- check
+- `withered` -- check
+- `cancycle` -- check
+- `dried` -- check
+- `fully_electrically_linked` -- check
+- `is_electrically_linked` -- check
+- `tendable_farmplant` -- check
+- `mime` -- check
+- `groomer` -- check
+- `hitcher` -- check
+- `harvestable` -- check
+- `haunted` -- check
+- `catchable` -- check
+- `heavy` -- check
+- `can_use_heavy` -- check
+- `hitcher_locked` -- check
+- `spider` -- check
+- `spiderwhisperer` -- check
+- `heavylift_lmb` -- check
+- `inventoryitemholder_take` -- check
+- `near_kitcoonden` -- check
+- `unlockable` -- check
 - `cooldown` -- check
 - `fueldepleted` -- check
 - `alwayson` -- check
 - `emergency` -- check
+- `enabled` -- check
+- `groundonlymachine` -- check
+- `turnedon` -- check
 - `readytocook` -- check
-- `minesprung` -- check
-- `mine_not_reusable` -- check
 - `usingmagiciantool` -- check
-- `sailraised` -- check
-- `saillowered` -- check
-- `sail_transitioning` -- check
-- `loaded` -- check
-- `strongman` -- check
-- `player` -- check
-- `hasstrongman` -- check
-- `hasoneoftags` -- check
-- `catchable` -- check
-- `lighter` -- check
-- `spider` -- check
-- `spiderwhisperer` -- check
-- `heavy` -- check
-- `heavylift_lmb` -- check
-- `is_furling` -- check
-- `near_kitcoonden` -- check
-- `kitcoonden` -- check
-- `unlockable` -- check
-- `hastag` -- check
-- `marked` -- check
-- `hitcher` -- check
-- `hitcher_locked` -- check
-- `dried` -- check
-- `readyforharvest` -- check
-- `withered` -- check
-- `cancycle` -- check
-- `inventoryitemholder_take` -- check
-- `tendable_farmplant` -- check
-- `mime` -- check
-- `fully_electrically_linked` -- check
-- `is_electrically_linked` -- check
-- `can_use_heavy` -- check
+- `mapscout` -- check
 - `markable` -- check
 - `markable_proxy` -- check
-- `haunted` -- check
-- `holdable` -- check
-- `craftable` -- check
-- `noabandon` -- check
+- `sailraised` -- check
+- `is_furling` -- check
+- `saillowered` -- check
+- `sail_transitioning` -- check
+- `player` -- check
+- `strongman` -- check
+- `hasstrongman` -- check
+- `loaded` -- check
+- `minesprung` -- check
+- `mine_not_reusable` -- check
+- `reader` -- check
+- `controlled_burner` -- check
+- `stokeablefire` -- check
+- `pickable` -- check
+- `campfire` -- check
+- `idle` -- check
+- `moving` -- check
+- `lighter` -- check
+- `wendy_lunar_3` -- check
 - `trawler_fish_escaped` -- check
 - `pinned` -- check
 - `intense` -- check
@@ -223,21 +232,19 @@ end
 - `portable_campfire_user` -- check
 - `mastercookware` -- check
 - `masterchef` -- check
-- `craftingenabled` -- check
+- `rideable` -- check
 - `hitched` -- check
 - `dogrider_only` -- check
 - `dogrider` -- check
 - `woby` -- check
+- `searchable` -- check
+- `takeshelfitem` -- check
+- `cansit` -- check
+- `insomniac` -- check
 - `hassleeper` -- check
 - `spiderden` -- check
-- `wardrobe` -- check
-- `dressable` -- check
-- `readyforfeast` -- check
 - `waxedplant` -- check
-- `unwrappable` -- check
-- `interactable` -- check
-- `plank_extended` -- check
-- `on_walkable_plank` -- check
+- `donecooking` -- check
 - `stageactingprop` -- check
 - `stageactor` -- check
 - `play_in_progress` -- check
@@ -247,21 +254,25 @@ end
 - `teleporter` -- check
 - `townportal` -- check
 - `vault_teleporter` -- check
-- `channeling` -- check
 - `trapsprung` -- check
-- `trophyscale_*` -- check
+- `trophyscale_` -- check
+- `weighable_` -- check
 - `trophycanbetaken` -- check
-- `wax` -- check
+- `unwrappable` -- check
+- `on_walkable_plank` -- check
+- `interactable` -- check
+- `plank_extended` -- check
+- `wardrobe` -- check
+- `dressable` -- check
+- `writeable` -- check
 - `migrator` -- check
+- `readyforfeast` -- check
+- `has_whistle_action` -- check
 - `yotb_conteststartable` -- check
 - `has_prize` -- check
 - `has_no_prize` -- check
 - `race_on` -- check
 - `readytosew` -- check
-- `cansit` -- check
-- `donecooking` -- check
-- `takeshelfitem` -- check
-- `insomniac` -- check
 - `appraiser` -- check
 - `canbait` -- check
 - `bathbomb` -- check
@@ -281,1547 +292,1977 @@ end
 - `deckcontainer` -- check
 - `drawable` -- check
 - `candry` -- check
-- `edible_*` -- check
-- `*_eater` -- check
+- `dryable` -- check
+- `critter` -- check
+- `handfed` -- check
 - `wereplayer` -- check
 - `strongstomach` -- check
-- `ignoresspoilage` -- check
+- `monstermeat` -- check
 - `spoiled` -- check
+- `ignoresspoilage` -- check
 - `badfood` -- check
 - `unsafefood` -- check
+- `possessedbody` -- check
+- `small_livestock` -- check
 - `compostingbin_accepts_items` -- check
 - `papereraser` -- check
-- `watersource` -- check
-- `fishable` -- check
 - `soil` -- check
 - `NOCLICK` -- check
-- `notreadyforharvest` -- check
 - `fertile` -- check
 - `infertile` -- check
 - `barren` -- check
 - `fertilizable` -- check
 - `self_fertilizable` -- check
-- `critter` -- check
-- `handfed` -- check
-- `small_livestock` -- check
-- `fedbyall` -- check
-- `follower` -- check
-- `edible_ELEMENTAL` -- check
-- `edible_GEARS` -- check
-- `edible_INSECT` -- check
-- `edible_BURNT` -- check
-- `DECOR` -- check
+- `watersource` -- check
+- `fishable` -- check
+- `notreadyforharvest` -- check
+- `fishing` -- check
+- `questing` -- check
+- `corpse` -- check
+- `forgerepair_` -- check
+- `forgerepairable_` -- check
+- `quagmire_stewable` -- check
+- `quagmire_stewer` -- check
+- `_fuel` -- check
+- `_fueled` -- check
 - `furnituredecortaker` -- check
 - `elixir_drinker` -- check
 - `gravediggable` -- check
 - `gravedigger_user` -- check
-- `alltrader` -- check
+- `DECOR` -- check
+- `healerbuffs` -- check
+- `no_container_store` -- check
 - `playerghost` -- check
-- `ghost` -- check
 - `reviver` -- check
-- `boatcannon` -- check
+- `alltrader` -- check
+- `ghost` -- check
 - `boatcannon_ammo` -- check
+- `boatcannon` -- check
 - `inventoryitemholder_give` -- check
-- `INLIMBO` -- check
-- `BURNABLE_fueled` -- check
-- `BURNABLE_fuel` -- check
-- `constructionsite` -- check
-- `quagmire_stewable` -- check
-- `quagmire_stewer` -- check
-- `quagmire_cookwaretrader` -- check
-- `vase` -- check
-- `vasedecoration` -- check
-- `waxable` -- check
-- `waxspray` -- check
-- `needssewing` -- check
-- `saddleable` -- check
-- `saddled` -- check
-- `tacklestation` -- check
-- `canpeek` -- check
-- `bearded` -- check
-- `moontrader` -- check
+- `_lock` -- check
+- `_key` -- check
 - `klaussacklock` -- check
 - `klaussackkey` -- check
-- `pocketwatch` -- check
-- `clockmaker` -- check
-- `pocketwatch_mountedcast` -- check
-- `pocketwatchcaster` -- check
+- `canlight` -- check
+- `burnableignorefuel` -- check
+- `INLIMBO` -- check
+- `moontrader` -- check
+- `_occupiable` -- check
+- `fullfertile` -- check
+- `playbill_lecturn` -- check
 - `pocketwatch_inactive` -- check
-- `souleater` -- check
-- `canbeslaughtered` -- check
-- `tappable` -- check
+- `pocketwatchcaster` -- check
+- `pocketwatch_mountedcast` -- check
+- `clockmaker` -- check
+- `pocketwatch` -- check
+- `fresh` -- check
+- `stale` -- check
+- `deployable` -- check
+- `smallcreature` -- check
+- `installations` -- check
 - `quagmire_altar` -- check
 - `quagmire_replater` -- check
 - `quagmire_replatable` -- check
 - `quagmire_saltable` -- check
 - `saltpond` -- check
-- `installations` -- check
-- `fullfertile` -- check
+- `canbeslaughtered` -- check
+- `quagmire_cookwaretrader` -- check
+- `tappable` -- check
+- `repairable_` -- check
+- `work_` -- check
+- `health_` -- check
+- `freshen_` -- check
+- `finiteuses_` -- check
+- `workrepairable` -- check
+- `healthrepairable` -- check
+- `finiteusesrepairable` -- check
+- `saddleable` -- check
+- `needssewing` -- check
+- `bearded` -- check
+- `canpeek` -- check
+- `souleater` -- check
+- `abigail` -- check
+- `ghostfriend_summoned` -- check
+- `tacklestation` -- check
 - `trader` -- check
 - `tree` -- check
 - `monster` -- check
 - `stump` -- check
 - `leif` -- check
 - `no_force_grow` -- check
+- `saddled` -- check
+- `_upgrader` -- check
+- `_upgradeuser` -- check
+- `_upgradeable` -- check
+- `inuse_targeted` -- check
+- `useabletargeteditem_mounted` -- check
+- `vase` -- check
+- `vasedecoration` -- check
+- `fillable` -- check
+- `waxable` -- check
+- `needswaxspray` -- check
+- `waxspray` -- check
 - `LunarBuildup` -- check
 - `MINE_tool` -- check
-- `fillable` -- check
-- `outofammo` -- check
-- `rangedweapon` -- check
-- `tranquilizer` -- check
-- `canlight` -- check
-- `nolight` -- check
-- `sleeper` -- check
-- `container_proxy` -- check
+- `BURNABLE_fueled` -- check
+- `BURNABLE_fuel` -- check
 - `structure` -- check
-- `weighable_*` -- check
 - `winter_treestand` -- check
-- `rotatableobject` -- check
-- `gestaltcapturable` -- check
-- `burnableignorefuel` -- check
-- `lifting` -- check
-- `moonstormstaticcapturable` -- check
-- `floater` -- check
-- `nohighlight` -- check
+- `rangedweapon` -- check
+- `outofammo` -- check
+- `tranquilizer` -- check
+- `sleeper` -- check
+- `nolight` -- check
 - `steeringboat` -- check
 - `rotatingboat` -- check
-- `castonpoint` -- check
+- `complexprojectile_showoceanaction` -- check
+- `tile_deploy` -- check
+- `boatbuilder` -- check
+- `fillable_showoceanaction` -- check
 - `castonpointwater` -- check
+- `castonpoint` -- check
+- `crushitemcast` -- check
+- `plow` -- check
+- `nohighlight` -- check
+- `rotatableobject` -- check
+- `faced_chair` -- check
+- `gestaltcapturable` -- check
+- `moonstormstaticcapturable` -- check
+- `_container` -- check
+- `handyperson` -- check
+- `nomagic` -- check
+- `castontargets` -- check
 - `castonrecipes` -- check
 - `castonlocomotors` -- check
 - `castonlocomotorspvp` -- check
 - `castonworkable` -- check
+- `CHOP_workable` -- check
+- `DIG_workable` -- check
+- `HAMMER_workable` -- check
+- `MINE_workable` -- check
 - `castoncombat` -- check
-- `crushitemcast` -- check
-- `plow` -- check
-- `fillable_showoceanaction` -- check
-- `tile_deploy` -- check
-- `deployable` -- check
-- `special_action_toss` -- check
-- `complexprojectile_showoceanaction` -- check
-- `boatbuilder` -- check
-- `nomagic` -- check
-- `faced_chair` -- check
 - `wall` -- check
 - `mustforceattack` -- check
 - `mole` -- check
 - `hammer` -- check
-- `needswaxspray` -- check
-- `equippable` -- check
+- `edible` -- check
 - `fertilizer` -- check
 - `elixirbrewer` -- check
-- `healerbuffs` -- check
-- `ghostfriend_notsummoned` -- check
-- `ghostfriend_summoned` -- check
-- `castfrominventory` -- check
+- `magician` -- check
+- `lifting` -- check
+- `accepts_oceanfishingtackle` -- check
 - `pocketwatch_castfrominventory` -- check
-- `handyperson` -- check
-- `slingshotmodscontainer` -- check
-- `walter_slingshot_modding` -- check
-- `readable` -- check
+- `battlesinger` -- check
+- `castfrominventory` -- check
+- `spellcaster` -- check
+- `spelluser` -- check
+- `ghostfriend_notsummoned` -- check
 - `upgrademoduleowner` -- check
+- `inspectingupgrademodules` -- check
+- `equipped_and_inuse` -- check
 - `inuse` -- check
 - `cannotuse` -- check
 - `useabletargeteditem_inventorydisable` -- check
-- `inuse_targeted` -- check
-- `accepts_oceanfishingtackle` -- check
-- `broadcasting` -- check
-- `invenoryitem` -- check
+- `useabletargateditem_canselftarget` -- check
+- `targeter` -- check
+- `workable` -- check
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| None | | | No properties are defined. |
-
+| `SCYTHE_ONEOFTAGS` | table | `{"plant", "lichen", "oceanvine", "kelp"}` | Tags used for scythe targeting |
+| `KITCOON_MUST_TAGS` | table | `{"kitcoonden"}` | Required tags for kitcoonden detection |
+| `COMPONENT_ACTIONS` | table | `{}` | Component actions mapping |
+| `ACTION_COMPONENT_NAMES` | table | `{}` | Mapping of action component names |
+| `ACTION_COMPONENT_IDS` | table | `{}` | Mapping of action component IDs |
+| `MOD_COMPONENT_ACTIONS` | table | `{}` | Mod component actions mapping |
+| `MOD_ACTION_COMPONENT_NAMES` | table | `{}` | Mod action component names mapping |
+| `MOD_ACTION_COMPONENT_IDS` | table | `{}` | Mod action component IDs mapping |
 ## Main functions
-
-### `CanCastFishingNetAtPoint(thrower, target_x, target_z)`
-* **Description:** Checks if a fishing net can be cast at the given point: requires it to be over ocean or virtual ocean and at least min_throw_distance away from the thrower.
+### `activatable(inst, doer, actions, right)`
+* **Description:** Determines ACTIVATE action availability based on inactive tag, engineering/portableengineer tags, and fire/smolder state.
 * **Parameters:**
-  - `thrower` -- Entity attempting to cast the net; used to get position
-  - `target_x` -- World X-coordinate of the target point
-  - `target_z` -- World Z-coordinate of the target point
-* **Returns:** true if casting is valid, false otherwise
-
-### `Row(inst, doer, pos, actions)`
-* **Description:** Generates rowing actions (ROW, ROW_FAIL, ROW_CONTROLLER) based on platform type, player control state, and proximity to water or boat.
-* **Parameters:**
-  - `inst` -- Ignored; present for signature compatibility
-  - `doer` -- Entity (typically player) attempting to row; checked for platform, boat tag, rowing state
-  - `pos` -- World position (x,z) of interaction point, used when controller is detached
-  - `actions` -- Mutable table into which compatible ACTION constants are inserted
+  - `inst` -- Entity with activatable component
+  - `doer` -- Player entity attempting activation
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
 * **Returns:** nil
-* **Error states:** Early exit if doer not on a boat, or if controller is attached and position matches current platform.
+* **Error states:** None
 
-### `PlantRegistryResearch(inst, doer, actions)`
-* **Description:** Adds plant registry research and plant stress assessment actions if doer has required tools/tags and target is researchable.
+### `anchor(inst, doer, actions, right)`
+* **Description:** Determines RAISE_ANCHOR or LOWER_ANCHOR actions based on anchor_raised and anchor_transitioning tags.
 * **Parameters:**
-  - `inst` -- Target entity (plant or fertilizer); checked for research tags and registry keys
-  - `doer` -- Entity performing the action; checked for plantinspector tag or plantkin, andCanExamine
-  - `actions` -- Mutable table into which PLANTREGISTRY_RESEARCH or PLANTREGISTRY_RESEARCH_FAIL and ASSESSPLANTHAPPINESS actions may be inserted
+  - `inst` -- Entity with anchor component
+  - `doer` -- Player entity interacting with anchor
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
 * **Returns:** nil
-* **Error states:** No action added if doer lacks plantinspector or plantkin tag, or if target not researchable.
+* **Error states:** None
 
-### `GetFishingAction(doer, fishing_target)`
-* **Description:** Returns the appropriate Ocean Fishing action (OCEAN_FISHING_CATCH, OCEAN_FISHING_REEL, or OCEAN_FISHING_STOP) based on doer state and target.
+### `attunable(inst, doer, actions)`
+* **Description:** Checks if doer has attuner component and is not already attuned to inst, then adds ATTUNE action.
 * **Parameters:**
-  - `doer` -- Entity performing fishing; must have fishing_idle tag
-  - `fishing_target` -- Fishing hook or catchable entity; checked for oceanfishing_catchable and fishinghook tags
-* **Returns:** String action constant or nil if no valid action.
-* **Error states:** Returns nil if doer not in fishing_idle state or target is projectile or not catchable.
+  - `inst` -- Entity with attunable component
+  - `doer` -- Player entity attempting to attune
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
 
-### `CheckRowOverride(doer, target)`
-* **Description:** Returns true if target has overriderowaction and is within OVERRIDE_ROW_ACTION_DISTANCE of the doer or boat, allowing the override action to supersede normal row.
+### `bathingpool(inst, doer, actions)`
+* **Description:** Always adds SOAKIN action for bathing pool interaction.
 * **Parameters:**
-  - `doer` -- Entity attempting to row; used for position and platform lookup
-  - `target` -- Potential override entity (e.g., ocean trawler) with overriderowaction tag
-* **Returns:** true if row action should be overridden, false otherwise
-* **Error states:** Returns false if doer not on a boat or no valid override target.
+  - `inst` -- Entity with bathingpool component
+  - `doer` -- Player entity attempting to bathe
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
 
-### `IsValidScytheTarget(target)`
-* **Description:** Predicate to validate whether a target is harvestable by a scythe.
+### `battery(inst, doer, actions)`
+* **Description:** Adds CHARGE_FROM action if inst has battery tag and doer has batteryuser tag.
 * **Parameters:**
-  - `target` -- Entity to check; must have one of SCYTHE_ONEOFTAGS tags
-* **Returns:** true if target has one of the required tags (plant, lichen, oceanvine, kelp), false otherwise
+  - `inst` -- Entity with battery component
+  - `doer` -- Player entity attempting to charge
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `boatmagnet(inst, doer, actions, right)`
+* **Description:** Determines BOAT_MAGNET_ACTIVATE or BOAT_MAGNET_DEACTIVATE based on paired tag and fire/burnt state.
+* **Parameters:**
+  - `inst` -- Entity with boatmagnet component
+  - `doer` -- Player entity interacting with magnet
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `boatmagnetbeacon(inst, doer, actions, right)`
+* **Description:** Adds BOAT_MAGNET_BEACON_TURN_ON or BOAT_MAGNET_BEACON_TURN_OFF on right-click based on turnedoff and paired tags.
+* **Parameters:**
+  - `inst` -- Entity with boatmagnetbeacon component
+  - `doer` -- Player entity interacting with beacon
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `boatcannon(inst, doer, actions, right)`
+* **Description:** Determines BOAT_CANNON_START_AIMING if ammo loaded, or BOAT_CANNON_LOAD_AMMO on right-click.
+* **Parameters:**
+  - `inst` -- Entity with boatcannon component
+  - `doer` -- Player entity operating cannon
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `boatrotator(inst, doer, actions, right)`
+* **Description:** Checks boat platform and boatringdata component to determine ROTATE_BOAT_STOP, ROTATE_BOAT_CLOCKWISE, or ROTATE_BOAT_COUNTERCLOCKWISE actions.
+* **Parameters:**
+  - `inst` -- Entity with boatrotator component
+  - `doer` -- Player entity rotating boat
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `book(inst, doer, actions)`
+* **Description:** Adds READ action if doer has reader tag and book is not on fire or smoldering.
+* **Parameters:**
+  - `inst` -- Entity with book component
+  - `doer` -- Player entity attempting to read
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `burnable(inst, doer, actions, right)`
+* **Description:** Adds SMOTHER action if smoldering, or STOKEFIRE on right-click if doer has controlled_burner tag and inst has stokeablefire tag.
+* **Parameters:**
+  - `inst` -- Entity with burnable component
+  - `doer` -- Player entity interacting with fire
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `bundlemaker(inst, doer, actions, right)`
+* **Description:** Adds BUNDLE action on right-click.
+* **Parameters:**
+  - `inst` -- Entity with bundlemaker component
+  - `doer` -- Player entity using bundlemaker
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `catcher(inst, doer, actions)`
+* **Description:** Adds CATCH action if inst has cancatch tag.
+* **Parameters:**
+  - `inst` -- Entity with catcher component
+  - `doer` -- Player entity attempting to catch
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `channelable(inst, doer, actions, right)`
+* **Description:** Adds STOPCHANNELING if doer is channeling, or STARTCHANNELING if inst is not channeled (right-click only).
+* **Parameters:**
+  - `inst` -- Entity with channelable component
+  - `doer` -- Player entity channeling
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `combat(inst, doer, actions, right)`
+* **Description:** Adds ATTACK action on left-click if doer can attack, inst is not dead, and combat component allows attack.
+* **Parameters:**
+  - `inst` -- Entity with combat component
+  - `doer` -- Player entity attacking
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `constructionsite(inst, doer, actions, right)`
+* **Description:** Determines CONSTRUCT or STOPCONSTRUCTION action based on builder status and controller attachment. Returns early if pickable tag present on left-click.
+* **Parameters:**
+  - `inst` -- Entity with constructionsite component
+  - `doer` -- Player entity building
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `container(inst, doer, actions, right)`
+* **Description:** Handles bundle wrapping, APPLYCONSTRUCTION, or RUMMAGE actions based on container state, doer inventory, and rider status.
+* **Parameters:**
+  - `inst` -- Entity with container component
+  - `doer` -- Player entity accessing container
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `container_proxy(inst, doer, actions)`
+* **Description:** Adds RUMMAGE action if container can be opened, not burnt, doer has inventory, and doer is not riding.
+* **Parameters:**
+  - `inst` -- Entity with container_proxy component
+  - `doer` -- Player entity accessing proxy container
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `crittertraits(inst, doer, actions, right)`
+* **Description:** Handles PET, TRANSFER_CRITTER, or ABANDON actions based on follower relationship, tech trees, and location validity.
+* **Parameters:**
+  - `inst` -- Entity with crittertraits component
+  - `doer` -- Player entity interacting with critter
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `crop(inst, doer, actions)`
+* **Description:** Adds HARVEST action if crop is readyforharvest or withered and doer has inventory.
+* **Parameters:**
+  - `inst` -- Entity with crop component
+  - `doer` -- Player entity harvesting
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `cyclable(inst, doer, actions, right)`
+* **Description:** Adds CYCLE action on right-click if inst has cancycle tag.
+* **Parameters:**
+  - `inst` -- Entity with cyclable component
+  - `doer` -- Player entity cycling
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `deckcontainer(inst, doer, actions, right)`
+* **Description:** Adds DRAW_FROM_DECK action on right-click.
+* **Parameters:**
+  - `inst` -- Entity with deckcontainer component
+  - `doer` -- Player entity drawing from deck
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `dryer(inst, doer, actions)`
+* **Description:** Adds HARVEST action if inst has dried tag and is not burnt.
+* **Parameters:**
+  - `inst` -- Entity with dryer component
+  - `doer` -- Player entity harvesting dried item
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `electricconnector(inst, doer, actions, right)`
+* **Description:** Adds STARTELECTRICLINK on left-click if not fully linked, or ENDELECTRICLINK on right-click if currently linked.
+* **Parameters:**
+  - `inst` -- Entity with electricconnector component
+  - `doer` -- Player entity managing electric link
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `farmplanttendable(inst, doer, actions, right)`
+* **Description:** Adds INTERACT_WITH action if inst has tendable_farmplant tag, is not on fire/smoldering, and doer is not a mime.
+* **Parameters:**
+  - `inst` -- Entity with farmplanttendable component
+  - `doer` -- Player entity tending plant
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `fertilizerresearchable(inst, doer, actions, right)`
+* **Description:** Calls PlantRegistryResearch helper function on right-click.
+* **Parameters:**
+  - `inst` -- Entity with fertilizerresearchable component
+  - `doer` -- Player entity researching fertilizer
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `grabbable(inst, doer, actions, right)`
+* **Description:** Deprecated component. No actions added. Use inventoryitem.grabbableoverridetag instead.
+* **Parameters:**
+  - `inst` -- Entity with grabbable component
+  - `doer` -- Player entity attempting to grab
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `groomer(inst, doer, actions, right)`
+* **Description:** Adds CHANGEIN action on right-click if inst has groomer tag and is not fire/burnt/hitcher.
+* **Parameters:**
+  - `inst` -- Entity with groomer component
+  - `doer` -- Player entity grooming
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `harvestable(inst, doer, actions)`
+* **Description:** Adds HARVEST action if inst has harvestable tag.
+* **Parameters:**
+  - `inst` -- Entity with harvestable component
+  - `doer` -- Player entity harvesting
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `hauntable(inst, doer, actions)`
+* **Description:** Adds HAUNT action if inst does not have haunted or catchable tags.
+* **Parameters:**
+  - `inst` -- Entity with hauntable component
+  - `doer` -- Player entity haunting
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `heavyobstacleusetarget(inst, doer, actions, right)`
+* **Description:** Adds USE_HEAVY_OBSTACLE action on right-click if doer has heavy equipped item and inst has can_use_heavy tag.
+* **Parameters:**
+  - `inst` -- Entity with heavyobstacleusetarget component
+  - `doer` -- Player entity using heavy obstacle
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `hideandseekhidingspot(inst, doer, actions, right)`
+* **Description:** Adds HIDEANSEEK_FIND action on right-click.
+* **Parameters:**
+  - `inst` -- Entity with hideandseekhidingspot component
+  - `doer` -- Player entity finding hiding spot
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `hitcher(inst, doer, actions, right)`
+* **Description:** Adds HITCHUP action if inst has hitcher tag, or UNHITCH on left-click if not hitcher. Checks fire/burnt/hitcher_locked tags.
+* **Parameters:**
+  - `inst` -- Entity with hitcher component
+  - `doer` -- Player entity hitching/unhitching
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `incinerator(inst, doer, actions, right)`
+* **Description:** Adds INCINERATE action on right-click if container is not empty and opened by doer. Returns early if doer is riding.
+* **Parameters:**
+  - `inst` -- Entity with incinerator component
+  - `doer` -- Player entity incinerating items
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `inspectable(inst, doer, actions, right)`
+* **Description:** Adds LOOKAT action if inst is not doer, doer can examine, and doer is idle or channeling. Returns early on right-click if doer has AOETargeting.
+* **Parameters:**
+  - `inst` -- Entity with inspectable component
+  - `doer` -- Player entity inspecting
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `inventoryitem(inst, doer, actions, right)`
+* **Description:** Adds PICKUP action based on can be picked up state, inventory slots, fire/smolder/catchable tags, and spider/spiderwhisperer conditions.
+* **Parameters:**
+  - `inst` -- Entity with inventoryitem component
+  - `doer` -- Player entity picking up item
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `inventoryitemholder(inst, doer, actions, right)`
+* **Description:** Adds TAKEITEM or TAKESINGLEITEM action if inst has 'inventoryitemholder_take' tag and not 'fire'. Action depends on item stack state and CONTROL_FORCE_STACK input. Returns early if checks fail or no item present.
+* **Parameters:**
+  - `inst` -- Entity with inventoryitemholder component
+  - `doer` -- Player entity taking item
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+### `kitcoon(inst, doer, actions, right)`
+* **Description:** Adds RETURN_FOLLOWER or ABANDON on right-click only if inst.replica.follower exists and leader matches doer; otherwise no action. Adds PET on left-click.
+* **Parameters:**
+  - `inst` -- Entity with kitcoon component
+  - `doer` -- Player entity interacting with kitcoon
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `lock(inst, doer, actions)`
+* **Description:** Adds UNLOCK action if inst has unlockable tag.
+* **Parameters:**
+  - `inst` -- Entity with lock component
+  - `doer` -- Player entity unlocking
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `machine(inst, doer, actions, right)`
+* **Description:** Adds TURNON or TURNOFF action on right-click based on turnedon tag. Checks cooldown, fueldepleted, alwayson, emergency, and enabled tags. Returns early (no action) if groundonlymachine tag with held/floating state, or if held item is unequipped equippable.
+* **Parameters:**
+  - `inst` -- Entity with machine component
+  - `doer` -- Player entity operating machine
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `madsciencelab(inst, doer, actions, right)`
+* **Description:** Adds COOK action on right-click if readytocook or container is full and opened by doer.
+* **Parameters:**
+  - `inst` -- Entity with madsciencelab component
+  - `doer` -- Player entity cooking
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `magician(inst, doer, actions, right)`
+* **Description:** Adds STOPUSINGMAGICTOOL action if inst equals doer and has usingmagiciantool tag.
+* **Parameters:**
+  - `inst` -- Entity with magician component
+  - `doer` -- Player entity using magic tool
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `mapdeliverable(inst, doer, actions, right)`
+* **Description:** Adds MAPDELIVER_MAP on left-click or STARTMAPDELIVER on right-click based on bufferedmapaction state and flight permission. Does nothing if inst has the 'mapscout' tag.
+* **Parameters:**
+  - `inst` -- Entity with mapdeliverable component
+  - `doer` -- Player entity delivering map
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `markable(inst, doer, actions, right)`
+* **Description:** Adds MARK action if inst has markable tag.
+* **Parameters:**
+  - `inst` -- Entity with markable component
+  - `doer` -- Player entity marking
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `markable_proxy(inst, doer, actions, right)`
+* **Description:** Adds MARK action if inst has markable_proxy tag.
+* **Parameters:**
+  - `inst` -- Entity with markable_proxy component
+  - `doer` -- Player entity marking proxy
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `mast(inst, doer, actions, right)`
+* **Description:** Adds LOWER_SAIL_BOOST, LOWER_SAIL_FAIL, or RAISE_SAIL based on sailraised/saillowered tags and doer animation state.
+* **Parameters:**
+  - `inst` -- Entity with mast component
+  - `doer` -- Player entity raising/lowering sail
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `mightygym(inst, doer, actions, right)`
+* **Description:** Adds UNLOAD_GYM on right-click if loaded, or ENTER_GYM otherwise. Requires doer to have player and strongman tags, and inst must not have the 'hasstrongman' tag.
+* **Parameters:**
+  - `inst` -- Entity with mightygym component
+  - `doer` -- Player entity using gym
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `mine(inst, doer, actions, right)`
+* **Description:** Adds RESETMINE action on right-click if inst has minesprung tag and not mine_not_reusable.
+* **Parameters:**
+  - `inst` -- Entity with mine component
+  - `doer` -- Player entity resetting mine
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `ghostgestalter(inst, doer, actions, right)`
+* **Description:** Adds MUTATE action if doer has wendy_lunar_3 skill activated and inst has activatable_forceright tag or not right-click.
+* **Parameters:**
+  - `inst` -- Entity with ghostgestalter component
+  - `doer` -- Player entity mutating
+  - `actions` -- Table to insert available actions into
+  - `right` -- boolean -- true if right-click, false if left-click
+* **Returns:** nil
+* **Error states:** None
+
+### `occupiable(inst, doer, actions)`
+* **Description:** Adds HARVEST action if inst has occupied tag.
+* **Parameters:**
+  - `inst` -- Entity with occupiable component
+  - `doer` -- Player entity harvesting occupiable
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
 
 ### `oceantrawler(inst, doer, actions, right)`
-* **Description:** Adds actions to raise, lower, or fix an ocean trawler based on its current state and tag flags.
+* **Description:** Adds OCEAN_TRAWLER_RAISE, OCEAN_TRAWLER_LOWER, or OCEAN_TRAWLER_FIX actions based on trawler state tags if inst does not have 'fire' or 'burnt' tags.
 * **Parameters:**
-  - `inst` -- Entity (target) being acted upon; must not be fire/burnt to be considered.
-  - `doer` -- Entity (usually player) performing the action.
-  - `actions` -- Table to append valid action objects (ACTIONS.OCEAN_TRAWLER_RAISE, OCEAN_TRAWLER_LOWER, OCEAN_TRAWLER_FIX).
-  - `right` -- Boolean indicating if the action was triggered by a right-click (true) or left-click (false).
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `pinnable(inst, doer, actions)`
-* **Description:** Adds UNPIN action if the target is pinned and the doer is not pinned and not the same entity.
+* **Description:** Adds UNPIN action if doer is not pinned, inst is pinned, and inst is not doer.
 * **Parameters:**
-  - `inst` -- Entity (target) that may be pinned.
-  - `doer` -- Entity performing the action; must not be pinned and the target must be pinned (but not the same as doer).
-  - `actions` -- Table to append ACTIONS.UNPIN if conditions are met.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
 
 ### `pickable(inst, doer, actions)`
-* **Description:** Adds PICK action if the target is pickable and not on fire or intense.
+* **Description:** Adds PICK action if inst has pickable tag and is not on fire or intense.
 * **Parameters:**
-  - `inst` -- Entity that must have 'pickable' tag and not be fire/intense to be pickable.
-  - `doer` -- Entity performing the action; not used for logic here but included per signature.
-  - `actions` -- Table to append ACTIONS.PICK if conditions are met.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
 
 ### `plantresearchable(inst, doer, actions, right)`
-* **Description:** Invokes PlantRegistryResearch if the action is left-clicked (right=false); adds no direct action here.
+* **Description:** Calls PlantRegistryResearch for left-click interactions only.
 * **Parameters:**
-  - `inst` -- Entity (plant) to be researched if left-clicked.
-  - `doer` -- Entity performing the action (e.g., player).
-  - `actions` -- Table to append research action (if right is false).
-  - `right` -- Boolean; function is a no-op if right-clicked; only left-click triggers research logic via PlantRegistryResearch.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `portablestructure(inst, doer, actions, right)`
-* **Description:** Adds DISMANTLE action for portable structures under specific restrictions involving campfires, cooking, engineering, and container state.
+* **Description:** Adds DISMANTLE action for portable structures if container conditions are met and user has appropriate tags.
 * **Parameters:**
-  - `inst` -- Structure entity to dismantle; must be portable, not burning (unless campfire + portable_campfire_user), and satisfy further tag/owner conditions.
-  - `doer` -- Entity performing the action; must meet required tags like masterchef/masterengineer if needed.
-  - `actions` -- Table to append ACTIONS.DISMANTLE if all conditions pass and container (if any) is not already opened by doer.
-  - `right` -- Boolean; function exits early if not right-clicked.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `projectile(inst, doer, actions)`
-* **Description:** Adds CATCH action if target is catchable and the doer can catch.
+* **Description:** Adds CATCH action if inst is catchable and doer can catch.
 * **Parameters:**
-  - `inst` -- Entity with catchable tag that can be caught.
-  - `doer` -- Entity with cancatch tag who can catch projectiles.
-  - `actions` -- Table to append ACTIONS.CATCH if conditions are met.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
 
 ### `prototyper(inst, doer, actions, right)`
-* **Description:** Adds OPEN_CRAFTING action for prototyper if right-clicked and crafting is not globally disabled for the doer.
+* **Description:** Adds OPEN_CRAFTING action for left-click if crafting is enabled.
 * **Parameters:**
-  - `inst` -- Prototyper entity to open crafting window.
-  - `doer` -- Entity performing the action; crafting may be disabled globally per player class classification.
-  - `actions` -- Table to append ACTIONS.OPEN_CRAFTING if right-click and crafting is enabled.
-  - `right` -- Boolean; only right-clicks open the prototyper UI.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `pushable(inst, doer, actions, right)`
-* **Description:** Adds START_PUSHING action if the action is right-clicked.
+* **Description:** Adds START_PUSHING action for right-click interactions.
 * **Parameters:**
-  - `inst` -- Entity that can be pushed (e.g., pushable structure).
-  - `doer` -- Entity attempting to push; not used in logic here but required per signature.
-  - `actions` -- Table to append ACTIONS.START_PUSHING if right-clicked.
-  - `right` -- Boolean; function only adds action on right-click.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `quagmire_tappable(inst, doer, actions, right)`
-* **Description:** Adds TAPTREE or HARVEST actions for quagmire tappable trees depending on click side and equipped tool.
+* **Description:** Adds HARVEST or TAPTREE actions if inst lacks 'tappable' and 'fire' tags. Right-click adds TAPTREE (or HARVEST with CHOP_tool if tapped_harvestable); left-click adds HARVEST if tapped_harvestable.
 * **Parameters:**
-  - `inst` -- Tappable tree entity; must have tappable tag and not be fire, and state flags track tapped/harvested states.
-  - `doer` -- Entity performing the action; must be wielding a chop tool for harvest.
-  - `actions` -- Table to append either TAPTREE (right) or HARVEST (left) depending on state and tool.
-  - `right` -- Boolean; right-click uses TAPTREE, left-click may use HARVEST.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `questowner(inst, doer, actions, right)`
-* **Description:** Adds BEGIN_QUEST or ABANDON_QUEST actions for quest-related entities on right-click.
+* **Description:** Adds ABANDON_QUEST or BEGIN_QUEST action based on questing tag and activation check.
 * **Parameters:**
-  - `inst` -- Quest-giving entity (QuestOwner).
-  - `doer` -- Entity (player) attempting to begin or abandon a quest; must satisfy CanBeActivatedBy_Client if present.
-  - `actions` -- Table to append BEGIN_QUEST or ABANDON_QUEST depending on questing tag.
-  - `right` -- Boolean; only right-clicks trigger quest actions.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `repairable(inst, doer, actions, right)`
-* **Description:** Adds REPAIR action if the doer meets heavy-lifting, non-riding conditions and wields a matching work_* item.
+* **Description:** Adds REPAIR action if doer is heavy lifting, not riding, and has appropriate equipped item.
 * **Parameters:**
-  - `inst` -- Repairable entity (e.g., sculpture, moon altar) with specific repair tags.
-  - `doer` -- Entity performing the repair; must be heavy lifting and not riding; must have appropriate work_* tag on equipped item.
-  - `actions` -- Table to append ACTIONS.REPAIR if all conditions pass.
-  - `right` -- Boolean; only right-clicks attempt repair.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `revivablecorpse(inst, doer, actions, right)`
-* **Description:** Adds REVIVE_CORPSE action if the corpse can be revived by the doer via the RevivableCorpse component.
+* **Description:** Adds REVIVE_CORPSE action if revivablecorpse component allows revival by doer.
 * **Parameters:**
-  - `inst` -- Corpse entity with RevivableCorpse component; must satisfy CanBeRevivedBy(doer).
-  - `doer` -- Entity attempting to revive; passed to RevivableCorpse:CanBeRevivedBy for validation.
-  - `actions` -- Table to append ACTIONS.REVIVE_CORPSE if revive is possible.
-  - `right` -- Boolean; present in signature but not used for condition checks.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `rideable(inst, doer, actions, right)`
-* **Description:** Adds MOUNT action for rideable entities, with special case logic for woby.
+* **Description:** Adds MOUNT action for rideable entities with appropriate tag checks; woby excludes MOUNT except during heavy lifting when command wheel is disabled.
 * **Parameters:**
-  - `inst` -- Rideable entity; must have rideable, not hitched, and optionally dogrider_only restriction; special handling for woby.
-  - `doer` -- Entity mounting; must not be heavy lifting for woby (which uses command wheel instead), and not already riding.
-  - `actions` -- Table to append ACTIONS.MOUNT if conditions pass.
-  - `right` -- Boolean; only right-clicks attempt mounting.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
-
+* **Error states:** None
 ### `rider(inst, doer, actions)`
-* **Description:** If inst == doer, adds DISMOUNT if container is not opened, or RUMMAGE if the mount's container is opened.
+* **Description:** Adds RUMMAGE or DISMOUNT action based on mount container state when inst equals doer.
 * **Parameters:**
-  - `inst` -- Entity that may be acting as rider; function acts only if inst == doer (the local entity).
-  - `doer` -- Entity doing the action; must match inst for rider-specific logic to run.
-  - `actions` -- Table to append either DISMOUNT or RUMMAGE depending on mount's container state.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
 
 ### `searchable(inst, doer, actions)`
-* **Description:** Adds PICK action for searchable entities that are not fire/intense.
+* **Description:** Adds PICK action if inst is searchable and not on fire or intense.
 * **Parameters:**
-  - `inst` -- Entity with searchable tag; not valid if fire or intense.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.PICK if conditions are met.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
 
 ### `shelf(inst, doer, actions)`
-* **Description:** Adds TAKEITEM action for shelf entities that accept taking items.
+* **Description:** Adds TAKEITEM action if inst takes shelf items.
 * **Parameters:**
-  - `inst` -- Shelf entity with takeshelfitem tag.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.TAKEITEM if takeshelfitem tag is present.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
 
 ### `sittable(inst, doer, actions, right)`
-* **Description:** Adds SITON action for sittable entities that are not fire.
+* **Description:** Adds SITON action if inst can be sat on and is not on fire.
 * **Parameters:**
-  - `inst` -- Sit-able entity with cansit tag; not valid if fire.
-  - `doer` -- Entity attempting to sit; not used in logic here.
-  - `actions` -- Table to append ACTIONS.SITON if cansit and not fire.
-  - `right` -- Boolean; present in signature but not used in this handler.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `sleepingbag(inst, doer, actions)`
-* **Description:** Adds SLEEPIN action for players (non-insomniac) using sleeping bags that are not hassleeper.
+* **Description:** Adds SLEEPIN action for players without insomniac tag if inst lacks hassleeper tag (not already occupied); spiderden requires spiderwhisperer tag.
 * **Parameters:**
-  - `inst` -- Sleeping bag entity; must not be hassleeper and optionally not spiderden (unless spiderwhisperer).
-  - `doer` -- Player entity that is not insomniac; must be player and not insomniac, and the sleepingbag must not have hassleeper tag.
-  - `actions` -- Table to append ACTIONS.SLEEPIN if conditions are met.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
 
 ### `snowmandecoratable(inst, doer, actions, right)`
-* **Description:** Adds DECORATESNOWMAN action for heavy lifting doers decorating snowmen with decoratable items.
+* **Description:** Adds DECORATESNOWMAN action for right-click when heavy lifting with snowmandecoratable equipped item. Requires inst to not have 'waxedplant' tag.
 * **Parameters:**
-  - `inst` -- Snowman entity; must not be waxedplant, and doer must be heavy lifting and have snowmandecoratable component on equipped item.
-  - `doer` -- Entity performing the action; must be heavy lifting and hold a decor item with snowmandecoratable component.
-  - `actions` -- Table to append ACTIONS.DECORATESNOWMAN if conditions are met.
-  - `right` -- Boolean; only right-clicks attempt decoration.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `spellbook(inst, doer, actions, right)`
-* **Description:** Adds USESPELLBOOK or CLOSESPELLBOOK actions for spellbook entities based on usage eligibility and HUD state.
+* **Description:** Adds CLOSESPELLBOOK or USESPELLBOOK action based on spellbook state and inventory conditions.
 * **Parameters:**
-  - `inst` -- Spellbook entity; must not be inventory item, and must satisfy SpellBook:CanBeUsedBy(doer), with no opened container on mount.
-  - `doer` -- Entity attempting to use the spellbook; must meet spellbook restrictions and have no active item in hand.
-  - `actions` -- Table to append either USESPELLBOOK or CLOSESPELLBOOK depending on HUD state and usage conditions.
-  - `right` -- Boolean; only right-clicks attempt spellbook usage/close.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
-### `steeringwheel(inst, doer, actions)`
-* **Description:** Adds STEER_BOAT action if the steering wheel is not occupied or on fire.
+### `steeringwheel(inst, doer, actions, right)`
+* **Description:** Adds STEER_BOAT action if steering wheel is not occupied and not on fire.
 * **Parameters:**
-  - `inst` -- Steering wheel entity; must not be occupied or fire.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.STEER_BOAT if not occupied or fire.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `stewer(inst, doer, actions, right)`
-* **Description:** Adds COOK or HARVEST actions for stewer entities based on cooking progress and container state.
+* **Description:** Adds HARVEST or COOK action if inst is not burnt and doer is not riding, based on cooking state and container conditions.
 * **Parameters:**
-  - `inst` -- Stewer entity (e.g., pot, cauldron); must not be burnt, and container state is checked for cooking readiness.
-  - `doer` -- Entity performing the action; must not be riding for cooking actions.
-  - `actions` -- Table to append COOK or HARVEST depending on cooking state and container conditions.
-  - `right` -- Boolean; right-click needed for COOK action.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `stageactingprop(inst, doer, actions, right)`
-* **Description:** Adds PERFORM action for stageactingprop entities if the actor is present and no play is in progress.
+* **Description:** Adds PERFORM action for right-click if inst has 'stageactingprop' tag, doer is stage actor, and play not in progress.
 * **Parameters:**
-  - `inst` -- Stageactingprop entity with play_in_progress and stageactor tags checked.
-  - `doer` -- Entity with stageactor tag performing the action.
-  - `actions` -- Table to append ACTIONS.PERFORM if stageactingprop and not in progress.
-  - `right` -- Boolean; only right-clicks attempt performance.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `storytellingprop(inst, doer, actions, right)`
-* **Description:** Adds TELLSTORY action for storytelling props when storyteller doer interacts correctly.
+* **Description:** Adds TELLSTORY action when inst has 'storytellingprop' tag and doer has 'storyteller' tag. Click direction must match portable_campfire configuration.
 * **Parameters:**
-  - `inst` -- Storytelling prop entity; must have storytellingprop and storyteller on doer; special logic for portable_campfire use.
-  - `doer` -- Entity with storyteller tag; must match right/wantsleft logic to trigger action.
-  - `actions` -- Table to append ACTIONS.TELLSTORY if conditions are met.
-  - `right` -- Boolean; used in logic to differentiate portable_campfire stories.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `talkable(inst, doer, actions)`
-* **Description:** Adds TALKTO action for entities that have the maxwellnottalking tag.
+* **Description:** Adds TALKTO action if inst has maxwellnottalking tag.
 * **Parameters:**
-  - `inst` -- Talkable entity (e.g., maxwell) that must have maxwellnottalking tag to be talked to.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.TALKTO if maxwellnottalking tag is present.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
 
 ### `teleporter(inst, doer, actions, right)`
-* **Description:** Adds JUMPIN or TELEPORT actions for teleporter entities based on tag combination and doer state.
+* **Description:** Adds JUMPIN or TELEPORT action based on teleporter type and doer channeling state.
 * **Parameters:**
-  - `inst` -- Teleporter entity; must have teleporter tag and not be townportal/vault_teleporter unless right-click and not channeling.
-  - `doer` -- Entity attempting to teleport; must not be channeling for teleport actions.
-  - `actions` -- Table to append either JUMPIN or TELEPORT depending on tags and state.
-  - `right` -- Boolean; required for TELEPORT but not for JUMPIN.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `trap(inst, doer, actions)`
-* **Description:** Adds CHECKTRAP action for traps that have sprung.
+* **Description:** Adds CHECKTRAP action if trap has sprung tag.
 * **Parameters:**
-  - `inst` -- Trap entity that must have trapsprung tag to be checked.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.CHECKTRAP if trapsprung tag is present.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
 
 ### `trophyscale(inst, doer, actions, right)`
-* **Description:** Adds COMPARE_WEIGHABLE or REMOVE_FROM_TROPHYSCALE actions for trophyscale entities depending on item and tags.
+* **Description:** Adds COMPARE_WEIGHABLE or REMOVE_FROM_TROPHYSCALE action only on right-click based on trophy scale state and equipped item.
 * **Parameters:**
-  - `inst` -- Trophyscale entity; must have appropriate trophyscale_ or trophycanbetaken tags, and doer must be heavy lifting for weighable actions.
-  - `doer` -- Entity performing the action; must be heavy lifting and wield a matching weighable item for compare weigh action; else may remove item if trophycanbetaken.
-  - `actions` -- Table to append either COMPARE_WEIGHABLE or REMOVE_FROM_TROPHYSCALE depending on state.
-  - `right` -- Boolean; required for both weighable and removal actions.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `unwrappable(inst, doer, actions, right)`
-* **Description:** Adds UNWRAP action for entities marked unwrappable on right-click.
+* **Description:** Adds UNWRAP action for right-click if inst is unwrappable.
 * **Parameters:**
-  - `inst` -- Unwrappable entity; must have unwrappable tag to be unwrapped.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.UNWRAP if unwrappable tag is present.
-  - `right` -- Boolean; only right-clicks unwrap.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
+
+### `upgrademoduleowner(inst, doer, actions, right)`
+* **Description:** Calls CollectUpgradeModuleActions on right-click if doer equals inst and playercontroller is not client-attached.
+* **Parameters:**
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
+* **Returns:** nil
+* **Error states:** None
 
 ### `walkingplank(inst, doer, actions, right)`
-* **Description:** Adds plank-related actions (EXTEND, RETRACT, MOUNT, ABANDON_SHIP) depending on plank state and doer tag.
+* **Description:** Adds ABANDON_SHIP, RETRACT_PLANK, EXTEND_PLANK, or MOUNT_PLANK actions based on plank state.
 * **Parameters:**
-  - `inst` -- Walking plank entity with interactable, plank_extended, or on_walkable_plank tags used to determine action.
-  - `doer` -- Entity attempting to interact; on_walkable_plank triggers ABANDON_SHIP, else plank state determines EXTEND/RETRACT or MOUNT.
-  - `actions` -- Table to append EXTEND_PLANK, RETRACT_PLANK, MOUNT_PLANK, or ABANDON_SHIP based on plank and doer tags.
-  - `right` -- Boolean; controls action direction (right = extend/retract, left = mount) except for ABANDON_SHIP.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `wardrobe(inst, doer, actions, right)`
-* **Description:** Adds CHANGEIN action for wardrobe entities that are not fire.
+* **Description:** Adds CHANGEIN action for wardrobe if not on fire and dressable conditions met.
 * **Parameters:**
-  - `inst` -- Wardrobe entity; must have wardrobe tag, not fire, and optionally not dressable for left-click access.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.CHANGEIN if wardrobe and not fire.
-  - `right` -- Boolean; influences dressable behavior but not strictly required.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `writeable(inst, doer, actions)`
-* **Description:** Adds WRITE action for entities marked writeable.
+* **Description:** Adds WRITE action if inst is writeable.
 * **Parameters:**
-  - `inst` -- Writeable entity; must have writeable tag to be written on.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.WRITE if writeable tag is present.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
 
 ### `winch(inst, doer, actions, right)`
-* **Description:** Adds UNLOAD_WINCH action for winches with takeshelfitem tag on right-click.
+* **Description:** Adds UNLOAD_WINCH action for right-click if inst takes shelf items.
 * **Parameters:**
-  - `inst` -- Winch entity with takeshelfitem tag to trigger UNLOAD_WINCH action.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.UNLOAD_WINCH if takeshelfitem tag is present.
-  - `right` -- Boolean; only right-clicks unload.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `wintersfeasttable(inst, doer, actions, right)`
-* **Description:** Adds WINTERSFEAST_FEAST action for winter's feast tables that are ready and not burning.
+* **Description:** Adds WINTERSFEAST_FEAST action for right-click if table is ready for feast and not on fire or burnt.
 * **Parameters:**
-  - `inst` -- WINTER'S FEAST table; must be readyforfeast and not fire/burnt.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.WINTERSFEAST_FEAST if conditions are met.
-  - `right` -- Boolean; only right-clicks start feast.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `wobycourier(inst, doer, actions, right)`
-* **Description:** Adds WHISTLE action for woby entities under specific playercontroller and whistle conditions.
+* **Description:** Adds WHISTLE action on right-click if doer equals inst, has whistle action, and playercontroller is not client-attached.
 * **Parameters:**
-  - `inst` -- Woby entity; must be the same as doer, have playercontroller, be not client-attached, and have whistle action.
-  - `doer` -- Entity performing the action; must be inst (i.e., woby) and satisfy whistle-related checks.
-  - `actions` -- Table to append ACTIONS.WHISTLE if all conditions are met.
-  - `right` -- Boolean; only right-clicks trigger whistle.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `worldmigrator(inst, doer, actions)`
-* **Description:** Adds MIGRATE action for entities marked migrator.
+* **Description:** Adds MIGRATE action if inst has migrator tag.
 * **Parameters:**
-  - `inst` -- Entity with migrator tag to trigger migration action.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.MIGRATE if migrator tag is present.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
 
 ### `yotb_sewer(inst, doer, actions, right)`
-* **Description:** Adds YOTB_SEW action for sewer entities that are ready or have full opened containers.
+* **Description:** Adds YOTB_SEW action for right-click based on readytosew tag or container state.
 * **Parameters:**
-  - `inst` -- YOTB Sewer entity; must not be burnt, and not ridden; readytosew or full container with doer opening state triggers action.
-  - `doer` -- Entity performing the action; must meet container opening conditions.
-  - `actions` -- Table to append ACTIONS.YOTB_SEW if readytosew or container is full and opened by doer.
-  - `right` -- Boolean; only right-clicks sew.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `yotb_stager(inst, doer, actions, right)`
-* **Description:** Adds YOTB_STARTCONTEST or INTERACT_WITH actions for YOTB stager entities based on tags.
+* **Description:** Adds YOTB_STARTCONTEST action when contest-startable tag is present and Year of the Beast event is active, or INTERACT_WITH action when prize tag is present.
 * **Parameters:**
-  - `inst` -- YOTB Stager entity; must have yotb_conteststartable tag (event active) or has_prize to trigger actions.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.YOTB_STARTCONTEST or ACTIONS.INTERACT_WITH depending on tags.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `yotc_racecompetitor(inst, doer, actions, right)`
-* **Description:** Adds PICKUP action for living race competitors with prize status.
+* **Description:** Adds PICKUP action if inst has prize or no_prize tag and is not dead.
 * **Parameters:**
-  - `inst` -- Race competitor entity; must have has_prize or has_no_prize and not be dead.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.PICKUP if has_prize/no_prize and alive.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
 ### `yotc_racestart(inst, doer, actions, right)`
-* **Description:** Adds START_CARRAT_RACE action for race start points that are not currently in use or burnt.
+* **Description:** Adds START_CARRAT_RACE action for right-click if not burnt, on fire, or race on.
 * **Parameters:**
-  - `inst` -- Race start entity; must not be burnt, fire, or race_on to start the race.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `actions` -- Table to append ACTIONS.START_CARRAT_RACE if not in use or burnt.
+  - `inst` -- Entity instance being interacted with
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
 * **Returns:** nil
+* **Error states:** None
 
-### `apprisable(inst, doer, target, actions)`
-* **Description:** Adds APPRAISE action for items used on targets with appraiser tag.
+### `appraisable(inst, doer, target, actions)`
+* **Description:** Adds APPRAISE action if target has appraiser tag.
 * **Parameters:**
-  - `inst` -- Item being used; must have appraisable tag and target has appraiser tag to appraise.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Target entity that must have appraiser tag to be appraised.
-  - `actions` -- Table to append ACTIONS.APPRAISE if target is appraisable.
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
 
 ### `bait(inst, doer, target, actions)`
-* **Description:** Adds BAIT action for targets that have canbait tag.
+* **Description:** Adds BAIT action if target can be baited.
 * **Parameters:**
-  - `inst` -- Item used as bait; not used in logic here but signature per USEITEM.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity (e.g., fishing spot) with canbait tag that accepts bait.
-  - `actions` -- Table to append ACTIONS.BAIT if target has canbait.
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
 
 ### `bathbomb(inst, doer, target, actions)`
 * **Description:** Adds BATHBOMB action if inst is bathbomb and target is bathbombable.
 * **Parameters:**
-  - `inst` -- Item with bathbomb tag used to bathbomb target.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity with bathbombable tag to receive bathbomb effect.
-  - `actions` -- Table to append ACTIONS.BATHBOMB if both items have required tags.
-* **Returns:** nil
-
-### `batteryuser(inst, doer, target, actions, right)`
-* **Description:** Adds CHARGE_FROM action for batteryuser items used on battery targets on right-click.
-* **Parameters:**
-  - `inst` -- Item with batteryuser tag that can use battery power.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity with battery tag that can be charged from.
-  - `actions` -- Table to append ACTIONS.CHARGE_FROM if both have batteryuser and battery tags.
-  - `right` -- Boolean; only right-clicks charge.
-* **Returns:** nil
-
-### `bedazzler(inst, doer, target, actions)`
-* **Description:** Adds BEDAZZLE action for spiderwhisperer doers using items on non-bedazzled spider dens.
-* **Parameters:**
-  - `inst` -- Item with bedazzler capability; not used in logic here but signature per USEITEM.
-  - `doer` -- Entity with spiderwhisperer tag performing the action.
-  - `target` -- Entity with spiderden, bedazzleable, and not bedazzled tags.
-  - `actions` -- Table to append ACTIONS.BEDAZZLE if all spider den conditions are met.
-* **Returns:** nil
-
-### `boatpatch(inst, doer, target, actions)`
-* **Description:** Adds REPAIR_LEAK action for boat_patch items used on boat_leak targets.
-* **Parameters:**
-  - `inst` -- Item with boat_patch tag used to patch leaks.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity with boat_leak tag to be patched.
-  - `actions` -- Table to append ACTIONS.REPAIR_LEAK if both have boat_patch and boat_leak tags.
-* **Returns:** nil
-
-### `bottler(inst, doer, target, actions)`
-* **Description:** Adds BOTTLE action for targets that can be bottled.
-* **Parameters:**
-  - `inst` -- Bottler item; not used in logic here but signature per USEITEM.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity with canbebottled tag to be bottled.
-  - `actions` -- Table to append ACTIONS.BOTTLE if target has canbebottled.
-* **Returns:** nil
-
-### `brush(inst, doer, target, actions, right)`
-* **Description:** Adds BRUSH action for brushable targets on left-click.
-* **Parameters:**
-  - `inst` -- Brush item; not used in logic here but signature per USEITEM.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity with brushable tag that can be brushed.
-  - `actions` -- Table to append ACTIONS.BRUSH if target is brushable and not right-clicked.
-  - `right` -- Boolean; brush action only on left-click (right=false).
-* **Returns:** nil
-
-### `carnivalgameitem(inst, doer, target, actions, right)`
-* **Description:** Adds CARNIVALGAME_FEED action for feeding chicks nest targets with appropriate items.
-* **Parameters:**
-  - `inst` -- Item used in carnival game; must match target to feed chicks nest.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity with carnivalgame_canfeed tag and specific prefab 'carnivalgame_feedchicks_nest'.
-* **Returns:** nil
-
-### `cookable(inst, doer, target, actions)`
-* **Description:** Adds COOK action for cookable targets on cooker entities, respecting fuel, rider, and chef tags.
-* **Parameters:**
-  - `inst` -- Cooker entity (e.g., campfire) used to cook target; must not be fueldepleted, and expert chef tag required for dangerouscooker.
-  - `doer` -- Entity performing the action; must not be riding unless target is grandowner.
-* **Returns:** nil
-
-### `constructionplans(inst, doer, target, actions)`
-* **Description:** Adds CONSTRUCT action if the item has construction plans matching the target's prefab.
-* **Parameters:**
-  - `inst` -- Item with construction plans (e.g., 'tent_plans') matching target's prefab.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity whose prefab matches the plans item (e.g., inst:HasTag('tent_plans') and target.prefab == 'tent').
-* **Returns:** nil
-
-### `cooker(inst, doer, target, actions)`
-* **Description:** Adds COOK action for cookable targets when used with cooker entities, respecting fuel, rider, and ownership.
-* **Parameters:**
-  - `inst` -- Cooker entity (e.g., fire) used to cook target; must not be fueldepleted, and target must be cookable and not fire/catchable.
-* **Returns:** nil
-
-### `deckcontainer(inst, doer, target, actions)`
-* **Description:** Adds ADD_CARD_TO_DECK action if the target accepts deck cards (e.g., for playing cards).
-* **Parameters:**
-  - `inst` -- Item with playingcard or deckcontainer tag to add to deck.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Target entity with playingcard or deckcontainer tag that accepts cards.
-* **Returns:** nil
-
-### `drawingtool(inst, doer, target, actions)`
-* **Description:** Adds DRAW action for drawable targets using drawing tools.
-* **Parameters:**
-  - `inst` -- Drawing tool item used to draw on target; not used in logic here but signature per USEITEM.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity with drawable tag to be drawn on.
-* **Returns:** nil
-
-### `dryable(inst, doer, target, actions)`
-* **Description:** Adds DRY action for dryable items used on candry targets, provided they are not burnt.
-* **Parameters:**
-  - `inst` -- Item with dryable tag used to dry target; must not be burnt.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity with candry tag to be dried.
-* **Returns:** nil
-
-### `edible(inst, doer, target, actions, right)`
-* **Description:** Adds FEED, FEEDPLAYER, or ADDCOMPOSTABLE actions depending on food type matching and game rules.
-* **Parameters:**
-  - `inst` -- Edible item with edible_* tags matched against target's eater tags, for feeding players, livestock, or composting.
-  - `doer` -- Entity performing the action; must meet rider and PVP/food safety conditions for FEEDPLAYER.
-* **Returns:** nil
-
-### `erasablepaper(inst, doer, target, actions)`
-* **Description:** Adds ERASE_PAPER action for erasable paper targets that are not fire or burnt.
-* **Parameters:**
-  - `inst` -- Item used to erase paper; not used in logic here but signature per USEITEM.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity with papereraser tag that is not fire or burnt.
-* **Returns:** nil
-
-### `fan(inst, doer, target, actions)`
-* **Description:** Adds FAN action unconditionally when fan item is used.
-* **Parameters:**
-  - `inst` -- Fan item used to fan target; not used in logic here but signature per USEITEM.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Target entity; not used in logic here (action always added).
-* **Returns:** nil
-
-### `farmplantable(inst, doer, target, actions)`
-* **Description:** Adds PLANTSOIL action for farmplantable items used on soil targets.
-* **Parameters:**
-  - `inst` -- Farmable item (e.g., seed) to plant on target.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity with soil tag that is not NOCLICK; must be plantable ground.
-* **Returns:** nil
-
-### `fertilizer(inst, doer, target, actions)`
-* **Description:** Adds FERTILIZE action for various target types (crops, barren, fertile, etc.) or self if self_fertilizable.
-* **Parameters:**
-  - `inst` -- Fertilizer item; may have self_fertilizable tag for self-applying (e.g., doer == target).
-  - `doer` -- Entity performing the action; must be riding-safe and satisfy self_fertilizable conditions.
-* **Returns:** nil
-
-### `fillable(inst, doer, target, actions)`
-* **Description:** Adds FILL action for fillable items used on water source targets.
-* **Parameters:**
-  - `inst` -- Item with fillable tag (e.g., bucket) used to fill from target.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity with watersource tag to provide water.
-* **Returns:** nil
-
-### `fishingrod(inst, doer, target, actions)`
-* **Description:** Adds FISH or REEL action depending on fishing rod state and target match.
-* **Parameters:**
-  - `inst` -- Fishing rod item; must have fishable target, not already caught fish, and check target match or fishing state.
-* **Returns:** nil
-
-### `forcecompostable(inst, doer, target, actions)`
-* **Description:** Adds ADDCOMPOSTABLE action for force compostable items used on compost bins.
-* **Parameters:**
-  - `inst` -- Force compostable item (e.g., certain organic waste); not used in logic here but signature per USEITEM.
-  - `doer` -- Entity performing the action; not used in logic here.
-  - `target` -- Entity with compostingbin_accepts_items tag to receive force compost.
-* **Returns:** nil
-
-### `forgerepair(inst, doer, target, actions, right)`
-* **Description:** Checks if the target is repairable using the same material as the inst, and inserts ACTIONS.REPAIR if conditions (floater, rider, lifting) are met and a match is found.
-* **Parameters:**
-  - `inst` -- The entity owning this action handler (typically an item).
-  - `doer` -- The entity performing the action (usually the player).
-  - `target` -- The entity being acted upon.
-  - `actions` -- Mutable table into which valid actions are inserted.
-  - `right` -- Boolean indicating if the action was triggered by right-click; required for correctness in this function.
-* **Returns:** nil
-* **Error states:** Returns early if target is floating, or if doer is riding and target isn't owned by doer, or if doer is heavy-lifting.
-
-### `fuel(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.ADDFUEL or ACTIONS.ADDWETFUEL if inst is a valid fuel type and target accepts it, with special handling for wet fuel and stew-related exclusions.
-* **Parameters:**
-  - `inst` -- The fuel item (e.g., torch, lantern).
-  - `doer` -- The entity performing the fueling (usually the player).
-  - `target` -- The entity that accepts fuel (e.g., campfire, lantern).
-  - `actions` -- Mutable table into which valid actions are inserted.
-* **Returns:** nil
-* **Error states:** Returns early if doer is riding and target is not owned by doer; also skips if inst is spoiled_food and certain Quagmire stew conditions are met.
-
-### `furnituredecor(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.GIVE if target is a furniture decortaker.
-* **Parameters:**
-  - `inst` -- The decor item to give (e.g., painting, rug).
-  - `doer` -- The player giving the decor.
-  - `target` -- The furniture piece that accepts decor.
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `ghostlyelixir(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.APPLYELIXIR if target can drink elixirs.
-* **Parameters:**
-  - `inst` -- The elixir item.
-  - `doer` -- The player using the elixir.
-  - `target` -- The entity to receive the elixir (must be elixir_drinker).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `gravedigger(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.GRAVEDIG if doer has the gravedigger_user tag and target is gravediggable.
-* **Parameters:**
-  - `inst` -- The grave-digging tool (e.g., shovel).
-  - `doer` -- The player using the tool (must be gravedigger_user).
-  - `target` -- The grave or ground to dig (must be gravediggable).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `halloweenpotionmoon(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.HALLOWEENMOONMUTATE if target is not a DECOR entity.
-* **Parameters:**
-  - `inst` -- The Halloween potion moon item.
-  - `doer` -- The player using the potion.
-  - `target` -- The target entity; should not have DECOR tag for mutation to occur.
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `healer(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.HEAL if target is healable and not being ridden (with special logic for mounted doer or owner checks).
-* **Parameters:**
-  - `inst` -- The healing item or tool (e.g., bandage, health elixir).
-  - `doer` -- The player performing healing.
-  - `target` -- The entity to heal; must have health component and be healable or have healerbuffs tag.
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-* **Error states:** Returns early if target is not healable or if mounted conditions fail ownership check.
-
-### `inventoryitem(inst, doer, target, actions, right)`
-* **Description:** Handles complex inventory interactions: storing, bundling, constructing, giving to players/ghosts, trading, boat cannon loading, and more—based on tags, container state, ownership, and game mode settings.
-* **Parameters:**
-  - `inst` -- The inventory item to store, give, or equip.
-  - `doer` -- The player attempting the action.
-  - `target` -- The target container, player, or holder entity.
-  - `actions` -- Mutable table for actions.
-  - `right` -- Boolean indicating if right-click initiated action; affects GIVETOPLAYER logic.
-* **Returns:** nil
-* **Error states:** Multiple early returns: pocket-only items, non-grand-owner items, mounted storage restrictions, fuel/decon conflict, etc.
-
-### `itemweigher(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.WEIGH_ITEM if inst matches a trophy scale type and target is weighable and owned by doer.
-* **Parameters:**
-  - `inst` -- The weighing scale (must have a tropyscale_`<type>` tag).
-  - `doer` -- The player using the scale.
-  - `target` -- The item to weigh (must have weighable_`<type>` tag and owner match).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `key(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.UNLOCK if target has a matching lock type and inst has the corresponding key type.
-* **Parameters:**
-  - `inst` -- The key item (must have a locktype_key tag).
-  - `doer` -- The player unlocking the target.
-  - `target` -- The locked entity (must have locktype_lock tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `klaussackkey(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.USEKLAUSSACKKEY if target is lockable and doer is not riding without proper ownership.
-* **Parameters:**
-  - `inst` -- The Klaussack key item.
-  - `doer` -- The player using the key.
-  - `target` -- The target with klaussacklock tag (e.g., Klaussack).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-* **Error states:** Returns early if doer is riding and does not own target.
-
-### `lighter(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.LIGHT if target can be lit and is not burnt/fueldepleted (unless exempt) or INLIMBO.
-* **Parameters:**
-  - `inst` -- The lighter item (e.g., flint, lighter).
-  - `doer` -- The player using the lighter.
-  - `target` -- The target to light (must have canlight tag and not be burnt/fueldepleted or fire).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `maprecorder(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.TEACH if doer and target are the same player.
-* **Parameters:**
-  - `inst` -- The map recorder item (e.g., blank map).
-  - `doer` -- The player performing the action (must be same as target).
-  - `target` -- The player entity to teach (must be a player).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `maxhealer(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.HEAL if target can be healed and owner/mounting conditions allow (similar logic to healer but only checks CanHeal).
-* **Parameters:**
-  - `inst` -- The max-heal item or tool.
-  - `doer` -- The player performing the heal.
-  - `target` -- The entity to heal (must have health component and be healable).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-* **Error states:** Returns early if target is not healable or fails mounting ownership check.
-
-### `moonrelic(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.GIVE if target is moontrader and doer is not riding.
-* **Parameters:**
-  - `inst` -- The moon relic item (e.g., trinket).
-  - `doer` -- The player offering the relic.
-  - `target` -- The moon trader entity (must have moontrader tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-* **Error states:** Returns early if doer is riding.
-
-### `occupier(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.STORE if target matches the occupier type, with rider/ownership restrictions for mounted use.
-* **Parameters:**
-  - `inst` -- The occupier item (e.g., seat, bed) with an OCCUPANTTYPE tag.
-  - `doer` -- The player trying to place the occupier.
-  - `target` -- The occupiable entity (e.g., chair with occupiable_`<type>` tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `oceanfishingrod(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.OCEAN_FISHING_POND if target has the fishable tag.
-* **Parameters:**
-  - `inst` -- The ocean fishing rod item.
-  - `doer` -- The player fishing.
-  - `target` -- The target area or entity to fish in (must have fishable tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `plantable(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.PLANT if target is fertile or fully fertile.
-* **Parameters:**
-  - `inst` -- The seed or plant item to place.
-  - `doer` -- The player planting.
-  - `target` -- The fertile ground (must have fertile or fullfertile tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `playbill(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.GIVE if target is a playbill_lecturn.
-* **Parameters:**
-  - `inst` -- The playbill item to give.
-  - `doer` -- The player giving the playbill.
-  - `target` -- The playbill_lecturn entity (e.g., a stand).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `playingcard(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.ADD_CARD_TO_DECK if target is a deck or card.
-* **Parameters:**
-  - `inst` -- The playing card to add.
-  - `doer` -- The player adding the card.
-  - `target` -- The deck container or another card (must have playingcard or deckcontainer tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `pocketwatch(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.CAST_POCKETWATCH if the watch is inactive, doer can cast, target is valid, and mounting is allowed or the watch allows mounted casting.
-* **Parameters:**
-  - `inst` -- The pocketwatch item (must be inactive and have CanTarget function).
-  - `doer` -- The player casting (must have pocketwatchcaster tag).
-  - `target` -- The valid target entity for the pocketwatch spell.
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-* **Error states:** Returns early if watch is active, doer can't cast, target fails validation, or mounting is restricted.
-
-### `pocketwatch_dismantler(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.DISMANTLE_POCKETWATCH if doer is a clockmaker and target is a pocketwatch.
-* **Parameters:**
-  - `inst` -- The dismantler tool (must be held by a clockmaker).
-  - `doer` -- The player dismantling (must have clockmaker tag).
-  - `target` -- The pocketwatch to dismantle (must have pocketwatch tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `preservative(inst, doer, target, actions, right)`
-* **Description:** Inserts ACTIONS.APPLYPRESERVATIVE if right-click, target is non-deployable/animal food with freshness tags.
-* **Parameters:**
-  - `inst` -- The preservative item (e.g., saltpeter).
-  - `doer` -- The player applying the preservative.
-  - `target` -- The item to preserve (must be fresh/stale/spoiled, cookable, not deployable or smallcreature).
-  - `actions` -- Mutable table for actions.
-  - `right` -- Boolean; must be true for preservative action to apply.
-* **Returns:** nil
-* **Error states:** Returns early unless right==true or target has health or invalid tags.
-
-### `pumpkincarver(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.CARVEPUMPKIN if target is a pumpkincarvable entity or an unequipped, non-floating pumpkinhatcarvable entity.
-* **Parameters:**
-  - `inst` -- The carving tool (e.g., knife).
-  - `doer` -- The player carving.
-  - `target` -- The pumpkin or pumpkin hat (must have pumpkincarvable or pumpkinhatcarvable component).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-* **Error states:** Does not insert action if pumpkinhat is equipped or floating.
-
-### `quagmire_installable(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.INSTALL if target has the installations tag.
-* **Parameters:**
-  - `inst` -- The installable item (e.g., machine part).
-  - `doer` -- The player installing.
-  - `target` -- The installations entity (must have installations tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `quagmire_plantable(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.PLANTSOIL if target has the soil tag.
-* **Parameters:**
-  - `inst` -- The seed or plant to place in soil.
-  - `doer` -- The player planting.
-  - `target` -- The soil tile (must have soil tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `quagmire_portalkey(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.GIVE if target is quagmire_altar.
-* **Parameters:**
-  - `inst` -- The portal key item.
-  - `doer` -- The player using the key.
-  - `target` -- The quagmire_altar (portal site).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `quagmire_replatable(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.REPLATE if target is a quagmire_replater.
-* **Parameters:**
-  - `inst` -- The replatable item (e.g., pattern).
-  - `doer` -- The player replacing.
-  - `target` -- The replater (must have qu
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `quagmire_replater(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.REPLATE if target is quagmire_replatable.
-* **Parameters:**
-  - `inst` -- The replater item (e.g., item slot).
-  - `doer` -- The player replacing.
-  - `target` -- The replatable entity (must have quagmire_replatable tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `quagmire_salter(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.SALT if target is quagmire_saltable.
-* **Parameters:**
-  - `inst` -- The salter item (e.g., salt heap).
-  - `doer` -- The player salting.
-  - `target` -- The entity to salt (must have quagmire_saltable tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `quagmire_saltextractor(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.INSTALL if target is saltpond.
-* **Parameters:**
-  - `inst` -- The salt extractor tool or item.
-  - `doer` -- The player installing/extracting.
-  - `target` -- The saltpond entity (must have saltpond tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `quagmire_slaughtertool(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.SLAUGHTER if target is alive and can be slaughtered.
-* **Parameters:**
-  - `inst` -- The slaughter tool (e.g., knife).
-  - `doer` -- The player slaughtering.
-  - `target` -- The entity to slaughter (must have canbeslaughtered tag and not be dead).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `quagmire_stewable(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.GIVE if target is quagmire_altar.
-* **Parameters:**
-  - `inst` -- The stewable item (e.g., raw stew ingredient).
-  - `doer` -- The player offering stew.
-  - `target` -- The quagmire_altar (must have quagmire_altar tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `quagmire_stewer(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.GIVE if target is quagmire_cookwaretrader.
-* **Parameters:**
-  - `inst` -- The stew item or tool (not used directly here).
-  - `doer` -- The player trading stew.
-  - `target` -- The quagmire_cookwaretrader entity (must have quagmire_cookwaretrader tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `quagmire_tapper(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.TAPTREE if target is tappable and not fire/burnt.
-* **Parameters:**
-  - `inst` -- The tapper tool or item (e.g., spile).
-  - `doer` -- The player tapping.
-  - `target` -- The tappable tree (must have tappable tag and not be fire or burnt).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `recipescanner(inst, doer, target, actions, right)`
-* **Description:** Inserts ACTIONS.TEACH if target has a valid, non-excluded recipe (not nounlock or no_deconstruction).
-* **Parameters:**
-  - `inst` -- The recipe scanner item.
-  - `doer` -- The player scanning.
-  - `target` -- The target with a SCANNABLE_RECIPENAME or valid recipe in AllRecipes.
-  - `actions` -- Mutable table for actions.
-  - `right` -- Boolean; not used in this chunk's function body.
-* **Returns:** nil
-
-### `repairer(inst, doer, target, actions, right)`
-* **Description:** Inserts ACTIONS.REPAIR if target has matching repair tags and tool constraints (e.g., material match, rider/owner checks) are satisfied.
-* **Parameters:**
-  - `inst` -- The repair tool or material item (e.g., worktool, health material, freshen tool, finiteuses material).
-  - `doer` -- The player repairing.
-  - `target` -- The target with repairable_`<material>` tag (and optional work/health/freshen/finiteuses tags).
-  - `actions` -- Mutable table for actions.
-  - `right` -- Boolean; must be true for action.
-* **Returns:** nil
-* **Error states:** Returns early if right==false, or if doer is riding without ownership, or heavy-lifting.
-
-### `saddler(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.SADDLE if target can be saddled and is not restricted to dog riders.
-* **Parameters:**
-  - `inst` -- The saddle item.
-  - `doer` -- The player saddling.
-  - `target` -- The animal (must have saddleable tag and not be dogrider_only).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `sewing(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.SEW if target needs sewing and doer is not riding without ownership.
-* **Parameters:**
-  - `inst` -- The sewing tool or needle item.
-  - `doer` -- The player sewing.
-  - `target` -- The item needing sewing (must have needssewing tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-* **Error states:** Returns early if doer is riding and does not own target.
-
-### `shaver(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.SHAVE for bearded targets (excluding non-spiderwhisperers from spider dens) or ACTIONS.PEEKBUNDLE for unwrappable bundles.
-* **Parameters:**
-  - `inst` -- The shaver tool (e.g., razor).
-  - `doer` -- The player shaving.
-  - `target` -- The entity with bearded tag (e.g., beard, bundle) or unwrappable+canpeek bundle.
-* **Returns:** nil
-* **Error states:** Returns early for bearded spider dens if doer is not spiderwhisperer, or for fire-smolder targets.
-
-### `smotherer(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.SMOTHER for smolder targets or ACTIONS.MANUALEXTINGUISH for fire if inst is frozen and target is fire but not held.
-* **Parameters:**
-  - `inst` -- The smotherer item (e.g., blanket or frozen item).
-  - `doer` -- The player smothering/extinguishing.
-  - `target` -- The smoldering or fire entity; for manual extinguish, must be fire and not held.
-* **Returns:** nil
-
-### `snowmandecor(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.DECORATESNOWMAN if target is a snowman and doer is not heavy-lifting.
-* **Parameters:**
-  - `inst` -- The decoration item (e.g., carrot, coal).
-  - `doer` -- The player decorating (must not be heavy-lifting).
-  - `target` -- The snowman (must have snowmandecoratable component, heavy tag, not waxedplant).
-* **Returns:** nil
-
-### `snowmandecoratable(inst, doer, target, actions, right)`
-* **Description:** Inserts ACTIONS.DECORATESNOWMAN if right-click and target has snowmandecoratable component (e.g., for stacking snowballs).
-* **Parameters:**
-  - `inst` -- The snowman decoration item.
-  - `doer` -- The player stacking or decorating (must not be heavy-lifting).
-  - `target` -- The snowman (must have snowmandecoratable component, not waxedplant; right must be true).
-  - `actions` -- Mutable table for actions.
-  - `right` -- Boolean; must be true to trigger decoration action (also used for stacking small throwable snowballs).
-* **Returns:** nil
-
-### `soul(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.EAT if doer and target are the same and target has souleater tag.
-* **Parameters:**
-  - `inst` -- The soul item (e.g., ghost orb).
-  - `doer` -- The player soul-eating (must be same as target and have souleater tag).
-  - `target` -- The soul (must be same as doer and have souleater tag).
-  - `actions` -- Mutable table for actions.
-* **Returns:** nil
-
-### `spidermutator(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.MUTATE_SPIDER if target is a living spider.
-* **Parameters:**
-  - `inst` -- The mutator item (e.g., spider gland).
-  - `doer` -- The player mutating.
-  - `target` -- The spider (must have spider tag and not be dead).
-* **Returns:** nil
-
-### `stackable(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.COMBINESTACK if stackable skin hack passes, target is not full, owned by doer, and not held.
-* **Parameters:**
-  - `inst` -- The stackable item attempting to combine (e.g., logs, rocks).
-  - `doer` -- The player combining stacks (not used directly in this function).
-  - `target` -- The target stack (must match prefab, be non-full, owned, and not held).
-* **Returns:** nil
-
-### `summoningitem(inst, doer, target, actions, right)`
-* **Description:** Inserts ACTIONS.CASTUNSUMMON if target is Abigail, owned by doer, and doer is a ghostfriend_summoned player.
-* **Parameters:**
-  - `inst` -- The summoning item (e.g., Abigail's item).
-  - `doer` -- The player casting (must have ghostfriend_summoned tag and be leader of target abigail).
-  - `target` -- The summoned entity (must be Abigail, not in limbo, and owned by doer).
-  - `actions` -- Mutable table for actions.
-  - `right` -- Boolean; not used in this function body.
-* **Returns:** nil
-
-### `tacklesketch(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.GIVE_TACKLESKETCH if target is tacklestation and not burning.
-* **Parameters:**
-  - `inst` -- The tackle sketch item.
-  - `doer` -- The player giving the sketch.
-  - `target` -- The tackle station (must have tacklestation tag and not be fire/smolder).
-* **Returns:** nil
-
-### `teacher(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.TEACH if doer==target and target has builder component (e.g., learned recipe book).
-* **Parameters:**
-  - `inst` -- The book or note with recipes to teach (not used directly).
-  - `doer` -- The player teaching (must be same as target and have builder component).
-  - `target` -- The player to teach (must have builder component and be same as doer).
-* **Returns:** nil
-
-### `tool(inst, doer, target, actions, right)`
-* **Description:** Inserts tool-specific actions (e.g., ACTIONS.MINE, ACTIONS.CHOP) based on tool tags and target's action validity; also handles Lunar buildup removal.
-* **Parameters:**
-  - `inst` -- The tool item (e.g., pickaxe, axe, hammer).
-  - `doer` -- The player using the tool (must not be restricted).
-  - `target` -- The entity to act upon (must not be INLIMBO).
-  - `actions` -- Mutable table for actions.
-  - `right` -- Boolean; used for tool action validation via target:IsActionValid(ACTIONS[k], right).
-* **Returns:** nil
-* **Error states:** Returns early for restricted equippable items or INLIMBO targets.
-
-### `tradable(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.GIVE if target is a valid trader and doer is not riding without ownership.
-* **Parameters:**
-  - `inst` -- The tradable item (not used directly in this function body).
-  - `doer` -- The player trading (must not be riding without ownership if target is not grand-owner).
-  - `target` -- The trader entity (must have trader tag, not be player/ghost, and satisfy rider/owner constraints).
-* **Returns:** nil
-* **Error states:** Returns early if target is player/ghost, or if doer is riding without owning target.
-
-### `treegrowthsolution(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.ADVANCE_TREE_GROWTH if target is a valid tree type.
-* **Parameters:**
-  - `inst` -- The tree growth solution item.
-  - `doer` -- The player applying the solution.
-  - `target` -- The tree (must have tree tag and not be monster/fire/burnt/stump/leif/no_force_grow).
-* **Returns:** nil
-
-### `unsaddler(inst, doer, target, actions, right)`
-* **Description:** Inserts ACTIONS.UNSADDLE if target is saddled and action is left-click (right==false).
-* **Parameters:**
-  - `inst` -- The unsaddler tool (e.g., hand).
-  - `doer` -- The player unsaddling.
-  - `target` -- The saddled entity (must have saddled tag).
-  - `actions` -- Mutable table for actions.
-  - `right` -- Boolean; must be false for unsaddler action (i.e., left-click).
-* **Returns:** nil
-
-### `upgrader(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.UPGRADE if inst, doer, and target share matching upgrade type tags.
-* **Parameters:**
-  - `inst` -- The upgrade tool with upgrade type tags (e.g., tech_upgrader).
-  - `doer` -- The player upgrading (must have upgrade user tag, e.g., tech_upgradeuser).
-  - `target` -- The upgradeable entity (must have upgradeable tag, e.g., tech_upgradeable).
-* **Returns:** nil
-
-### `useabletargeteditem(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.USEITEMON if target is valid and mounting is allowed (or item is mounted-enabled).
-* **Parameters:**
-  - `inst` -- The item to use on target (must not be inuse_targeted and satisfy validity function or tag match).
-  - `doer` -- The player using the item (must satisfy mounting constraints).
-  - `target` -- The target entity; must satisfy UseableTargetedItem_ValidTarget or have matching _targeter tag.
-* **Returns:** nil
-* **Error states:** Returns early if item is inuse_targeted, target is invalid, or item does not allow mounted use and doer is riding.
-
-### `vasedecoration(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.DECORATEVASE if target is a vase and doer satisfies rider/ownership constraints.
-* **Parameters:**
-  - `inst` -- The vase decoration item (must have vasedecoration tag).
-  - `doer` -- The player decorating (must not be riding without ownership if target not owned).
-  - `target` -- The vase (must have vase tag and satisfy rider/ownership checks).
-* **Returns:** nil
-* **Error states:** Returns early if doer is riding and does not own target.
-
-### `watersource(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.FILL if target has the fillable tag.
-* **Parameters:**
-  - `inst` -- The water container (e.g., bucket, waterskin).
-  - `doer` -- The player filling the container.
-  - `target` -- The fillable entity (must have fillable tag, e.g., water source).
-* **Returns:** nil
-
-### `wax(inst, doer, target, actions)`
-* **Description:** Inserts ACTIONS.WAX if target is waxable and waxspray needs match between inst and target.
-* **Parameters:**
-  - `inst` -- The wax item (e.g., wax spray or candle).
-  - `doer` -- The player waxing.
-  - `target` -- The entity to wax (must have waxable tag and needswaxspray status must match inst's waxspray tag).
-* **Returns:** nil
-
-### `weapon(inst, doer, target, actions, right)`
-* **Description:** Determines if the held item can be stored in a container (including Chester), constructed on a workbench, or used to attack the target based on tags, container state, and game mode restrictions.
-* **Parameters:**
-  - `inst` -- Entity being used (typically held item)
+  - `inst` -- Entity instance being used
   - `doer` -- Player entity performing the action
   - `target` -- Target entity being interacted with
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click (true) or left-click (false)
+  - `actions` -- Table to insert available actions into
 * **Returns:** nil
+* **Error states:** None
+
+### `batteryuser(inst, doer, target, actions, right)`
+* **Description:** Adds CHARGE_FROM action for right-click if inst is batteryuser and target is battery.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
+* **Returns:** nil
+* **Error states:** None
+
+### `bedazzler(inst, doer, target, actions)`
+* **Description:** Adds BEDAZZLE action if doer is spiderwhisperer, target is bedazzleable spiderden, and target is not already bedazzled.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `boatpatch(inst, doer, target, actions)`
+* **Description:** Adds REPAIR_LEAK action if inst is boat_patch and target has boat_leak tag.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `bottler(inst, doer, target, actions)`
+* **Description:** Adds BOTTLE action if target can be bottled.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `brush(inst, doer, target, actions, right)`
+* **Description:** Adds BRUSH action for left-click if target is brushable.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
+* **Returns:** nil
+* **Error states:** None
+
+### `carnivalgameitem(inst, doer, target, actions, right)`
+* **Description:** Adds CARNIVALGAME_FEED action if target is carnivalgame_feedchicks_nest and can be fed.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
+* **Returns:** nil
+* **Error states:** None
+
+### `cookable(inst, doer, target, actions)`
+* **Description:** Adds COOK action if target is cooker and not fuel depleted; expertchef tag bypasses dangerouscooker.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `constructionplans(inst, doer, target, actions)`
+* **Description:** Adds CONSTRUCT action if inst has plans tag matching target prefab.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `cooker(inst, doer, target, actions)`
+* **Description:** Adds COOK action if inst is not dangerouscooker (or doer is expertchef), target is cookable, inst is not fueldepleted, and target is not fire or catchable.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `deckcontainer(inst, doer, actions, right)`
+* **Description:** Adds DRAW_FROM_DECK action when `right` is true.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
+* **Returns:** nil
+* **Error states:** None
+### `drawingtool(inst, doer, target, actions)`
+* **Description:** Adds DRAW action if target is drawable.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `dryable(inst, doer, target, actions)`
+* **Description:** Adds DRY action if target can dry and inst is dryable and not burnt.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `edible(inst, doer, target, actions, right)`
+* **Description:** Adds FEED, FEEDPLAYER, or ADDCOMPOSTABLE action based on food type, target eater type, and PVP settings.
+* **Parameters:**
+  - `inst` -- Entity instance being used (food item)
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity to feed
+  - `actions` -- Table to insert available actions into
+  - `right` -- Boolean indicating right-click interaction
+* **Returns:** nil
+* **Error states:** None
+
+### `erasablepaper(inst, doer, target, actions)`
+* **Description:** Adds ERASE_PAPER action if target is papereraser and not on fire or burnt.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `fan(inst, doer, target, actions)`
+* **Description:** Adds FAN action unconditionally.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `farmplantable(inst, doer, target, actions)`
+* **Description:** Adds PLANTSOIL action if target is soil and not NOCLICK.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `fertilizer(inst, doer, target, actions)`
+* **Description:** Adds FERTILIZE action based on target growth state or self-fertilization conditions.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `fillable(inst, doer, target, actions)`
+* **Description:** Adds FILL action if target is watersource.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `fishingrod(inst, doer, target, actions)`
+* **Description:** Adds FISH or REEL action based on fishing rod state and target.
+* **Parameters:**
+  - `inst` -- Entity instance being used (fishing rod)
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `forcecompostable(inst, doer, target, actions)`
+* **Description:** Adds ADDCOMPOSTABLE action if target accepts compostable items.
+* **Parameters:**
+  - `inst` -- Entity instance being used
+  - `doer` -- Player entity performing the action
+  - `target` -- Target entity being interacted with
+  - `actions` -- Table to insert available actions into
+* **Returns:** nil
+* **Error states:** None
+
+### `forgerepair(inst, doer, target, actions, right)`
+* **Description:** Determines if forge repair action is valid based on floater state, rider status, heavy lifting, and matching forge material tags.
+* **Parameters:**
+  - `inst` -- The item entity being used
+  - `doer` -- The player entity performing the action
+  - `target` -- The target entity being acted upon
+  - `actions` -- Table to insert valid actions into
+  - `right` -- Boolean indicating right-click action
+* **Returns:** None
+* **Error states:** None
+
+### `fuel(inst, doer, target, actions)`
+* **Description:** Checks if fueling action is valid based on rider status, container ownership, quagmire stewable tags, and matching fuel type tags.
+* **Parameters:**
+  - `inst` -- The fuel item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target entity to be fueled
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `furnituredecor(inst, doer, target, actions)`
+* **Description:** Adds GIVE action if target has furnituredecortaker tag.
+* **Parameters:**
+  - `inst` -- The decoration item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target furniture entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `ghostlyelixir(inst, doer, target, actions)`
+* **Description:** Adds APPLYELIXIR action if target has elixir_drinker tag.
+* **Parameters:**
+  - `inst` -- The elixir item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `gravedigger(inst, doer, target, actions)`
+* **Description:** Adds GRAVEDIG action if target has gravediggable tag and doer has gravedigger_user tag.
+* **Parameters:**
+  - `inst` -- The digging tool entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target grave entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `halloweenpotionmoon(inst, doer, target, actions)`
+* **Description:** Adds HALLOWEENMOONMUTATE action if target does not have DECOR tag.
+* **Parameters:**
+  - `inst` -- The potion item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `healer(inst, doer, target, actions)`
+* **Description:** Adds HEAL action if target health can heal or inst has healerbuffs tag, with rider status checks for both doer and target.
+* **Parameters:**
+  - `inst` -- The healing item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target entity to heal
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `inventoryitem(inst, doer, actions, right)`
+* **Description:** Determines if an inventory item can be picked up based on weight, fire state, creature tags, and container constraints. Only adds ACTIONS.PICKUP.
+* **Parameters:**
+  - `inst` -- The item entity
+  - `doer` -- The player entity performing the action
+  - `actions` -- Table to insert valid actions into
+  - `right` -- Boolean indicating right-click action
+* **Returns:** None
+* **Error states:** None### `itemweigher(inst, doer, target, actions)`
+* **Description:** Adds WEIGH_ITEM action if inst has matching trophyscale tag and target has matching weighable tag with ownership check.
+* **Parameters:**
+  - `inst` -- The trophy item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target weighable entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `key(inst, doer, target, actions)`
+* **Description:** Adds UNLOCK action if target has matching lock tag and inst has matching key tag.
+* **Parameters:**
+  - `inst` -- The key item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target lock entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `klaussackkey(inst, doer, target, actions)`
+* **Description:** Adds USEKLAUSSACKKEY action if target has klaussacklock tag, inst has klaussackkey tag, and rider/ownership conditions are met.
+* **Parameters:**
+  - `inst` -- The klaus sack key entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target klaus sack entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `lighter(inst, doer, target, actions)`
+* **Description:** Adds LIGHT action if target has canlight tag and is not fuel depleted or in limbo.
+* **Parameters:**
+  - `inst` -- The lighter item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target entity to light
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `maprecorder(inst, doer, target, actions)`
+* **Description:** Adds TEACH action if doer equals target and target has player tag.
+* **Parameters:**
+  - `inst` -- The map item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `maxhealer(inst, doer, target, actions)`
+* **Description:** Adds HEAL action if target health can heal, with rider status checks for both doer and target.
+* **Parameters:**
+  - `inst` -- The healing item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target entity to heal
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `moonrelic(inst, doer, target, actions)`
+* **Description:** Adds GIVE action if target has moontrader tag and doer is not riding.
+* **Parameters:**
+  - `inst` -- The moon relic item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target moon trader entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `occupier(inst, doer, target, actions)`
+* **Description:** Adds STORE action if target has matching occupiable tag and inst has matching occupant tag, with rider status check.
+* **Parameters:**
+  - `inst` -- The occupier item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target occupiable entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `oceanfishingrod(inst, doer, target, actions)`
+* **Description:** Adds OCEAN_FISHING_POND action if target has fishable tag.
+* **Parameters:**
+  - `inst` -- The fishing rod entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target fishable entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `plantable(inst, doer, target, actions)`
+* **Description:** Adds PLANT action if target has fertile or fullfertile tag.
+* **Parameters:**
+  - `inst` -- The plantable item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target fertile entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `playbill(inst, doer, target, actions)`
+* **Description:** Adds GIVE action if target has playbill_lecturn tag.
+* **Parameters:**
+  - `inst` -- The playbill item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target lecturn entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `playingcard(inst, doer, target, actions)`
+* **Description:** Adds ADD_CARD_TO_DECK action if target has playingcard or deckcontainer tag.
+* **Parameters:**
+  - `inst` -- The playing card entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target deck entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `pocketwatch(inst, doer, target, actions)`
+* **Description:** Adds CAST_POCKETWATCH action if inst is inactive, doer is caster, target is valid, and rider conditions are met.
+* **Parameters:**
+  - `inst` -- The pocketwatch item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `pocketwatch_dismantler(inst, doer, target, actions)`
+* **Description:** Adds DISMANTLE_POCKETWATCH action if doer has clockmaker tag and target has pocketwatch tag.
+* **Parameters:**
+  - `inst` -- The dismantler tool entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target pocketwatch entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `preservative(inst, doer, target, actions, right)`
+* **Description:** Adds APPLYPRESERVATIVE action on right-click if target has freshness tags, is cookable, and lacks deployable or smallcreature tags.
+* **Parameters:**
+  - `inst` -- The preservative item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target cookable entity
+  - `actions` -- Table to insert valid actions into
+  - `right` -- Boolean indicating right-click action
+* **Returns:** None
+* **Error states:** None
+
+### `pumpkincarver(inst, doer, target, actions)`
+* **Description:** Adds CARVEPUMPKIN action if target has pumpkincarvable or pumpkinhatcarvable component with equippable and floater checks.
+* **Parameters:**
+  - `inst` -- The carving tool entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target pumpkin entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `quagmire_installable(inst, doer, target, actions)`
+* **Description:** Adds INSTALL action if target has installations tag.
+* **Parameters:**
+  - `inst` -- The installable item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target installations entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `quagmire_plantable(inst, doer, target, actions)`
+* **Description:** Adds PLANTSOIL action if target has soil tag.
+* **Parameters:**
+  - `inst` -- The plantable item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target soil entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `quagmire_portalkey(inst, doer, target, actions)`
+* **Description:** Adds GIVE action if target has quagmire_altar tag.
+* **Parameters:**
+  - `inst` -- The portal key entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target quagmire altar entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `quagmire_replatable(inst, doer, target, actions)`
+* **Description:** Adds REPLATE action if target has quagmire_replater tag.
+* **Parameters:**
+  - `inst` -- The replatable item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target replater entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `quagmire_replater(inst, doer, target, actions)`
+* **Description:** Adds REPLATE action if target has quagmire_replatable tag.
+* **Parameters:**
+  - `inst` -- The replater item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target replatable entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `quagmire_salter(inst, doer, target, actions)`
+* **Description:** Adds SALT action if target has quagmire_saltable tag.
+* **Parameters:**
+  - `inst` -- The salter item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target saltable entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `quagmire_saltextractor(inst, doer, target, actions)`
+* **Description:** Adds INSTALL action if target has saltpond tag.
+* **Parameters:**
+  - `inst` -- The salt extractor entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target saltpond entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `quagmire_slaughtertool(inst, doer, target, actions)`
+* **Description:** Adds SLAUGHTER action if target has canbeslaughtered tag and is not dead.
+* **Parameters:**
+  - `inst` -- The slaughter tool entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target slaughterable entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `quagmire_stewable(inst, doer, target, actions)`
+* **Description:** Adds GIVE action if target has quagmire_altar tag.
+* **Parameters:**
+  - `inst` -- The stewable item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target quagmire altar entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `quagmire_stewer(inst, doer, target, actions)`
+* **Description:** Adds GIVE action if target has quagmire_cookwaretrader tag.
+* **Parameters:**
+  - `inst` -- The stewer item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target cookware trader entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `quagmire_tapper(inst, doer, target, actions)`
+* **Description:** Adds TAPTREE action if target has tappable tag and inst lacks fire or burnt tags.
+* **Parameters:**
+  - `inst` -- The tapper item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target tappable entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `recipescanner(inst, doer, target, actions, right)`
+* **Description:** Adds TEACH action if target has valid recipe and is not locked or marked for no deconstruction.
+* **Parameters:**
+  - `inst` -- The scanner item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target scannable entity
+  - `actions` -- Table to insert valid actions into
+  - `right` -- Boolean indicating right-click action
+* **Returns:** None
+* **Error states:** None
+
+### `repairer(inst, doer, target, actions, right)`
+* **Description:** Adds REPAIR action on right-click based on matching material tags for work, health, freshen, or finiteuses repair types.
+* **Parameters:**
+  - `inst` -- The repair tool entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target repairable entity
+  - `actions` -- Table to insert valid actions into
+  - `right` -- Boolean indicating right-click action
+* **Returns:** None
+* **Error states:** None
+
+### `saddler(inst, doer, target, actions)`
+* **Description:** Adds SADDLE action if target has saddleable tag and lacks dogrider_only tag.
+* **Parameters:**
+  - `inst` -- The saddle item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target saddleable entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `sewing(inst, doer, target, actions)`
+* **Description:** Adds SEW action if target has needssewing tag and rider/ownership conditions are met.
+* **Parameters:**
+  - `inst` -- The sewing kit entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target entity needing sewing
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `shaver(inst, doer, target, actions)`
+* **Description:** Adds SHAVE action for bearded targets or PEEKBUNDLE for unwrappable targets with fire/smolder checks.
+* **Parameters:**
+  - `inst` -- The razor/shaver entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target bearded or bundle entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `sleepingbag(inst, doer, actions)`
+* **Description:** Adds SLEEPIN action if doer is a player without insomniac tag, inst is not already occupied (hassleeper), and spiderden restrictions are satisfied (either inst is not a spiderden or doer has spiderwhisperer tag).
+* **Parameters:**
+  - `inst` -- The sleeping bag entity
+  - `doer` -- The player entity performing the action
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+### `smotherer(inst, doer, target, actions)`
+* **Description:** Adds SMOTHER action for smoldering targets or MANUALEXTINGUISH for fire targets if inst is frozen.
+* **Parameters:**
+  - `inst` -- The smothering item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target smoldering or fire entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `snowmandecor(inst, doer, target, actions)`
+* **Description:** Adds DECORATESNOWMAN action if target has snowmandecoratable component, heavy tag, and lacks waxedplant tag with heavy lifting check.
+* **Parameters:**
+  - `inst` -- The decoration item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target snowman entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `snowmandecoratable(inst, doer, actions, right)`
+* **Description:** Adds DECORATESNOWMAN action on right-click if inst lacks waxedplant tag, doer is heavy lifting, and equipped body item has snowmandecoratable component (for stacking large snowballs).
+* **Parameters:**
+  - `inst` -- The snowball entity
+  - `doer` -- The player entity performing the action
+  - `actions` -- Table to insert valid actions into
+  - `right` -- Boolean indicating right-click action
+* **Returns:** None
+* **Error states:** None
+### `soul(inst, doer, target, actions)`
+* **Description:** Adds EAT action if doer equals target and target has souleater tag.
+* **Parameters:**
+  - `inst` -- The soul item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target souleater entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `spidermutator(inst, doer, target, actions)`
+* **Description:** Adds MUTATE_SPIDER action if target has spider tag and is not dead.
+* **Parameters:**
+  - `inst` -- The mutator item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target spider entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `stackable(inst, doer, target, actions)`
+* **Description:** Adds COMBINESTACK action if target stackable is not full, can stack with inst, and is not held.
+* **Parameters:**
+  - `inst` -- The stackable item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target stack entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `summoningitem(inst, doer, target, actions, right)`
+* **Description:** Adds CASTUNSUMMON action if target is not in limbo, is follower of doer, doer has ghostfriend_summoned tag, and target is abigail.
+* **Parameters:**
+  - `inst` -- The summoning item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target abigail entity
+  - `actions` -- Table to insert valid actions into
+  - `right` -- Boolean indicating right-click action
+* **Returns:** None
+* **Error states:** None
+
+### `tacklesketch(inst, doer, target, actions)`
+* **Description:** Adds GIVE_TACKLESKETCH action if target has tacklestation tag and lacks fire or smolder tags.
+* **Parameters:**
+  - `inst` -- The tackle sketch entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target tacklestation entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `teacher(inst, doer, target, actions)`
+* **Description:** Adds TEACH action if doer equals target and target has builder component.
+* **Parameters:**
+  - `inst` -- The teaching item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `tool(inst, doer, target, actions, right)`
+* **Description:** Adds REMOVELUNARBUILDUP or matching tool actions based on target tags and tool action validity.
+* **Parameters:**
+  - `inst` -- The tool entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target entity
+  - `actions` -- Table to insert valid actions into
+  - `right` -- Boolean indicating right-click action
+* **Returns:** None
+* **Error states:** None
+
+### `tradable(inst, doer, target, actions, right)`
+* **Description:** Adds GIVE action if target has trader tag and is not player/ghost/possessedbody with rider/ownership checks.
+* **Parameters:**
+  - `inst` -- The tradable item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target trader entity
+  - `actions` -- Table to insert valid actions into
+  - `right` -- Boolean indicating right-click action
+* **Returns:** None
+* **Error states:** None
+
+### `treegrowthsolution(inst, doer, target, actions)`
+* **Description:** Adds ADVANCE_TREE_GROWTH action if target is tree without monster, fire, burnt, stump, leif, or no_force_grow tags.
+* **Parameters:**
+  - `inst` -- The tree growth solution entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target tree entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `unsaddler(inst, doer, target, actions, right)`
+* **Description:** Adds UNSADDLE action if not right-click and target has saddled tag.
+* **Parameters:**
+  - `inst` -- The unsaddle tool entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target saddled entity
+  - `actions` -- Table to insert valid actions into
+  - `right` -- Boolean indicating right-click action
+* **Returns:** None
+* **Error states:** None
+
+### `upgrader(inst, doer, target, actions)`
+* **Description:** Adds UPGRADE action if matching upgrade type tags exist on inst, doer, and target.
+* **Parameters:**
+  - `inst` -- The upgrader item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target upgradeable entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `useabletargeteditem(inst, doer, target, actions)`
+* **Description:** Adds USEITEMON action if target is valid per UseableTargetedItem_ValidTarget or prefab targeter tag, with mounted usage check.
+* **Parameters:**
+  - `inst` -- The useable targeted item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `vasedecoration(inst, doer, target, actions)`
+* **Description:** Adds DECORATEVASE action if target has vase tag, inst has vasedecoration tag, and rider/ownership conditions are met.
+* **Parameters:**
+  - `inst` -- The vase decoration item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target vase entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `watersource(inst, doer, target, actions)`
+* **Description:** Adds FILL action if target has fillable tag.
+* **Parameters:**
+  - `inst` -- The water source item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target fillable entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `wax(inst, doer, target, actions)`
+* **Description:** Adds WAX action if target has waxable tag and needswaxspray/waxspray tag states match.
+* **Parameters:**
+  - `inst` -- The wax item entity
+  - `doer` -- The player entity performing the action
+  - `target` -- The target waxable entity
+  - `actions` -- Table to insert valid actions into
+* **Returns:** None
+* **Error states:** None
+
+### `weapon(inst, doer, target, actions, right)`
+* **Description:** Determines valid actions for weapon items, including storing in containers, attacking, or bundling based on target tags and rider state.
+* **Parameters:**
+  - `inst` -- The item entity being used.
+  - `doer` -- The player entity performing the action.
+  - `target` -- The target entity being interacted with.
+  - `actions` -- Table to insert valid actions into.
+  - `right` -- Boolean indicating right-click context.
+* **Returns:** None
+* **Error states:** None
 
 ### `weighable(inst, doer, target, actions)`
-* **Description:** Adds COMPILE_WEIGHABLE or WEIGH_ITEM action if the target is a weighable structure or owned item matching a trophy scale type.
+* **Description:** Checks for trophy scale tags to allow weighing actions on structures or owned inventory items.
 * **Parameters:**
-  - `inst` -- Entity being used (typically trophy scale part)
-  - `doer` -- Player entity performing the action
-  - `target` -- Target entity being weighed (structure or item)
-  - `actions` -- Mutable array of BufferedAction objects being populated
-* **Returns:** nil
-* **Error states:** Returns early after first match; ignores burnt structures.
+  - `inst` -- The item entity being used.
+  - `doer` -- The player entity performing the action.
+  - `target` -- The target entity being interacted with.
+  - `actions` -- Table to insert valid actions into.
+* **Returns:** None
+* **Error states:** None
 
 ### `winter_treeseed(inst, doer, target, actions)`
-* **Description:** Adds PLANT action if target is a winter tree stand and not currently on fire.
+* **Description:** Allows planting action if target is a winter tree stand and not burning.
 * **Parameters:**
-  - `inst` -- Entity being used (winter tree seed)
-  - `doer` -- Player entity performing the action
-  - `target` -- Target entity (winter tree stand)
-  - `actions` -- Mutable array of BufferedAction objects being populated
-* **Returns:** nil
-
-### `aoespell(inst, doer, pos, actions, right, target)`
-* **Description:** Adds CASTAOE action for right-click on valid AOE locations, respecting targeting state, riding, and map constraints.
-* **Parameters:**
-  - `inst` -- Entity being used (AOE spell item)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked (not used directly here)
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click (true) or left-click (false)
-  - `target` -- Unused in this handler
-* **Returns:** nil
-* **Error states:** Early return if already AOETargeting, no active item in inventory, or positioning invalid.
-
-### `blinkstaff(inst, doer, pos, actions, right, target)`
-* **Description:** Adds BLINK action for valid teleport points (above ground or platform, unblocked, not steering/rotating).
-* **Parameters:**
-  - `inst` -- Entity being used (blink staff)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-* **Error states:** Early return if not right-click, position blocked, or boat control active.
-
-### `complexprojectile(inst, doer, pos, actions, right, target)`
-* **Description:** Adds TOSS action for right-click if valid for tossing, respecting ocean, blocked ground, boat control, and restrictions.
-* **Parameters:**
-  - `inst` -- Entity being used (complex projectile)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-* **Error states:** Early return if right-click false, blocked, restricted, or deployable.
-
-### `deployable(inst, doer, pos, actions, right, target)`
-* **Description:** Adds DEPLOY, DEPLOY_TILEARRIVE, or DEPLOY_FLOATING actions based on deployment validity and item tags.
-* **Parameters:**
-  - `inst` -- Entity being used (deployable item)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-* **Error states:** Early return if not right-click, no inventoryitem, or CanDeploy fails.
-
-### `farmtiller(inst, doer, pos, actions, right, target)`
-* **Description:** Adds TILL action for right-click if soil at position is tinnable.
-* **Parameters:**
-  - `inst` -- Entity being used (tiller)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-
-### `fillable(inst, doer, pos, actions, right, target)`
-* **Description:** Adds FILL_OCEAN action if item has tag fillable_showoceanaction and position is ocean.
-* **Parameters:**
-  - `inst` -- Entity being used (fillable item)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-
-### `fishingnet(inst, doer, pos, actions, right, target)`
-* **Description:** Adds CAST_NET action if right-click and fishing net can be cast at position.
-* **Parameters:**
-  - `inst` -- Entity being used (fishing net)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-
-### `fishingrod(inst, doer, pos, actions, right, target)`
-* **Description:** Adds FISH_OCEAN action for right-click if fishing is possible at position.
-* **Parameters:**
-  - `inst` -- Entity being used (fishing rod)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-
-### `joustsource(inst, doer, pos, actions, right, target)`
-* **Description:** Adds JOUST action if right-click, not riding, and position is above ground.
-* **Parameters:**
-  - `inst` -- Entity being used (joust source)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-
-### `inventoryitem(inst, doer, pos, actions, right, target)`
-* **Description:** Adds DROP action for left-click if item is held, not prevented from unequipping, and not floater-held.
-* **Parameters:**
-  - `inst` -- Entity being used (inventory item)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-
-### `oar(inst, doer, pos, actions, right, target)`
-* **Description:** Calls Row() if right-click and no override, allowing rowing at position.
-* **Parameters:**
-  - `inst` -- Entity being used (oar)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-
-### `oceanfishingrod(inst, doer, pos, actions, right, target)`
-* **Description:** Handles ocean fishing rod actions: casting (OCEAN_FISHING_CAST) if no target, or applying GetFishingAction (REEL, etc.) if target exists.
-* **Parameters:**
-  - `inst` -- Entity being used (ocean fishing rod)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-
-### `oceanthrowable(inst, doer, pos, actions, right, target)`
-* **Description:** Adds OCEAN_TOSS action for right-click if ocean at position.
-* **Parameters:**
-  - `inst` -- Entity being used (ocean throwable)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-
-### `quagmire_tiller(inst, doer, pos, actions, right, target)`
-* **Description:** Adds TILL action for right-click if soil at position can be tilled.
-* **Parameters:**
-  - `inst` -- Entity being used (quagmire tiller)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-
-### `spellcaster(inst, doer, pos, actions, right, target)`
-* **Description:** Adds CASTSPELL action for right-click on valid target locations (above ground or ocean) based on spellcaster tags and constraints.
-* **Parameters:**
-  - `inst` -- Entity being used (spellcaster item)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-
-### `terraformer(inst, doer, pos, actions, right, target)`
-* **Description:** Adds TERRAFORM action for right-click if terrain modification (plow or general) is allowed at position.
-* **Parameters:**
-  - `inst` -- Entity being used (terraformer item)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-
-### `wateryprotection(inst, doer, pos, actions, right, target)`
-* **Description:** Adds POUR_WATER_GROUNDTILE action for right-click if tile is FARMING_SOIL.
-* **Parameters:**
-  - `inst` -- Entity being used (watery protection item)
-  - `doer` -- Player entity performing the action
-  - `pos` -- World position where action is invoked
-  - `actions` -- Mutable array of BufferedAction objects being populated
-  - `right` -- Boolean indicating right-click
-  - `target` -- Unused
-* **Returns:** nil
-
-### `RemapComponentActions()`
-* **Description:** Maps component names to numeric IDs for network efficiency by iterating over COMPONENT_ACTIONS.
-* **Parameters:** None
-* **Returns:** nil
-* **Error states:** Assertion fails if more than 255 unique components.
+  - `inst` -- The item entity being used.
+  - `doer` -- The player entity performing the action.
+  - `target` -- The target entity being interacted with.
+  - `actions` -- Table to insert valid actions into.
+* **Returns:** None
+* **Error states:** None
 
 ### `AddComponentAction(actiontype, component, fn, modname)`
-* **Description:** Registers a mod-provided component action handler, maintaining separate per-mod registries.
+* **Description:** Registers a new component action for mods, creating mod-specific lookup tables if needed.
 * **Parameters:**
-  - `actiontype` -- The action type key (e.g., 'INVENTORY', 'WEAPON')
-  - `component` -- The component name
-  - `fn` -- The callback function
-  - `modname` -- The mod identifier
-* **Returns:** nil
+  - `actiontype` -- string action type category (e.g., INVENTORY, ISVALID)
+  - `component` -- string component name to register action for
+  - `fn` -- function callback that determines action availability
+  - `modname` -- string name of the mod registering this action
+* **Returns:** None
+* **Error states:** None
 
 ### `EntityScript:RegisterComponentActions(name)`
-* **Description:** Registers a component's ID into the entity's actioncomponents and modactioncomponents arrays.
+* **Description:** Registers component actions on an entity by adding action component IDs to self.actioncomponents and syncing with actionreplica. Also handles mod-specific action components.
 * **Parameters:**
-  - `name` -- The component name to register
-* **Returns:** nil
+  - `name` -- string component action name to register on this entity
+* **Returns:** None
+* **Error states:** None
 
 ### `EntityScript:UnregisterComponentActions(name)`
-* **Description:** Removes a component's ID from the entity's actioncomponents and modactioncomponents arrays.
+* **Description:** Removes a component action from the entity's action component list by name. Also handles mod action components and updates the action replica network state if present.
 * **Parameters:**
-  - `name` -- The component name to unregister
+  - `name` -- string - The name of the component action to unregister from the entity
 * **Returns:** nil
-
-### `CollectActions(actiontype, ...)`
-* **Description:** Iterates over the entity's action components (both built-in and modded), retrieves the corresponding collector function for the given action type, and invokes it. Handles fallbacks for modded components via CheckModComponentActions and CheckModComponentNames.
+* **Error states:** None
+### `EntityScript:CollectActions(actiontype, ...)`
+* **Description:** Collects actions for a given action type by iterating through registered action components and calling their collector functions. Also processes mod action components if present.
 * **Parameters:**
-  - `actiontype` -- string identifier of the action type (e.g., "GATHER", "ATTACK") to collect components for; must exist in COMPONENT_ACTIONS
-  - `...` -- variable arguments passed through to each collected collector function
+  - `actiontype` -- string - The type of action to collect collectors for
+  - `...` -- vararg - Additional arguments passed to action collector functions
 * **Returns:** nil
-* **Error states:** Prints an error and returns early if actiontype is not found in COMPONENT_ACTIONS.
-
-### `IsActionValid(action, right)`
-* **Description:** Determines if the given action is valid for this entity by checking rmb constraints and delegating to ISVALID validators registered in both built-in and modded action components. Returns true on first match.
+* **Error states:** Prints error message to console and returns early if actiontype doesn't exist in COMPONENT_ACTIONS table (function exits immediately after print)
+### `EntityScript:IsActionValid(action, right)`
+* **Description:** Validates if an action is valid by checking action.rmb flag against right parameter and iterating through action component validators. Returns true if any validator approves the action.
 * **Parameters:**
-  - `action` -- Action table with at least an rmb boolean field (right mouse button requirement)
-  - `right` -- boolean indicating whether the action was triggered via right mouse button
-* **Returns:** boolean — true if any component's ISVALID validator returns true, otherwise false.
-* **Error states:** Returns false if no validators match or if modded component lookups fail.
-
-### `HasActionComponent(name)`
-* **Description:** Checks whether the entity possesses a given action component by ID, first in the built-in list (actioncomponents) and then in modded lists (modactioncomponents).
+  - `action` -- table - The action object to validate
+  - `right` -- boolean - Whether this is a right-mouse-button action context
+* **Returns:** boolean - true if action is valid, false otherwise
+* **Error states:** None
+### `EntityScript:HasActionComponent(name)`
+* **Description:** Checks if the entity has a specific action component registered by name. Searches both standard action components and mod action components.
 * **Parameters:**
-  - `name` -- string name of the action component (e.g., "inventory", "melee") to check for presence
-* **Returns:** boolean — true if the component is present, otherwise false.
-* **Error states:** Returns false if the component name is unrecognized (id is nil) or not found in either list.
-
+  - `name` -- string - The name of the component to check for registration
+* **Returns:** boolean - true if component is found, false otherwise
+* **Error states:** None
 ## Events & listeners
-
-- **Listens to:** None
-- **Pushes:** None
+None identified.

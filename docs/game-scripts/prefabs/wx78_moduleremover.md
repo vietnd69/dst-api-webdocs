@@ -1,49 +1,65 @@
 ---
 id: wx78_moduleremover
 title: Wx78 Moduleremover
-description: A consumable inventory item that removes upgrade modules from WX78 components.
-tags: [inventory, item, upgrade, wx78]
+description: Prefab for the WX-78 Module Remover item, allowing removal of installed system modules.
+tags: [prefab, item, wx78, upgrade]
 sidebar_position: 10
-
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-26
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 9f3b2ff3
+source_hash: 6ed7c1c8
 system_scope: inventory
 ---
 
 # Wx78 Moduleremover
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-26
 
 ## Overview
-The `wx78_moduleremover` prefab is a reusable inventory item used to remove installed upgrade modules from WX78 chassis components (e.g., WX78's battery, laser, or thruster modules). It is implemented as a self-contained prefab with built-in physics, animation, and network synchronization. It integrates with DST's upgrade module removal system via the `upgrademoduleremover` component and supports in-world floating, lighting, and burning properties.
+`wx78_moduleremover.lua` registers a spawnable inventory item entity used by the WX-78 character. The prefab's `fn()` constructor builds the physics body and attaches client-side components; server-side logic within the same function attaches gameplay components (inspectable, inventoryitem, upgrademoduleremover). The prefab is referenced by its name `"wx78_moduleremover"` and instantiated with `SpawnPrefab("wx78_moduleremover")`.
 
 ## Usage example
 ```lua
+-- Spawn at world origin:
 local inst = SpawnPrefab("wx78_moduleremover")
-if inst then
-    -- Equip into a character's inventory
-    inst.Transform:SetPos(entity.Transform:GetWorldPosition())
-    inst.components.inventoryitem:RemoveFromInventory()
-    entity.components.inventoryitem:AddItem(inst)
+inst.Transform:SetPosition(0, 0, 0)
 
-    -- Remove a module (typically triggered by UI interaction)
-    -- The actual removal logic is handled by the upgrademoduleremover component
-    -- when used via the upgrade module UI workflow
+-- Reference assets at load time:
+local assets = {
+    Asset("ANIM", "anim/wx78_moduleremover.zip"),
+}
+
+-- Verify component attachment on server:
+if TheWorld.ismastersim then
+    assert(inst.components.upgrademoduleremover ~= nil)
 end
 ```
 
 ## Dependencies & tags
-**Components used:** `inventoryitem`, `inspectable`, `upgrademoduleremover`
-**Tags:** None identified.
+**External dependencies:**
+- None identified
+
+**Components used:**
+- `inspectable` -- allows players to examine the item
+- `inventoryitem` -- enables carrying in inventory slots
+- `upgrademoduleremover` -- specific logic for removing WX-78 modules
+
+**Tags:**
+- None identified
 
 ## Properties
-No public properties.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `assets` | table | --- | Array of `Asset(...)` entries listing animation files loaded with this prefab. |
 
 ## Main functions
-Not applicable. This is a prefab definition, not a standalone component class. The logic resides in the `fn()` function, which instantiates and configures the entity.
+### `fn()`
+*   **Description:** Prefab constructor executed on both client and server. Sets up Transform, AnimState, and Network entities. Configures animation bank/build and plays idle animation. Applies inventory physics and floatable behavior. Sets inst.scrapbook_specialinfo = "WX78MODULEREMOVER" for scrapbook tracking. On the master simulation (`TheWorld.ismastersim`), attaches gameplay components (inspectable, inventoryitem, upgrademoduleremover) and applies burnable behavior via MakeSmallBurnable with TUNING.SMALL_BURNTIME, small propagator behavior (spreads fire) via MakeSmallPropagator, and hauntable launch behavior (ghosts can spawn it) via MakeHauntableLaunch. Returns `inst` to the prefab system.
+*   **Parameters:** None
+*   **Returns:** entity instance
+*   **Error states:** Errors if `CreateEntity()` fails to allocate an entity slot (no nil guard before entity member access).
 
 ## Events & listeners
-Not applicable. The prefab relies on external components (`upgrademoduleremover`, `inventoryitem`) to handle event-driven behavior; no event listeners are registered directly in this file.
+- **Listens to:** None identified.
+- **Pushes:** None identified.

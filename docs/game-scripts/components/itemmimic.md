@@ -1,81 +1,107 @@
 ---
 id: itemmimic
-title: Itemmimic
-description: Manages the transformation of an item mimic from an inert object into a hostile entity upon player interaction or time-based triggers.
-tags: [decoration, enemy, transformation, inventory]
+title: ItemMimic
+description: Manages deceptive inventory items that transform into hostile entities when players interact with them in specific ways.
+tags: [deception, transformation, inventory]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-21
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: 9a4d1975
+source_hash: c2c3b4da
 system_scope: entity
 ---
 
-# Itemmimic
+# ItemMimic
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-21
 
 ## Overview
-`ItemMimic` implements the core logic for the item mimic entity — a deceptive decorative item that remains inert for a random duration after spawn, then transforms into the hostile prefab `itemmimic_revealed` upon triggering events. It coordinates event listening, time-based auto-reveal mechanics, and reaction to player actions (e.g., equip/unequip, attack, work, interact) depending on the item's equipment slot. It interacts with the `equippable`, `inventory`, `inventoryitem`, `sanity`, and `talker` components to manage state transitions and consequences.
+`ItemMimic` attaches to inventory items that disguise themselves as harmless objects until triggered by player interaction. The component monitors various player actions including equipping, attacking, working, and taking damage to determine when the mimic should reveal its true hostile form. It integrates with the inventory, equippable, and sanity systems to create a deceptive gameplay mechanic.
 
 ## Usage example
 ```lua
-local inst = Prefab("mimic_chest")
+local inst = CreateEntity()
 inst:AddComponent("itemmimic")
-inst:AddComponent("equippable")
-inst.components.equippable.equipslot = EQUIPSLOTS.HANDS
-inst:AddTag("item")
+inst:AddComponent("inventoryitem")
+inst.components.itemmimic:SetNoLoot(true)
+-- The mimic will auto-reveal after TUNING.ITEMMIMIC_AUTO_REVEAL_BASE seconds
+-- or when a player performs certain actions with it
 ```
 
 ## Dependencies & tags
-**Components used:** `equippable`, `inventory`, `inventoryitem`, `sanity`, `talker`  
-**Tags:** None added/removed directly; relies on external tags (e.g., `item`, ` wearable` via other components).
+**Components used:**
+- `equippable` -- checks equipslot to determine which owner events to listen for
+- `inventoryitem` -- retrieves grand owner via GetGrandOwner() for event routing
+- `inventory` -- drops item from owner's inventory on reveal
+- `container` -- alternative container check for dropping item on reveal
+- `sanity` -- applies sanity drain to target when revealed (via DoDelta)
+- `talker` -- displays action fail message to owner before reveal
+
+**Tags:**
+- None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `_auto_reveal_task` | Task or `nil` | `Task` (scheduled on construction) | Cancelable task handle for the scheduled auto-reveal delay; used during `LongUpdate` to reschedule. |
+| `inst` | Entity | `nil` | The entity instance that owns this component. |
+| `noloot` | boolean | `nil` | When true, the revealed form drops no loot. |
+| `_auto_reveal_task` | Task | `nil` | Scheduled task for automatic reveal after timeout. |
+| `_on_interacted_with` | Function | `nil` | Callback for machine interaction events. |
+| `_on_do_attack` | Function | `nil` | Callback triggered when owner attacks another entity. |
+| `_on_do_work` | Function | `nil` | Callback triggered when owner performs work actions. |
+| `_on_owner_attacked` | Function | `nil` | Callback triggered when owner is attacked or blocked. |
+| `_perform_action_listener` | Function | `nil` | Callback for monitoring owner's performaction events. |
 
 ## Main functions
 ### `TurnEvil(target)`
-*   **Description:** Transforms the mimic into `itemmimic_revealed`, drops it if held in an inventory/container, faces the target, triggers a "jump" event toward the target, and applies minor sanity damage. If `target` has a `talker` component, it prevents speech during reveal.
-*   **Parameters:** `target` (Entity or `nil`) — the entity responsible for triggering the transformation (e.g., the player who attacked or interacted with the item).
-*   **Returns:** Nothing.
-*   **Error states:** No explicit error states; safely handles `nil` or invalid targets.
+* **Description:** Transforms the mimic into its revealed hostile form. Drops the item from owner's inventory (if owner has inventory or container component), replaces the prefab with "itemmimic_revealed", startles the target (if target is valid with sg component), and drains sanity by TUNING.SANITY_SMALL (if target has sanity component and game mode allows sanity). Sets noloot flag on revealed form if configured.
+* **Parameters:** `target` -- Entity that triggered the reveal (typically a player or mob).
+* **Returns:** None
+* **Error states:** None
+
+### `SetNoLoot(noloot)`
+* **Description:** Sets whether the revealed mimic form should drop loot when destroyed.
+* **Parameters:** `noloot` -- Boolean value to enable or disable loot drops.
+* **Returns:** None
+* **Error states:** None
 
 ### `LongUpdate(dt)`
-*   **Description:** Updates the remaining time on the auto-reveal timer. This is called each frame and ensures accurate rescheduling of the reveal task across frame deltas (e.g., after loading or pauses).
-*   **Parameters:** `dt` (number) — delta time in seconds since the last frame.
-*   **Returns:** Nothing.
-*   **Error states:** Returns early if `_auto_reveal_task` is `nil`.
-
-### `GetDebugString()`
-*   **Description:** Returns a string for debugging or UI overlays indicating how much time remains before auto-reveal, or whether no reveal is pending.
-*   **Parameters:** None.
-*   **Returns:** String — e.g., `"AUTO REVEAL IN: 3.12"` or `"NO AUTO REVEAL PENDING (?)"`.
+* **Description:** Updates the auto-reveal timer during long update cycles. Cancels and reschedules the reveal task to account for frame time, or triggers reveal if time has expired.
+* **Parameters:** `dt` -- Delta time in seconds since last update.
+* **Returns:** None
+* **Error states:** None
 
 ### `OnSave()`
-*   **Description:** Serializes the current state for save/load. Includes whether the auto-reveal task is pending and, if so, its remaining time.
-*   **Parameters:** None.
-*   **Returns:** Table — `{ add_component_if_missing = true, reveal_time_remaining = number? }`.
+* **Description:** Serializes component state for save games. Includes noloot flag and remaining auto-reveal time if a reveal task is pending.
+* **Parameters:** None
+* **Returns:** Table containing `add_component_if_missing`, `noloot`, and optionally `reveal_time_remaining`.
+* **Error states:** None
 
 ### `OnLoad(data)`
-*   **Description:** Restores the auto-reveal task using the saved `reveal_time_remaining` if present.
-*   **Parameters:** `data` (table or `nil`) — saved state data.
-*   **Returns:** Nothing.
+* **Description:** Restores component state from saved data. Re-schedules the auto-reveal task with remaining time if present in save data.
+* **Parameters:** `data` -- Table containing saved component state from OnSave().
+* **Returns:** None
+* **Error states:** Errors if `data.reveal_time_remaining` is invalid when passed to `DoTaskInTime`.
+
+### `GetDebugString()`
+* **Description:** Returns a debug string showing the status of the auto-reveal timer for console inspection.
+* **Parameters:** None
+* **Returns:** String describing auto-reveal status and remaining time.
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:**
-  - `machineturnedon`, `machineturnedoff`, `percentusedchange` — triggers delayed transformation on interaction (e.g., light sources).
-  - `equipped`, `unequipped` — registers slot-specific listeners for hands/head/body items to react to actions like `working` or `onattackother`.
-  - `onputininventory` — begins listening for `performaction` and schedules auto-reveal if unequippable.
-  - `ondropped` — removes the `performaction` listener.
-- **Pushes:** Does not push events directly. Transformation is handled via `ReplacePrefab`, which triggers the `jump` event on the new instance, and `startled` event on the target. Sanity loss is applied via `Sanity.DoDelta`.
-
-## Additional Notes
-- The auto-reveal delay is calculated as `TUNING.ITEMMIMIC_AUTO_REVEAL_BASE + math.random() * TUNING.ITEMMIMIC_AUTO_REVEAL_RAND`.
-- Acceptable actions that *do not* trigger reveal include: `EQUIP`, `UNEQUIP`, `DROP`, `PICKUP`.
-- The component integrates with `equippable.equipslot` to dynamically adjust event subscriptions on equip/unequip.
-- On reveal, the mimic is replaced *in-place* using `ReplacePrefab`; existing component references remain valid on the new entity.
+- **Listens to:** `machineturnedon` -- triggers interacted_with redirect on self
+- **Listens to:** `machineturnedoff` -- triggers interacted_with redirect on self
+- **Listens to:** `percentusedchange` -- triggers interacted_with redirect on self
+- **Listens to:** `equipped` -- registers owner event listeners based on equip slot
+- **Listens to:** `unequipped` -- removes owner event listeners based on equip slot
+- **Listens to:** `onputininventory` -- registers performaction listener on owner, schedules auto-reveal
+- **Listens to:** `ondropped` -- removes performaction listener from owner
+- **Listens to:** `working` (on owner) -- triggers reveal after 5 frames for HANDS slot items
+- **Listens to:** `onattackother` (on owner) -- triggers reveal after 5 frames for HANDS slot items
+- **Listens to:** `attacked` (on owner) -- triggers reveal after 5 frames for HEAD/BODY slot items
+- **Listens to:** `blocked` (on owner) -- triggers reveal after 5 frames for HEAD/BODY slot items
+- **Listens to:** `performaction` (on owner) -- triggers reveal on non-acceptable actions
+- **Pushes:** `jump` -- fired on revealed entity with target as data
+- **Pushes:** `startled` -- fired on target entity when revealed

@@ -5,11 +5,11 @@ description: A placeholder component with no functional implementation in the pr
 tags: [stub]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-21
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: f55a82d1
+source_hash: 52c079a4
 system_scope: entity
 ---
 

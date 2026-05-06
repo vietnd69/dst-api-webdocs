@@ -1,63 +1,99 @@
 ---
 id: preparedfoods_warly
 title: Preparedfoods Warly
-description: Defines special cooked food recipes for Warly's portable cookpot that grant unique or unusual effects when consumed.
-tags: [cooking, food, effects, warly]
+description: A data configuration file defining Warly's exclusive prepared food recipes with cooking requirements, nutritional values, and consumption effects.
+tags: [cooking, food, warly, recipes, config]
 sidebar_position: 10
-
-last_updated: 2026-03-10
-build_version: 714014
+last_updated: 2026-04-22
+build_version: 722832
 change_status: stable
 category_type: root
-source_hash: 53333f4b
-system_scope: crafting
+source_hash: eb9eb19d
+system_scope: inventory
 ---
 
 # Preparedfoods Warly
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **722832** | Last updated: 2026-04-22
 
 ## Overview
-`preparedfoods_warly.lua` defines a table of special prepared food recipes intended for use with Warly's portable cookpot. Each entry specifies validation criteria (`test` function), nutritional stats (`health`, `hunger`, `sanity`, `perishtime`), and optional consumption-side effects (`oneatenfn`). Effects include swapping health and sanity (e.g., `nightmarepie`), granting debuffs (`voltgoatjelly`, `frogfishbowl`), spawning permanent light sources (`glowberrymousse`), and modifying body temperature (`dragonchilisalad`, `gazpacho`). These foods are designated with the `"masterfood"` tag and are made accessible through the `"portablecookpot"` cookbook category.
+`preparedfoods_warly.lua` defines a static table of food recipes exclusive to Warly's Portable Cookpot. Each entry specifies ingredient requirements via a test function, nutritional values (health, hunger, sanity), perish time, cooking duration, and optional consumption effects through `oneatenfn` callbacks. This is a configuration source file — it is not a component and does not attach to entities; it is required by the cooking system to validate and construct prepared food items.
 
 ## Usage example
 ```lua
--- Sample usage: add to a pot recipe system
-local preparedfoods = require("prepreparedfoods_warly")
-for name, data in pairs(preparedfoods) do
-    -- Typically registered in a larger cooking table or validated via data.test()
-    print("Food:", name, "Priority:", data.priority)
-end
+local PreparedFoodsWarly = require "preparedfoods_warly"
+-- Access a food recipe by its key name
+local nightmarepie = PreparedFoodsWarly.nightmarepie
+print(nightmarepie.name)           -- "nightmarepie"
+print(nightmarepie.health)         -- TUNING.HEALING_TINY
+print(nightmarepie.priority)       -- 30
+print(nightmarepie.cookbook_category) -- "portablecookpot"
+-- Check if ingredients match the recipe
+local matches = nightmarepie.test(cooker, names, tags)
 ```
 
 ## Dependencies & tags
-**Components used:** `health`, `sanity`, `spell`, `oldager`  
-**Tags added per food:** `"masterfood"`, `"unsafefood"` (nightmarepie only), `"monstermeat"` (monstertartare only), `"fooddrink"` (gazpacho only). Individual foods may specify `"primaryfood"` or `"secondaryfoodtype"` based on `foodtype` and `secondaryfoodtype`.
+**External dependencies:**
+- `TUNING` -- global balance constants for healing, calories, sanity, perish times, temperatures
+- `STRINGS` -- localization strings for food effect descriptions
+- `FOODTYPE` -- food type enumeration (VEGGIE, MEAT, GOODIES, MONSTER)
+
+**Components used:**
+- `health` -- accessed in oneatenfn for DoDelta, GetPercent, currenthealth, maxhealth
+- `sanity` -- accessed in oneatenfn for DoDelta, GetPercent, current, max
+- `oldager` -- checked for nil in nightmarepie oneatenfn
+- `spell` -- accessed in glowberrymousse oneatenfn for OnFinish, ResumeSpell, SetTarget, StartSpell, lifetime, target
+
+**Tags:**
+- `masterfood` -- added to most food entries
+- `unsafefood` -- added to nightmarepie
+- `monstermeat` -- added to monstertartare
+- `fooddrink` -- added to gazpacho
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `name` | string | Recipe key (`k`) | Internal recipe identifier assigned at runtime. |
-| `weight` | number | `1` | Relative weighting for random selection (used by the cooking system). |
-| `priority` | number | `0` | Higher-priority recipes take precedence during conflict resolution. |
-| `foodtype` | FOODTYPE enum | Required | Classification (e.g., `VEGGIE`, `MEAT`, `GOODIES`). |
-| `secondaryfoodtype` | FOODTYPE enum | `nil` | Secondary classification (e.g., `MONSTER`). |
-| `health` | number | Required | Change to eater's health on consumption. |
-| `hunger` | number | Required | Change to eater's hunger on consumption. |
-| `sanity` | number | `0` | Change to eater's sanity on consumption. |
-| `temperature` | number | `nil` | Bonus temperature applied on consumption. |
-| `temperatureduration` | number | `nil` | Duration (in seconds) of the temperature bonus. |
-| `perishtime` | number | Required | Time until the prepared food spoils. |
-| `cooktime` | number | Required | Time required to cook the recipe (seconds). |
-| `potlevel` | string or nil | `"low"` | Required pot tier (`"low"`, `"high"`, or `"high"`). |
-| `nochill` | boolean or nil | `nil` | If `true`, prevents chilling while held. |
-| `prefabs` | table | `{}` | Prefab names to spawn or attach to eater on consumption (e.g., debuff or light entities). |
-| `tags` | table | `{}` | Tags applied to the food item itself (e.g., `"masterfood"`). |
-| `floater` | table or nil | `{nil, 0.1}` | Position offset for the food item's floating animation. |
-| `oneat_desc` | string or nil | `nil` | Localization key for in-ui description of consumption effect. |
+| `foods` | table | — | Top-level table containing all food recipe definitions keyed by recipe name. |
+| `test` | function | — | Function that validates if given ingredients match this recipe; receives cooker, names, and tags parameters. |
+| `priority` | number | 30 | Recipe priority for matching; higher values take precedence when multiple recipes could match. |
+| `foodtype` | enum | — | Primary food type from FOODTYPE enumeration (VEGGIE, MEAT, GOODIES, MONSTER). |
+| `secondaryfoodtype` | enum | nil | Optional secondary food type for foods with multiple classifications. |
+| `health` | number | — | Health value granted or deducted on consumption; can be negative. |
+| `hunger` | number | — | Hunger calories granted on consumption. |
+| `sanity` | number | — | Sanity value granted or deducted on consumption; can be negative. |
+| `perishtime` | number | — | Time in seconds before the food spoils. |
+| `cooktime` | number | — | Time in seconds required to cook this recipe. |
+| `potlevel` | string | "low" | Required cookpot tier; "low" or "high". |
+| `tags` | table | — | Array of tag strings applied to the resulting food item. |
+| `prefabs` | table | nil | Array of prefab names to spawn as buffs on consumption. |
+| `oneat_desc` | string | — | Localization key for the food effect description shown in cookbook. |
+| `oneatenfn` | function | nil | Callback function executed when food is consumed; receives inst and eater parameters. |
+| `floater` | table | — | Animation float parameters for the food item display. |
+| `temperature` | number | nil | Temperature bonus applied on consumption (hot or cold). |
+| `temperatureduration` | number | nil | Duration of temperature bonus in seconds. |
+| `nochill` | boolean | nil | If true, prevents the food from being chilled. |
+| `chargevalue` | number | nil | Electric charge value for WX-78 related foods. |
+| `name` | string | — | Recipe name key; auto-assigned during initialization loop. |
+| `weight` | number | 1 | Recipe weight for selection; auto-assigned if not specified. |
+| `cookbook_category` | string | "portablecookpot" | Category identifier for cookbook UI organization; auto-assigned during initialization. |
 
 ## Main functions
-This file returns a table of recipes; it does not define any stand-alone functions beyond recipe validators (`test`) and consumption callbacks (`oneatenfn`). All per-recipe logic is contained in the `oneatenfn` handlers.
+### `test(cooker, names, tags)`
+* **Description:** Validates whether the provided ingredients match this recipe's requirements. Called by the cooking system to determine if a recipe can be produced.
+* **Parameters:**
+  - `cooker` -- cooking entity instance (e.g., cookpot)
+  - `names` -- table of ingredient prefab names with counts
+  - `tags` -- table of ingredient tags with counts
+* **Returns:** `boolean` -- true if ingredients match recipe requirements, false otherwise.
+* **Error states:** None
+
+### `oneatenfn(inst, eater)`
+* **Description:** Callback function executed when a player consumes this food. Applies special effects beyond standard stat changes (e.g., buffs, health/sanity swaps, light effects).
+* **Parameters:**
+  - `inst` -- the food item entity being consumed
+  - `eater` -- the player entity consuming the food
+* **Returns:** None
+* **Error states:** Errors if eater lacks required components (health, sanity, spell) that the callback attempts to access without nil checks.
 
 ## Events & listeners
-None. The component itself does not listen for or emit game events directly. Side effects are implemented via component methods (`DoDelta`, `AddDebuff`, `Spell` APIs) called within `oneatenfn`.
+None.

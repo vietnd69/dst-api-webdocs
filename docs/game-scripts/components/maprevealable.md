@@ -1,140 +1,171 @@
 ---
 id: maprevealable
 title: Maprevealable
-description: Manages dynamic map revealed areas by spawning and tracking mini-map icons based on nearby map revealers and custom sources.
-tags: [map, world, visibility]
+description: Manages minimap icon revelation for an entity, controlling visibility based on nearby map revealer sources.
+tags: [minimap, revelation, icon]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
-category_type: map
-source_hash: 2d680960
-system_scope: world
+category_type: components
+source_hash: d60908e9
+system_scope: entity
 ---
 
 # Maprevealable
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-`Maprevealable` is an entity component that dynamically controls the visibility of a mini-map icon by monitoring surrounding map revealers (e.g., players or structures) and custom reveal sources. It periodically checks for entities tagged as `maprevealer` within range, and also accepts manually added reveal sources. When at least one valid source is present, it spawns a `globalmapicon` prefab and tracks the owning entity on the mini-map, optionally applying restrictions or custom behaviors.
+`MapRevealable` controls whether an entity's minimap icon is revealed to players based on proximity to map revealer sources. It spawns a `globalmapicon` prefab that tracks the owning entity and manages icon properties like name, priority, and tags. The component runs a periodic refresh task that checks for nearby entities with the `maprevealer` tag to determine revelation status.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
 inst:AddComponent("maprevealable")
 
--- Configure icon appearance and behavior
-inst.components.maprevealable:SetIcon("minimap_icon_key")
+-- Configure icon appearance
+inst.components.maprevealable:SetIcon("map_icon_chest")
 inst.components.maprevealable:SetIconPriority(10)
-inst.components.maprevealable:SetIconTag("my_custom_tag")
 
--- Add a custom reveal source (e.g., a lantern or beacon)
-inst.components.maprevealable:AddRevealSource(some_source, "night_restriction")
+-- Add a reveal source (entity-based)
+local revealer = SpawnPrefab("maprevealer")
+inst.components.maprevealable:AddRevealSource(revealer)
 
--- Assign a callback for when the component refreshes
-inst.components.maprevealable:SetOnRefreshFn(function(e)
-    print("Map revealable refresh triggered for:", e.prefab)
+-- Set callback for icon creation
+inst.components.maprevealable:SetOnIconCreatedFn(function(inst, icon)
+    print("Icon created for entity")
 end)
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** Adds `maprevealer` internally (via `MAPREVEALER_TAGS`) when inspecting nearby entities; may add the tag set by `SetIconTag` to the spawned icon.
+**External dependencies:**
+- `SpawnPrefab` -- spawns the minimap icon prefab
+- `GetClosestInstWithTag` -- checks for nearby map revealer entities during refresh
+
+**Components used:**
+- None identified
+
+**Tags:**
+- `maprevealer` -- checked via `GetClosestInstWithTag` to determine revelation status
+- Icon entity tags -- dynamically added/removed via `SetIconTag()`
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `refreshperiod` | number | `1.5` | Interval in seconds between map reveal checks. |
-| `iconname` | string\|nil | `nil` | The mini-map icon key used by `MiniMapEntity:SetIcon`. |
-| `iconpriority` | number\|nil | `nil` | Priority level for overlay order on the mini-map. |
-| `iconprefab` | string | `"globalmapicon"` | Prefab name used to spawn the mini-map icon. |
-| `icon` | GlobalMapIcon\|nil | `nil` | Reference to the spawned icon entity (internal). |
-| `task` | periodic task\|nil | `nil` | Reference to the scheduled refresh task. |
-| `revealsources` | table | `{}` | Dictionary mapping sources to `{ restriction = restriction, isentity = bool }`. |
-| `oniconcreatedfn` | function\|nil | `nil` | Optional callback invoked after icon creation, before `TrackEntity`. |
-| `onrefreshfn` | function\|nil | `nil` | Optional callback invoked each time `Refresh()` runs. |
-| `_onremovesource` | function | `(see code)` | Internal handler used to auto-remove sources when their entity is removed. |
+| `refreshperiod` | number | `1.5` | Interval in seconds between refresh task ticks. |
+| `iconname` | string | `nil` | Name identifier for the minimap icon. Set via `SetIcon()`. |
+| `iconpriority` | number | `nil` | Priority value for icon rendering order. Set via `SetIconPriority()`. |
+| `iconprefab` | string | `"globalmapicon"` | Prefab name spawned for the minimap icon. |
+| `icon` | entity | `nil` | The spawned icon entity. `nil` when not revealing. |
+| `task` | task | `nil` | Periodic refresh task handle. Cancelled on component removal. |
+| `revealsources` | table | `{}` | Table of reveal sources keyed by source reference. Each entry contains `restriction` and optional `isentity` flag. |
+| `icontag` | string | `nil` | Tag applied to the icon entity. Set via `SetIconTag()`. |
+| `oniconcreatedfn` | function | `nil` | Callback fired when icon is created. Signature: `fn(inst, icon)`. Set via `SetOnIconCreatedFn()`. |
+| `onrefreshfn` | function | `nil` | Callback fired on each refresh tick. Signature: `fn(inst)`. Set via `SetOnRefreshFn()`. |
+| `_onremovesource` | function | --- | Internal callback for source entity removal events. Triggers `RemoveRevealSource()`. |
+| `MAPREVEALER_TAGS` | table (local) | `{"maprevealer"}` | File-scope constant used in `Refresh()` to query nearby revealers. |
 
 ## Main functions
 ### `SetIcon(iconname)`
-* **Description:** Updates the icon key used for the mini-map display.
-* **Parameters:** `iconname` (string\|nil) — The key identifying the icon in `minimapdata.lua`.
-* **Returns:** Nothing.
-* **Error states:** If `iconname` is unchanged, no action is taken.
+*   **Description:** Updates the minimap icon name. If the icon entity exists, immediately applies the new icon via `MiniMapEntity:SetIcon()`.
+*   **Parameters:** `iconname` -- string icon name identifier
+*   **Returns:** nil
+*   **Error states:** None
 
 ### `SetIconPriority(priority)`
-* **Description:** Sets the display priority for the mini-map icon, affecting overlay order.
-* **Parameters:** `priority` (number\|nil) — Higher numbers appear on top of lower ones.
-* **Returns:** Nothing.
-* **Error states:** If `priority` is unchanged, no action is taken.
+*   **Description:** Updates the minimap icon rendering priority. If the icon entity exists, immediately applies via `MiniMapEntity:SetPriority()`.
+*   **Parameters:** `priority` -- number priority value
+*   **Returns:** nil
+*   **Error states:** None
 
 ### `SetIconPrefab(prefab)`
-* **Description:** Changes the prefab used to spawn the icon. Triggers a full icon reset (stop then refresh reveal sources).
-* **Parameters:** `prefab` (string) — The new icon prefab name.
-* **Returns:** Nothing.
+*   **Description:** Changes the prefab used for the minimap icon. If an icon already exists, stops revealing and refreshes to spawn the new prefab.
+*   **Parameters:** `prefab` -- string prefab name
+*   **Returns:** nil
+*   **Error states:** None
 
 ### `SetIconTag(tag)`
-* **Description:** Assigns a tag to be added to or removed from the spawned icon. Ensures clean tag management on icon creation/destruction.
-* **Parameters:** `tag` (string\|nil) — Tag to attach to the icon entity.
-* **Returns:** Nothing.
+*   **Description:** Sets a tag on the icon entity. Removes the previous tag if one exists, then adds the new tag.
+*   **Parameters:** `tag` -- string tag name or `nil` to clear
+*   **Returns:** nil
+*   **Error states:** None
 
 ### `SetOnIconCreatedFn(fn)`
-* **Description:** Registers a callback invoked once the icon entity is created.
-* **Parameters:** `fn` (function) — Signature: `fn(entity, icon_entity)`.
-* **Returns:** Nothing.
+*   **Description:** Registers a callback to be fired when the icon entity is created. Called after icon setup but before `TrackEntity()`.
+*   **Parameters:** `fn` -- function with signature `fn(inst, icon)`
+*   **Returns:** nil
+*   **Error states:** None
 
 ### `AddRevealSource(source, restriction)`
-* **Description:** Registers a new source that causes the map area to be revealed. Sources can be arbitrary keys or entity tables.
-* **Parameters:**  
-  - `source` (any) — Unique identifier or table with `entity` property.  
-  - `restriction` (string\|nil) — Optional mini-map restriction string (e.g., `"night"`).
-* **Returns:** Nothing.
-* **Error states:** If `source` is a table with an `entity`, an `"onremove"` listener is registered. Adding an existing source updates its restriction if different.
+*   **Description:** Adds a reveal source that enables icon revelation. If the source is an entity table with an `entity` field, listens for its `onremove` event to auto-clean. Triggers `RefreshRevealSources()` to update revelation state.
+*   **Parameters:**
+    - `source` -- table or string source identifier
+    - `restriction` -- string restriction filter or `nil` for no restriction
+*   **Returns:** nil
+*   **Error states:** None
 
 ### `RemoveRevealSource(source)`
-* **Description:** Removes a previously added reveal source.
-* **Parameters:** `source` (any) — The source key to remove.
-* **Returns:** Nothing.
-* **Error states:** If the source is an entity table, the `"onremove"` callback is unregistered before removal.
+*   **Description:** Removes a reveal source. If the source was an entity, removes the `onremove` event listener. Triggers `RefreshRevealSources()` to update revelation state.
+*   **Parameters:** `source` -- table or string source identifier
+*   **Returns:** nil
+*   **Error states:** None
+
+### `RefreshRevealSources()`
+*   **Description:** Evaluates all reveal sources to determine if revelation should be active. If any source has no restriction, starts revealing. If all sources have restrictions, starts revealing with the last restriction value. If no sources exist, stops revealing.
+*   **Parameters:** None
+*   **Returns:** nil
+*   **Error states:** None
 
 ### `StartRevealing(restriction)`
-* **Description:** Ensures an icon is spawned and tracking the entity, or updates the restriction if already active.
-* **Parameters:** `restriction` (string\|nil) — Mini-map restriction to apply.
-* **Returns:** Nothing.
+*   **Description:** Spawns the icon entity if not already present and configures it to track the owning entity. Applies icon tag, priority, and calls `oniconcreatedfn` if set. If icon already exists, updates its restriction.
+*   **Parameters:** `restriction` -- string restriction filter or `nil`
+*   **Returns:** nil
+*   **Error states:** Errors if `self.icon.MiniMapEntity` is nil when icon exists but lacks the component (no guard present).
 
 ### `StopRevealing()`
-* **Description:** Removes the icon entity and nullifies internal reference.
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Removes the icon entity and clears the `icon` reference.
+*   **Parameters:** None
+*   **Returns:** nil
+*   **Error states:** None
 
 ### `Refresh()`
-* **Description:** Periodically checks for nearby `maprevealer` entities within `PLAYER_REVEAL_RADIUS`. Adds/removes `"maprevealer"` as a reveal source accordingly and invokes the optional `onrefreshfn` callback.
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Periodic refresh callback. Checks for nearby entities with the `maprevealer` tag within `PLAYER_REVEAL_RADIUS`. Adds or removes the `maprevealer` source based on proximity. Fires `onrefreshfn` callback if set.
+*   **Parameters:** None
+*   **Returns:** nil
+*   **Error states:** None
 
 ### `SetOnRefreshFn(onrefreshfn)`
-* **Description:** Registers a callback invoked on every refresh cycle.
-* **Parameters:** `onrefreshfn` (function) — Signature: `fn(entity)`.
-* **Returns:** Nothing.
+*   **Description:** Registers a callback to be fired on each refresh tick.
+*   **Parameters:** `onrefreshfn` -- function with signature `fn(inst)`
+*   **Returns:** nil
+*   **Error states:** None
 
 ### `Start(delay)`
-* **Description:** Starts the periodic refresh task with optional initial delay.
-* **Parameters:** `delay` (number) — Delay before first refresh, in seconds.
-* **Returns:** Nothing.
+*   **Description:** Starts the periodic refresh task. Uses `refreshperiod` as the interval. Only creates task if not already running.
+*   **Parameters:** `delay` -- number initial delay in seconds before first tick
+*   **Returns:** nil
+*   **Error states:** None
 
 ### `Stop()`
-* **Description:** Cancels the refresh task and removes the `"maprevealer"` reveal source.
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Stops the periodic refresh task and removes the `maprevealer` reveal source.
+*   **Parameters:** None
+*   **Returns:** nil
+*   **Error states:** None
 
 ### `OnRemoveFromEntity()`
-* **Description:** Cleanup routine called when the component is removed from its entity. Stops the task, removes all reveal sources, and cancels any entity listeners.
-* **Parameters:** None.
-* **Returns:** Nothing.
+*   **Description:** Cleanup handler called when component is removed from entity. Stops the refresh task and removes all reveal sources.
+*   **Parameters:** None
+*   **Returns:** nil
+*   **Error states:** None
+
+### `Refresh(inst, self)` (local)
+*   **Description:** File-scope helper function passed to `DoPeriodicTask`. Calls `self:Refresh()` with correct context.
+*   **Parameters:**
+    - `inst` -- entity instance
+    - `self` -- component instance
+*   **Returns:** nil
+*   **Error states:** None
 
 ## Events & listeners
-- **Listens to:**  
-  - `"onremove"` — registered per entity reveal source to auto-remove it when the source entity is destroyed.
-- **Pushes:** None identified.
+- **Listens to:** `onremove` -- fired on source entities; triggers `RemoveRevealSource()` to clean up when a source entity is removed

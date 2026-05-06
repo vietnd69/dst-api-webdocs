@@ -1,108 +1,145 @@
 ---
 id: stackable_replica
 title: Stackable Replica
-description: Manages networked stack size, max size, and preview stack size state for items that can be stacked in inventories.
-tags: [inventory, network, ui]
+description: Main component for managing item stack sizes with built-in network replication via net variables. Handles both server-side authoritative stack logic and client-side synchronization.
+tags: [inventory, network, replication]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-22
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: 8ecf01ef
-system_scope: inventory
+source_hash: 7246bea3
+system_scope: network
 ---
 
-# Stackable Replica
+# Stackable
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-22
 
 ## Overview
-`Stackable` is a client-side replica component that synchronizes and exposes stack size information for inventory items. It works in tandem with the server-side `stackable` component (not shown) to maintain consistent stack size state across the network. It supports preview stack sizes (e.g., for drag-and-drop UI previews), configurable max sizes via size classes (tiny, small, medium, large, pellet), and a configurable ignore-max-size flag.
+`Stackable` is the main component for managing item stack sizes with built-in network replication via net variables. It handles both server-side authoritative stack logic and client-side synchronization, allowing clients to display accurate item stack counts without requiring server queries. This component also handles preview stack sizes for UI feedback during drag-and-drop operations.
 
 ## Usage example
 ```lua
--- Client-side usage (e.g., in UI code)
-local stackable = inst.replica.stackable
-if stackable then
-    local current = stackable:StackSize()
-    local max = stackable:MaxSize()
-    stackable:SetPreviewStackSize(5, "drag", 1.5)
+-- Server-side: Add component and set stack size
+local inst = CreateEntity("stackable_item")
+inst:AddComponent("stackable")
+inst.components.stackable:SetStackSize(5)
+inst.components.stackable:SetMaxSize(TUNING.STACK_SIZE_MEDITEM)
+
+-- Client-side: Access through replica system for synchronized data
+local inst = ThePlayer.components.inventory:GetItemInSlot(1)
+if inst and inst.replica.stackable then
+    local count = inst.replica.stackable:StackSize()
+    local max = inst.replica.stackable:MaxSize()
+    print("Stack: " .. count .. "/" .. max)
 end
+
+-- Set preview for UI feedback (client-only)
+inst.replica.stackable:SetPreviewStackSize(5, "drag_preview", 2)
 ```
 
 ## Dependencies & tags
-**Components used:** None (self-contained replica component).
-**Tags:** None identified.
+**External dependencies:**
+- `TUNING` -- accessed for stack size constants (STACK_SIZE_MEDITEM, etc.)
+
+**Components used:**
+- `stackable` -- server-side component referenced in `CanStackWith()` for authoritative stacking logic
+
+**Tags:**
+- None identified
 
 ## Properties
-No public properties.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| `_stacksize` | net_smallbyte | `0` | Encoded lower bits of stack size (0-63 range). |
+| `_stacksizeupper` | net_smallbyte | `0` | Encoded upper bits for stacks larger than 64 items. |
+| `_ignoremaxsize` | net_bool | `false` | Whether the stack ignores maximum size limits. |
+| `_maxsize` | net_tinybyte | `0` | Encoded maximum stack size index into STACK_SIZES table. |
+
 
 ## Main functions
 ### `SetStackSize(stacksize)`
-*   **Description:** Sets the authoritative stack size. Handles encoding values above 64 across two networked fields (`_stacksize` and `_stacksizeupper`). Values are clamped to 1-based indexing (internal representation is 0-based).
-*   **Parameters:** `stacksize` (number) - the desired stack count (1 or higher).
-*   **Returns:** Nothing.
-*   **Error states:** Does nothing if `stacksize` is non-numeric or invalid; silently caps large values.
+* **Description:** Sets the current stack size with encoding to support values up to 4095. Uses `_stacksize` for values 0-63 and `_stacksizeupper` for larger values (each upper unit represents 64 items).
+* **Parameters:** `stacksize` -- number, the total stack size to set (1-based count).
+* **Returns:** None.
+* **Error states:** None.
 
 ### `SetPreviewStackSize(stacksize, context, timeout)`
-*   **Description:** Sets a temporary stack size preview (e.g., for drag-preview) on the client. Only effective on non-master simulation (i.e., clients). Allows multiple contexts (e.g., `"drag"`, `"merge"`) to coexist.
-*   **Parameters:** 
-    *   `stacksize` (number) - the preview stack count.
-    *   `context` (string) - identifier for the preview source.
-    *   `timeout` (number, optional) - seconds before preview auto-clears; defaults to `2`.
-*   **Returns:** Nothing.
+* **Description:** Sets a temporary preview stack size for UI feedback during drag operations. Client-side only. Automatically clears after timeout.
+* **Parameters:**
+  - `stacksize` -- number, the preview stack size to display.
+  - `context` -- string, identifier for the preview source (e.g., "drag_preview").
+  - `timeout` -- number, seconds before preview auto-clears (default `2`).
+* **Returns:** None.
+* **Error states:** None (client-side guard via `TheWorld.ismastersim` check).
 
 ### `ClearPreviewStackSize()`
-*   **Description:** Clears all preview stack sizes and cancels pending timeout tasks.
-*   **Parameters:** None.
-*   **Returns:** Nothing.
+* **Description:** Cancels any pending preview timeout task and clears preview stack size data.
+* **Parameters:** None.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `GetPreviewStackSize()`
-*   **Description:** Returns the preview stack size for the current preview context (`inst.stackable_preview_context`), if set.
-*   **Parameters:** None.
-*   **Returns:** (number, nil) - the preview stack size or `nil` if no preview is active.
+* **Description:** Returns the current preview stack size for the entity's active preview context.
+* **Parameters:** None.
+* **Returns:** Number representing preview stack size, or `nil` if no preview is active.
+* **Error states:** None.
 
 ### `SetMaxSize(maxsize)`
-*   **Description:** Sets the max stack size using a predefined size class (e.g., `TUNING.STACK_SIZE_SMALLITEM`). Maps from size value to internal code index.
-*   **Parameters:** `maxsize` (number) - one of the `TUNING.STACK_SIZE_*` constants.
-*   **Returns:** Nothing.
+* **Description:** Sets the maximum stack size by encoding the value into `_maxsize`. Uses STACK_SIZE_CODES to map actual sizes to indices.
+* **Parameters:** `maxsize` -- number, the maximum stack size (must match a TUNING.STACK_SIZE_* constant).
+* **Returns:** None.
+* **Error states:** Errors if `maxsize` is not found in STACK_SIZE_CODES (results in nil index access).
 
 ### `SetIgnoreMaxSize(ignoremaxsize)`
-*   **Description:** Enables or disables ignoring the max size limit (e.g., for special items like bulk drop items).
-*   **Parameters:** `ignoremaxsize` (boolean).
-*   **Returns:** Nothing.
+* **Description:** Sets whether this stack should ignore maximum size limits.
+* **Parameters:** `ignoremaxsize` -- boolean, true to allow over-stacking.
+* **Returns:** None.
+* **Error states:** None.
 
 ### `StackSize()`
-*   **Description:** Returns the current effective stack size, prioritizing preview values.
-*   **Parameters:** None.
-*   **Returns:** number - current stack size (1 or more).
+* **Description:** Returns the current effective stack size. Uses preview size if available, otherwise calculates from encoded net variables.
+* **Parameters:** None.
+* **Returns:** Number representing current stack size (1-based count).
+* **Error states:** None.
 
 ### `MaxSize()`
-*   **Description:** Returns the current max stack size, respecting the `ignoremaxsize` flag.
-*   **Parameters:** None.
-*   **Returns:** number - maximum stack size, or `math.huge` if `ignoremaxsize` is true.
+* **Description:** Returns the current maximum stack size. Returns `math.huge` if ignore max size is enabled.
+* **Parameters:** None.
+* **Returns:** Number representing maximum stack size, or `math.huge` if ignored.
+* **Error states:** None.
 
 ### `OriginalMaxSize()`
-*   **Description:** Returns the base max stack size as configured by `SetMaxSize`, ignoring the `ignoremaxsize` flag.
-*   **Parameters:** None.
-*   **Returns:** number - base maximum stack size.
+* **Description:** Returns the base maximum stack size without considering the ignore flag.
+* **Parameters:** None.
+* **Returns:** Number representing the configured maximum stack size.
+* **Error states:** None.
 
 ### `IsStack()`
-*   **Description:** Checks if the item is currently stacked (more than one).
-*   **Parameters:** None.
-*   **Returns:** boolean - `true` if `StackSize() > 1`.
+* **Description:** Checks if the entity represents a stack (more than one item).
+* **Parameters:** None.
+* **Returns:** Boolean, true if stack size is greater than 1.
+* **Error states:** None.
 
 ### `IsFull()`
-*   **Description:** Checks if the stack is at or beyond its current max size.
-*   **Parameters:** None.
-*   **Returns:** boolean - `true` if `StackSize() >= MaxSize()`.
+* **Description:** Checks if the stack has reached its current maximum capacity.
+* **Parameters:** None.
+* **Returns:** Boolean, true if stack size >= max size.
+* **Error states:** None.
 
 ### `IsOverStacked()`
-*   **Description:** Checks if the stack exceeds the original (non-ignored) max size.
-*   **Parameters:** None.
-*   **Returns:** boolean - `true` if `StackSize() > OriginalMaxSize()`.
+* **Description:** Checks if the stack exceeds the original maximum size (before ignore flag).
+* **Parameters:** None.
+* **Returns:** Boolean, true if stack size > original max size.
+* **Error states:** None.
+
+### `CanStackWith(item)`
+* **Description:** Determines if this entity can stack with another item. On server, delegates to `stackable` component. On client, uses prefab match and anim state skin build as a hack (no skin info access on clients).
+* **Parameters:** `item` -- entity instance to check stacking compatibility with.
+* **Returns:** Boolean, true if items can be stacked together.
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:** `stacksizedirty` - triggers `OnStackSizeDirty`, which clears preview stack size and pushes `inventoryitem_stacksizedirty` for downstream UI updates.
-- **Pushes:** `inventoryitem_stacksizedirty` - fired to notify that the stack size has been updated (e.g., for inventory UI refresh).
+- **Listens to:** `stacksizedirty` -- client-side only, triggers `OnStackSizeDirty` to forward event and clear preview.
+- **Pushes:** `inventoryitem_stacksizedirty` -- forwarded from `stacksizedirty` to guarantee event order for inventory UI.

@@ -1,83 +1,93 @@
 ---
 id: selfstacker
 title: Selfstacker
-description: Enables an item to automatically find and merge with another identical item within range when it is stationary, not held, not burning, not in a trap, and not fully stacked.
+description: Enables items to automatically find and stack with compatible nearby items without player intervention.
 tags: [inventory, stacking, automation]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-26
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: 8eb1f79c
+source_hash: e774ebe8
 system_scope: inventory
 ---
 
 # Selfstacker
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-26
 
 ## Overview
-`SelfStacker` allows an item to autonomously detect and merge with a nearby identical item that also supports self-stacking. It is used primarily for non-player entities (e.g., the item-stacking gnome) that act as catalysts for automatic item consolidation. The component performs periodic checks while the entity is awake, and only stacks if the item meets several conditions: it must not be held, not be burning, not be in a trap, not be fully stacked, and not be moving quickly.
-
-The component interacts with the `bait`, `burnable`, `inventoryitem`, `stackable`, and physical motion systems to validate stacking eligibility and then executes stacking logic by calling methods on `stackable`.
+`SelfStacker` allows items to autonomously search for and combine with compatible stack partners within a defined radius. This component is typically used by item-stacking gnomes or automated stacking systems. It works alongside the `stackable` component to merge item stacks and coordinates bidirectionally with partner entities to prevent duplicate stacking attempts.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
 inst:AddComponent("selfstacker")
+inst:AddComponent("stackable")
 inst.components.selfstacker:SetIgnoreMovingFast(true)
-inst.components.selfstacker:OnEntityWake()
+inst.components.selfstacker:FindItemToStackWith()
 ```
 
 ## Dependencies & tags
-**Components used:** `bait`, `burnable`, `inventoryitem`, `stackable`, `Physics`  
-**Tags:** Adds `selfstacker`; checks for `outofreach` and `selfstacker` on candidates.
+**Components used:**
+- `bait` -- checks `IsFree()` to ensure item is not trapped
+- `burnable` -- checks `IsBurning()` to prevent stacking while on fire
+- `inventoryitem` -- checks `IsHeld()` to ensure item is not in player inventory
+- `stackable` -- uses `CanStackWith`, `Get`, `IsFull`, `Put`, `RoomLeft` for stack operations
+- `Physics` -- simulation object, accesses `GetVelocity()` for movement speed checks
+
+**Tags:**
+- `selfstacker` -- added on component initialization, removed on entity removal
+- `outofreach` -- excluded from stack partner search
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `searchradius` | number | `20` | Maximum distance (in world units) to scan for stacking partners. |
-| `stackpartner` | `TheGong` or `nil` | `nil` | Reference to the item selected for stacking. Set during `FindItemToStackWith()`. |
-| `ignoremovingfast` | boolean or `nil` | `nil` | If `true`, the speed check is bypassed; if `nil`, speed must be low (`LengthSq < 1`). |
-| `stacktask` | `Task` or `nil` | `nil` | Timer task used to delay stacking execution. Cancelled on entity removal or reactivation. |
-| `isvalidpartnerfn` | function | — | Predicate used by `FindEntity()` to validate candidate items. |
+| `inst` | entity | --- | The owning entity instance. |
+| `searchradius` | number | `20` | Maximum distance to search for stack partners. |
+| `stackpartner` | entity | `nil` | Reference to the entity this item will stack with. |
+| `ignoremovingfast` | boolean/nil | `nil` | When `true`, skips velocity check in `CanSelfStack()`. |
+| `stacktask` | task | `nil` | Scheduled task reference for delayed stacking operation. |
+| `SELFSTACKER_MUST_TAGS` | constant (local) | `{ "selfstacker" }` | Required tags for valid stack partners in `FindItemToStackWith()`. |
+| `SELFSTACKER_CANT_TAGS` | constant (local) | `{ "outofreach" }` | Excluded tags for stack partner search in `FindItemToStackWith()`. |
 
 ## Main functions
 ### `SetIgnoreMovingFast(ignorespeedcheck)`
-* **Description:** Configures whether the velocity check should be skipped during stacking eligibility evaluation.
-* **Parameters:** `ignorespeedcheck` (boolean) — if `true`, ignores movement speed when determining if stacking is allowed.
-* **Returns:** Nothing.
+* **Description:** Configures whether the component should skip the movement speed check when determining if stacking is allowed.
+* **Parameters:** `ignorespeedcheck` -- boolean; if `true`, sets `ignoremovingfast` to `true`, otherwise sets to `nil`.
+* **Returns:** nil
+* **Error states:** None
 
 ### `CanSelfStack()`
-* **Description:** Determines whether the owned item is currently eligible to be stacked *into* another item. It checks that the item is not in a trap, not burning, not fully stacked, not held, and (if `ignoremovingfast` is `nil`) not moving significantly.
-* **Parameters:** None.
-* **Returns:** `true` if the item can be stacked, otherwise `false`.
-* **Error states:** Returns `false` if any required component is missing or violates stacking conditions.
+* **Description:** Determines if the entity is eligible for automatic stacking. Checks multiple conditions: not in a trap, not burning, has room in stack, not held in inventory, not moving fast (unless ignored), and has no existing stack partner.
+* **Parameters:** None
+* **Returns:** `true` if all conditions pass, `false` otherwise.
+* **Error states:** Errors if `inst.Physics` is nil (no nil guard before `GetVelocity()` call).
 
 ### `OnRemoveEntity()`
-* **Description:** Cleans up when the entity is removed from the world. Cancels any pending stacking task and removes the `selfstacker` tag.
-* **Parameters:** None.
-* **Returns:** Nothing.
+* **Description:** Cleanup handler called when the entity is removed. Cancels any pending stack task and removes the `selfstacker` tag.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** None -- `stacktask` is nil-checked before calling `Cancel()`.
 
 ### `FindItemToStackWith()`
-* **Description:** Scans for a valid stacking partner within `searchradius` using `FindEntity`. A valid partner must have the `selfstacker` tag, not have the `outofreach` tag, and return `true` for `CanSelfStack()`.
-* **Parameters:** None.
-* **Returns:** `TheGong` or `nil` — the found item, or `nil` if no valid partner exists. If successful, sets `stackpartner` and updates the partner’s `stackpartner` field to point back to `self.inst`.
-* **Error states:** Returns `nil` if no suitable entity is found or if `FindEntity` fails.
+* **Description:** Searches within `searchradius` for a valid stack partner using `FindEntity`. When a partner is found, establishes a bidirectional link by setting the partner's `stackpartner` to this entity.
+* **Parameters:** None
+* **Returns:** The partner entity instance, or `nil` if no valid partner found.
+* **Error states:** Errors if the found `stackpartner` does not have a `selfstacker` component (accesses `self.stackpartner.components.selfstacker.stackpartner` without nil guard).
 
 ### `DoStack()`
-* **Description:** Attempts to fully stack the owned item with the currently selected `stackpartner`. It computes how much space remains in the current stack, retrieves that many items from the partner, and then combines them via `stackable:Put()`.
-* **Parameters:** None.
-* **Returns:** Nothing.
-* **Error states:** No-op if `stackpartner` is `nil`, or if `stackable:Put()` fails (e.g., due to mismatched prefabs, though `FindItemToStackWith` filters for prefab/skinname matches).
+* **Description:** Executes the stacking operation. Cancels any existing stack task, finds a stack partner, calculates available room in this stack, retrieves items from the partner, and puts them into this entity's stack.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** Errors if `self.inst` lacks `stackable` component (no nil guard on `self.inst.components.stackable`). Errors if `stackpartner` lacks `stackable` component (no nil guard on `self.stackpartner.components.stackable`).
 
 ### `OnEntityWake()`
-* **Description:** Called when the entity wakes up (e.g., is spawned or reactivated). Clears any stale `stackpartner` reference, checks if stacking is possible, and schedules a delayed stacking attempt (with random jitter ≤ 0.1 seconds) via `DoStack`.
-* **Parameters:** None.
-* **Returns:** Nothing.
-* **Error states:** No-op if `CanSelfStack()` returns `false`.
+* **Description:** Called when the entity becomes active (player nearby). Resets `stackpartner` to `nil`, checks if self-stacking is allowed, and schedules a `DoStack()` call with a random delay between 0-0.1 seconds.
+* **Parameters:** None
+* **Returns:** nil
+* **Error states:** Errors if `inst.Physics` is nil (inherited from `CanSelfStack()` call).
 
 ## Events & listeners
-- **Listens to:** None.
-- **Pushes:** None.
+- **Listens to:** None identified
+- **Pushes:** None identified

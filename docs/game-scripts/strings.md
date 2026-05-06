@@ -5,11 +5,11 @@ description: Centralized string table management for game assets, including name
 tags: [localization, ui, assets]
 sidebar_position: 10
 
-last_updated: 2026-04-04
-build_version: 718694
+last_updated: 2026-04-22
+build_version: 722832
 change_status: data_patched
 category_type: root
-source_hash: eefbf573
+source_hash: ef098fc7
 system_scope: ui
 ---
 

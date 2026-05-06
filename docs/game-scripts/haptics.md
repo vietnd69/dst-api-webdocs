@@ -1,50 +1,60 @@
 ---
 id: haptics
 title: Haptics
-description: Defines static configuration tables for haptic and audio feedback effects used by the game's input and visual systems.
-tags: [audio, fx, input, ui, network]
+description: Defines the HapticEffects configuration table containing all haptic feedback effect definitions for Don't Starve Together, organized by category including DANGER, PLAYER, ENVIRONMENT, BOSS, and UI effects.
+tags: [configuration, input, ui, player]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
-category_type: root
-source_hash: 5ef3c123
-system_scope: audio
+category_type: data_config
+source_hash: f65c030f
+system_scope: player
 ---
 
 # Haptics
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-The `haptics.lua` file is a self-contained configuration module that defines static data structures mapping game events and actions to haptic and audio feedback effects. It contains no runtime logic, components, or event handlers—only constant tables that describe how vibrations, sounds, or other sensory cues should be triggered in response to specific in-game conditions. As such, it serves as a reference layer for systems elsewhere in the codebase (e.g., input handlers, UI, or FX components) to query when deciding what feedback to emit.
+`haptics.lua` defines the `HapticEffects` configuration table, which stores all haptic feedback effect definitions used throughout Don't Starve Together. The data is organized into categories such as DANGER, PLAYER, ENVIRONMENT, BOSS, and UI to standardize controller vibration responses for different gameplay scenarios. This file serves as a static data source required by the input and audio systems to trigger appropriate haptic feedback during events. It is not a component and does not attach to entities; instead, it is accessed globally via `require()`.
 
 ## Usage example
 ```lua
--- Example: retrieving a haptic configuration for a UI button press
-local haptic = require "haptics"
-local feedback = haptics.USEBUTTON
--- feedback is a table like { vibrate = 0.1, sound = "ui/button_click", gain = 0.5 }
+local HapticEffects = require "haptics"
+-- Access the first effect record in the array
+local first_effect = HapticEffects[1]
+print(first_effect.event, first_effect.category)
+-- Filter effects by category field
+for i, effect in ipairs(HapticEffects) do
+    if effect.category == "DANGER" then
+        print(effect.event, effect.vibration_intensity)
+    end
+end
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** None
+**Components used:**
+None identified.
+
+**Tags:**
+None
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `haptics.USEBUTTON` | `table?` | `nil` | Configuration for haptic/audio feedback when a UI button is used (e.g., pressed/activated). Contains keys like `vibrate`, `sound`, `gain`. |
-| `haptics.NAVIGATE` | `table?` | `nil` | Configuration for haptic/audio feedback when navigating UI (e.g., scrolling or tabbing between elements). |
-| `haptics.ERROR` | `table?` | `nil` | Configuration for negative feedback (e.g., failed action, invalid input). |
-| `haptics.SUCCESS` | `table?` | `nil` | Configuration for positive feedback (e.g., successful crafting, selection). |
-| `haptics.DANGER` | `table?` | `nil` | Configuration for high-priority feedback (e.g., taking damage, critical event). |
-
-*Note: Exact key contents (e.g., `vibrate`, `sound`, `gain`) are inferred from typical DST haptic/audio conventions, but the actual structure is omitted in the source since no function bodies or usages are present.*
+| `HapticEffects` | table | --- | Top-level container table holding all haptic effect definitions as an array. |
+| `event` | string | --- | Sound event path string (e.g., `"dontstarve/wilson/hungry"`). |
+| `vibration` | boolean | --- | Whether this effect triggers controller vibration. |
+| `audio` | boolean | --- | Whether this effect plays an audio sound. |
+| `vibration_intensity` | number | --- | Intensity multiplier for vibration (typically 0.5–25.0). |
+| `audio_intensity` | number | --- | Intensity multiplier for audio playback. |
+| `category` | string | --- | Effect category for filtering. Valid values: `"DANGER"`, `"PLAYER"`, `"ENVIRONMENT"`, `"BOSS"`, `"UI"`. |
+| `player_only` | boolean | --- | If true, effect only triggers for the local player (optional field, not present on all records). |
 
 ## Main functions
 None.
 
 ## Events & listeners
-None.
+This file is not event-driven.

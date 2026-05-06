@@ -1,351 +1,471 @@
 ---
 id: inventory_replica
 title: Inventory Replica
-description: Synchronizes inventory state and actions between the server and client by acting as a network-replicated proxy for the real inventory component.
-tags: [network, inventory, client-server]
+description: Master inventory component that manages item slots, equipment, and synchronizes state to clients via classified entities.
+tags: [inventory, items, equipment]
 sidebar_position: 10
-
-last_updated: 2026-03-07
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
-category_type: components
-source_hash: 8a1a6310
-system_scope: network
+category_type: component
+source_hash: 19229028
+system_scope: inventory
 ---
 
-# Inventory Replica
+# Inventory
 
-> Based on game build **714014** | Last updated: 2026-03-07
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-`InventoryReplica` (instantiated as the `"inventory_replica"` component) enables network synchronization of inventory operations between the server and client in DST. It operates as a lightweight replica of the `inventory` component on the client, backed by an `inventory_classified` entity on the server. It reflects real-time changes like active item updates, slot/equip modifications, visibility toggles, and heavy-lifting/floater-held states via event-driven updates. It bridges the `inventory` component on the server (accessible only on `ismastersim`) with client UI and action logic, ensuring accurate representation during gameplay and cross-state transitions (e.g., dying and reviving as a corpse).
+`Inventory` is the master component that manages an entity's item slots, equipment, and inventory state. On player entities in master simulation, it spawns an `inventory_classified` prefab to hold netvars for client synchronization. It forwards inventory events (item get/lose, equip/unequip) to the classified entity so clients can mirror the state. Most methods check `self.inst.components.inventory` to delegate to an underlying inventory component, or fall back to classified entity queries on clients.
 
 ## Usage example
 ```lua
--- Typically added automatically via prefab definition; manual usage is rare.
--- Example of invoking server-triggered events (only on master):
-local inst = TheWorld
-if TheWorld.ismastersim then
-    local inventory_replica = inst:AddComponent("inventory_replica")
-    inventory_replica:SetHeavyLifting(true)
-    inventory_replica:SetFloaterHeld(false)
+-- Check inventory state:
+if inst.components.inventory ~= nil then
+    local active_item = inst.components.inventory:GetActiveItem()
+    local is_visible = inst.components.inventory:IsVisible()
+    local is_heavy = inst.components.inventory:IsHeavyLifting()
 end
 
--- Client-side UI reacts automatically to events like "visibledirty",
--- "heavyliftingdirty", and "floaterhelddirty" via internal callbacks.
+-- Master-side state mutation:
+if TheWorld.ismastersim and inst.components.inventory ~= nil then
+    inst.components.inventory:SetHeavyLifting(true)
+    inst.components.inventory:OnOpen()
+end
 ```
 
 ## Dependencies & tags
-**Components used:** `inventory`, `revivablecorpse`, `playeractionpicker`
-**Tags:** None identified.
+**External dependencies:**
+- `inventory_classified` -- prefab spawned on master to hold netvars for client synchronization
+
+**Components used:**
+- `inventory` -- underlying inventory component; this component delegates most calls to it when present
+- `playeractionpicker` -- pushes/pops action filters when heavy lifting or floater held state changes
+- `revivablecorpse` -- checked during OpenInventory to hide inventory for corpses
+
+**Tags:**
+- `corpse` -- checked during OpenInventory; hides inventory if entity has this tag
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst` | `Entity` | `nil` | Owner entity instance (assigned in constructor). |
-| `classified` | `Entity` (represents `inventory_classified`) | `nil` | Server-side classified entity used for network sync. Only non-`nil` on master or client if loaded from `inst.inventory_classified`. |
-| `opentask` | `Task` | `nil` | Static task used on server to delay inventory opening. |
+| `opentask` | task | `nil` | Scheduled task for opening inventory; cancelled on close/remove. |
+| `classified` | entity | `nil` | The classified entity holding netvars; spawned on master, attached on client. |
+| `ondetachclassified` | function | `nil` | Callback registered on classified entity onremove event. Signature: `fn()`. Set internally by AttachClassified(). |
 
 ## Main functions
+### Constructor `(self, inst)`
+* **Description:** Initializes the inventory component. On master simulation with player entities, spawns `inventory_classified` prefab and sets up event listeners to forward inventory changes to clients. On clients, attaches to existing classified entity from `inst.inventory_classified`.
+* **Parameters:**
+  - `inst` -- the owning entity instance
+* **Returns:** nil
+* **Error states:** None.
+
+### `OnRemoveEntity()`
+* **Description:** Cleanup handler called when the entity is removed. Cancels open task on master, closes inventory, removes classified entity. On client, detaches classified and removes event callbacks.
+* **Parameters:** None.
+* **Returns:** nil
+* **Error states:** Errors if `inst.components.inventory` is nil (no guard before `:Close()` call).
+
 ### `AttachClassified(classified)`
-* **Description:** Attaches an `inventory_classified` entity to this replica, setting up event listeners for visibility, heavy lifting, and floater-held state changes. Also triggers UI rebuild.
-* **Parameters:** `classified` (`Entity`) — The classified entity to attach.
-* **Returns:** Nothing.
+* **Description:** Attaches a classified entity to this component. Registers listeners for `visibledirty`, `heavyliftingdirty`, and `floaterhelddirty` events. Sets up `onremove` callback to auto-detach. Triggers initial visibility check.
+* **Parameters:**
+  - `classified` -- the classified entity to attach
+* **Returns:** nil
+* **Error states:** None.
 
 ### `DetachClassified()`
-* **Description:** Detaches the `classified` entity, cleans up listeners, hides inventory UI, and pushes `newactiveitem` and `inventoryclosed` events.
+* **Description:** Detaches the classified entity. Clears references, hides inventory UI, pushes `newactiveitem` and `inventoryclosed` events.
 * **Parameters:** None.
-* **Returns:** Nothing.
+* **Returns:** nil
+* **Error states:** None.
 
 ### `OnOpen()`
-* **Description:** Triggers opening of the inventory UI on the client by setting `visible` to `true` on the `classified` entity.
+* **Description:** Sets classified target to the owning entity and sets `visible` netvar to `true`. Called when inventory opens.
 * **Parameters:** None.
-* **Returns:** Nothing.
+* **Returns:** nil
+* **Error states:** None.
 
 ### `OnClose()`
-* **Description:** Closes the inventory UI on the client by setting `visible` to `false`. Cancels any pending open task on the server.
+* **Description:** Cancels open task, sets classified target to itself, sets `visible` netvar to `false`. Called when inventory closes.
 * **Parameters:** None.
-* **Returns:** Nothing.
+* **Returns:** nil
+* **Error states:** None.
 
 ### `OnShow()`
-* **Description:** Makes the inventory UI visible on the client (e.g., used when resurrecting and needing to re-show the inventory).
+* **Description:** Sets `visible` netvar to `true` without changing classified target. Used to show inventory without full open state.
 * **Parameters:** None.
-* **Returns:** Nothing.
+* **Returns:** nil
+* **Error states:** None.
 
 ### `OnHide()`
-* **Description:** Hides the inventory UI on the client without closing the container state.
+* **Description:** Sets `visible` netvar to `false` without changing classified target. Used to hide inventory without full close state.
 * **Parameters:** None.
-* **Returns:** Nothing.
+* **Returns:** nil
+* **Error states:** None.
 
 ### `SetHeavyLifting(heavylifting)`
-* **Description:** Sets the heavy-lifting state on the `classified` entity and triggers associated action filter updates and SG state changes.
-* **Parameters:** `heavylifting` (`boolean`) — Whether the inventory is in heavy-lifting mode.
-* **Returns:** Nothing.
+* **Description:** Sets the `heavylifting` netvar on classified entity and triggers immediate filter update via `_OnHeavyLiftingDirty`.
+* **Parameters:**
+  - `heavylifting` -- boolean indicating if entity is heavy lifting
+* **Returns:** nil
+* **Error states:** None.
 
 ### `SetFloaterHeld(floaterheld)`
-* **Description:** Sets the floater-held state on the `classified` entity and updates player action filters and SG state accordingly.
-* **Parameters:** `floaterheld` (`boolean`) — Whether a floater (e.g., lantern or lightsource) is currently being held in inventory.
-* **Returns:** Nothing.
+* **Description:** Sets the `floaterheld` netvar on classified entity and triggers immediate filter update via `_OnFloaterHeldDirty`.
+* **Parameters:**
+  - `floaterheld` -- boolean indicating if entity is holding a floater
+* **Returns:** nil
+* **Error states:** None.
 
 ### `GetNumSlots()`
-* **Description:** Returns the total number of inventory slots, delegating to `inventory` if available, otherwise returning the default maximum for the current game mode.
+* **Description:** Returns the number of inventory slots. Delegates to `inst.components.inventory:GetNumSlots()` if present, otherwise uses `GetMaxItemSlots()` based on game mode.
 * **Parameters:** None.
-* **Returns:** `number` — The maximum slot count.
+* **Returns:** number of slots
+* **Error states:** None.
 
 ### `CanTakeItemInSlot(item, slot)`
-* **Description:** Validates whether the inventory can accept `item` in `slot`, checking item validity, container compatibility, and equip rules.
-* **Parameters:**  
-  `item` (`Entity`) — The item to insert.  
-  `slot` (`number`) — The target slot index.  
-* **Returns:** `boolean` — `true` if the item can be placed in the slot.
+* **Description:** Validates if an item can be placed in a specific slot. Checks item's `inventoryitem` replica, container rules, game mode properties, slot bounds, and existing item lock/stack status.
+* **Parameters:**
+  - `item` -- entity to check
+  - `slot` -- integer slot index
+* **Returns:** boolean
+* **Error states:** None.
 
 ### `AcceptsStacks()`
-* **Description:** Returns whether the inventory accepts stacked items (delegates to `inventory` or defaults to `true`).
+* **Description:** Returns whether this inventory accepts item stacking. Delegates to `inst.components.inventory:AcceptsStacks()` if present, otherwise returns `true`.
 * **Parameters:** None.
-* **Returns:** `boolean`.
+* **Returns:** boolean
+* **Error states:** None.
 
 ### `IgnoresCanGoInContainer()`
-* **Description:** Determines if the inventory bypasses container restrictions (e.g., waterlogged items in some containers).
+* **Description:** Returns whether this inventory ignores container placement rules. Delegates to `inst.components.inventory:IgnoresCanGoInContainer()` if present, otherwise returns `false`.
 * **Parameters:** None.
-* **Returns:** `boolean` — `true` if restrictions are ignored.
+* **Returns:** boolean
+* **Error states:** None.
 
 ### `EquipHasTag(tag)`
-* **Description:** Checks if any equipped item has the specified tag.
-* **Parameters:** `tag` (`string`) — The tag to search for.
-* **Returns:** `boolean` — `true` if a match is found.
+* **Description:** Checks if any equipped item has the specified tag. Delegates to `inst.components.inventory:EquipHasTag()` if present, otherwise checks classified equips.
+* **Parameters:**
+  - `tag` -- string tag to check
+* **Returns:** boolean
+* **Error states:** None.
 
 ### `IsHeavyLifting()`
-* **Description:** Reports whether the inventory is in heavy-lifting mode (affects action availability).
+* **Description:** Returns whether the entity is currently heavy lifting. Delegates to `inst.components.inventory:IsHeavyLifting()` if present, otherwise reads `heavylifting` netvar from classified.
 * **Parameters:** None.
-* **Returns:** `boolean`.
+* **Returns:** boolean
+* **Error states:** None.
 
 ### `IsFloaterHeld()`
-* **Description:** Reports whether a floater item is currently held (affects action filters and SG state).
+* **Description:** Returns whether the entity is holding a floater item. Delegates to `inst.components.inventory:IsFloaterHeld()` if present, otherwise reads `floaterheld` netvar from classified.
 * **Parameters:** None.
-* **Returns:** `boolean`.
+* **Returns:** boolean
+* **Error states:** None.
 
 ### `IsVisible()`
-* **Description:** Returns whether the inventory UI is visible.
+* **Description:** Returns whether the inventory UI is currently visible. Delegates to `inst.components.inventory.isvisible` if present, otherwise reads `visible` netvar from classified.
 * **Parameters:** None.
-* **Returns:** `boolean`.
+* **Returns:** boolean
+* **Error states:** None.
 
 ### `IsOpenedBy(guy)`
-* **Description:** Returns whether the inventory is currently opened by the given entity `guy`.
-* **Parameters:** `guy` (`Entity`) — The candidate opener.
-* **Returns:** `boolean`.
+* **Description:** Returns whether the inventory is opened by the specified entity. Delegates to `inst.components.inventory:IsOpenedBy()` if present, otherwise checks visibility and entity match.
+* **Parameters:**
+  - `guy` -- entity to check
+* **Returns:** boolean
+* **Error states:** None.
 
 ### `IsHolding(item, checkcontainer)`
-* **Description:** Returns whether the inventory is holding `item` (optionally scanning containers).
-* **Parameters:**  
-  `item` (`Entity`) — The item to check.  
-  `checkcontainer` (`boolean`) — Whether to scan open containers.  
-* **Returns:** `boolean`.
+* **Description:** Returns whether the inventory is holding the specified item. Delegates to `inst.components.inventory:IsHolding()` if present, otherwise uses classified `IsHolding()`.
+* **Parameters:**
+  - `item` -- entity to check
+  - `checkcontainer` -- boolean to include containers in check
+* **Returns:** boolean
+* **Error states:** None.
 
 ### `FindItem(fn)`
-* **Description:** Returns the first item satisfying the predicate `fn`.
-* **Parameters:** `fn` (`function`) — A filter function `(item) → boolean`.
-* **Returns:** `Entity?` — The first matching item, or `nil`.
+* **Description:** Finds an item matching the predicate function. Delegates to `inst.components.inventory:FindItem()` if present, otherwise uses classified `FindItem()`.
+* **Parameters:**
+  - `fn` -- predicate function taking item as argument
+* **Returns:** entity or `nil`
+* **Error states:** None.
 
 ### `GetActiveItem()`
-* **Description:** Returns the currently active item.
+* **Description:** Returns the currently active (held) item. Delegates to `inst.components.inventory:GetActiveItem()` if present, otherwise uses classified `GetActiveItem()`.
 * **Parameters:** None.
-* **Returns:** `Entity?`.
+* **Returns:** entity or `nil`
+* **Error states:** None.
 
 ### `GetItemInSlot(slot)`
-* **Description:** Returns the item in the specified inventory slot.
-* **Parameters:** `slot` (`number`) — Slot index.
-* **Returns:** `Entity?`.
+* **Description:** Returns the item in the specified slot. Delegates to `inst.components.inventory:GetItemInSlot()` if present, otherwise uses classified `GetItemInSlot()`.
+* **Parameters:**
+  - `slot` -- integer slot index
+* **Returns:** entity or `nil`
+* **Error states:** None.
 
 ### `GetEquippedItem(eslot)`
-* **Description:** Returns the equipped item in the given equipment slot.
-* **Parameters:** `eslot` (`string`) — Equipment slot (e.g., `"mainhand"`, `"back"`).
-* **Returns:** `Entity?`.
+* **Description:** Returns the item in the specified equip slot. Delegates to `inst.components.inventory:GetEquippedItem()` if present, otherwise uses classified `GetEquippedItem()`.
+* **Parameters:**
+  - `eslot` -- integer equip slot index
+* **Returns:** entity or `nil`
+* **Error states:** None.
 
 ### `GetItems()`
-* **Description:** Returns the array of items in the inventory slots.
+* **Description:** Returns all items in inventory slots. Delegates to `inst.components.inventory.itemslots` if present, otherwise uses classified `GetItems()`.
 * **Parameters:** None.
-* **Returns:** `{ Entity }`.
+* **Returns:** table of items
+* **Error states:** None.
 
 ### `GetEquips()`
-* **Description:** Returns the array of equipped items by equipment slot.
+* **Description:** Returns all equipped items. Delegates to `inst.components.inventory.equipslots` if present, otherwise uses classified `GetEquips()`.
 * **Parameters:** None.
-* **Returns:** `{ Entity }`.
+* **Returns:** table of equipped items
+* **Error states:** None.
 
 ### `GetOpenContainers()`
-* **Description:** Returns a table whose keys are open container entities.
+* **Description:** Returns a table of open container entities as keys (values are `true`). Delegates to `inst.components.inventory.opencontainers` if present, otherwise builds from HUD controls.
 * **Parameters:** None.
-* **Returns:** `{ [Entity]: true }`.
+* **Returns:** table
+* **Error states:** None.
 
 ### `GetOverflowContainer()`
-* **Description:** Returns the container component (replica) for overflow storage (e.g., backpack).
+* **Description:** Returns the overflow container (backpack). Delegates to `inst.components.inventory:GetOverflowContainer()` if present, otherwise uses classified `GetOverflowContainer()`.
 * **Parameters:** None.
-* **Returns:** `ContainerReplica?`.
+* **Returns:** container or `nil`
+* **Error states:** None.
 
 ### `IsFull()`
-* **Description:** Returns whether the inventory has no free slots.
+* **Description:** Returns whether the inventory is full. Delegates to `inst.components.inventory:IsFull()` if present, otherwise uses classified `IsFull()`.
 * **Parameters:** None.
-* **Returns:** `boolean`.
+* **Returns:** boolean
+* **Error states:** None.
 
 ### `Has(prefab, amount, checkallcontainers)`
-* **Description:** Checks if the inventory contains at least `amount` of `prefab`, optionally scanning containers.
-* **Parameters:**  
-  `prefab` (`string`) — Prefab name to check.  
-  `amount` (`number`) — Required minimum count.  
-  `checkallcontainers` (`boolean`) — Whether to include containers.  
-* **Returns:** `boolean, number` — Whether quantity is met, and actual count.
+* **Description:** Checks if inventory has the specified prefab with required amount. Delegates to `inst.components.inventory:Has()` if present, otherwise uses classified `Has()`.
+* **Parameters:**
+  - `prefab` -- string prefab name
+  - `amount` -- number required
+  - `checkallcontainers` -- boolean to include containers
+* **Returns:** boolean, number found
+* **Error states:** None.
 
 ### `HasItemWithTag(tag, amount)`
-* **Description:** Checks if the inventory contains at least `amount` items with `tag`.
-* **Parameters:**  
-  `tag` (`string`) — Tag to match.  
-  `amount` (`number`) — Required minimum count.  
-* **Returns:** `boolean, number`.
+* **Description:** Checks if inventory has items with the specified tag. Delegates to `inst.components.inventory:HasItemWithTag()` if present, otherwise uses classified `HasItemWithTag()`.
+* **Parameters:**
+  - `tag` -- string tag to check
+  - `amount` -- number required
+* **Returns:** boolean, number found
+* **Error states:** None.
 
 ### `ReturnActiveItem()`
-* **Description:** Returns the active item to the active slot.
+* **Description:** Returns the active item to its slot. Delegates to `inst.components.inventory:ReturnActiveItem()` if present, otherwise uses classified `ReturnActiveItem()`.
 * **Parameters:** None.
-* **Returns:** Nothing.
+* **Returns:** nil
+* **Error states:** None.
 
 ### `PutOneOfActiveItemInSlot(slot)`
-* **Description:** Adds one stackable unit of the active item into `slot`.
-* **Parameters:** `slot` (`number`) — Target slot.
-* **Returns:** Nothing.
+* **Description:** Moves one item from active item to the specified slot. Delegates to `inst.components.inventory:PutOneOfActiveItemInSlot()` if present, otherwise uses classified.
+* **Parameters:**
+  - `slot` -- integer slot index
+* **Returns:** nil
+* **Error states:** None.
 
 ### `PutAllOfActiveItemInSlot(slot)`
-* **Description:** Adds the entire active stack into `slot`, if compatible.
-* **Parameters:** `slot` (`number`) — Target slot.
-* **Returns:** Nothing.
+* **Description:** Moves all of active item to the specified slot. Delegates to `inst.components.inventory:PutAllOfActiveItemInSlot()` if present, otherwise uses classified.
+* **Parameters:**
+  - `slot` -- integer slot index
+* **Returns:** nil
+* **Error states:** None.
 
 ### `TakeActiveItemFromHalfOfSlot(slot)`
-* **Description:** Takes half of the stack from `slot` into the active slot.
-* **Parameters:** `slot` (`number`) — Source slot.
-* **Returns:** Nothing.
+* **Description:** Takes half of the item from the specified slot into active item. Delegates to `inst.components.inventory:TakeActiveItemFromHalfOfSlot()` if present, otherwise uses classified.
+* **Parameters:**
+  - `slot` -- integer slot index
+* **Returns:** nil
+* **Error states:** None.
 
 ### `TakeActiveItemFromCountOfSlot(slot)`
-* **Description:** Takes the entire stack from `slot` into the active slot.
-* **Parameters:** `slot` (`number`) — Source slot.
-* **Returns:** Nothing.
+* **Description:** Takes a specific count from the specified slot into active item. Delegates to `inst.components.inventory:TakeActiveItemFromCountOfSlot()` if present, otherwise uses classified.
+* **Parameters:**
+  - `slot` -- integer slot index
+* **Returns:** nil
+* **Error states:** None.
 
 ### `TakeActiveItemFromAllOfSlot(slot)`
-* **Description:** Synonym for `TakeActiveItemFromCountOfSlot`.
-* **Parameters:** `slot` (`number`) — Source slot.
-* **Returns:** Nothing.
+* **Description:** Takes all items from the specified slot into active item. Delegates to `inst.components.inventory:TakeActiveItemFromAllOfSlot()` if present, otherwise uses classified.
+* **Parameters:**
+  - `slot` -- integer slot index
+* **Returns:** nil
+* **Error states:** None.
 
 ### `AddOneOfActiveItemToSlot(slot)`
-* **Description:** Adds one stackable unit from the active item to an existing item in `slot`.
-* **Parameters:** `slot` (`number`) — Target slot.
-* **Returns:** Nothing.
+* **Description:** Adds one item from active item to the stack in the specified slot. Delegates to `inst.components.inventory:AddOneOfActiveItemToSlot()` if present, otherwise uses classified.
+* **Parameters:**
+  - `slot` -- integer slot index
+* **Returns:** nil
+* **Error states:** None.
 
 ### `AddAllOfActiveItemToSlot(slot)`
-* **Description:** Adds as many stackable units as possible from the active item to an existing item in `slot`.
-* **Parameters:** `slot` (`number`) — Target slot.
-* **Returns:** Nothing.
+* **Description:** Adds all of active item to the stack in the specified slot. Delegates to `inst.components.inventory:AddAllOfActiveItemToSlot()` if present, otherwise uses classified.
+* **Parameters:**
+  - `slot` -- integer slot index
+* **Returns:** nil
+* **Error states:** None.
 
 ### `SwapActiveItemWithSlot(slot)`
-* **Description:** Swaps the active item with the item in `slot`.
-* **Parameters:** `slot` (`number`) — Target slot.
-* **Returns:** Nothing.
+* **Description:** Swaps active item with the item in the specified slot. Delegates to `inst.components.inventory:SwapActiveItemWithSlot()` if present, otherwise uses classified.
+* **Parameters:**
+  - `slot` -- integer slot index
+* **Returns:** nil
+* **Error states:** None.
 
 ### `UseItemFromInvTile(item)`
-* **Description:** Triggers use of `item` via a tile-based interaction (e.g., clicking a floor item).
-* **Parameters:** `item` (`Entity`) — The item to use.
-* **Returns:** Nothing.
-* **Error states:** Returns early if `item` is `nil` or invalid.
+* **Description:** Uses an item from the inventory tile. Delegates to `inst.components.inventory:UseItemFromInvTile()` if present, otherwise uses classified.
+* **Parameters:**
+  - `item` -- entity to use
+* **Returns:** nil
+* **Error states:** None.
 
 ### `ControllerUseItemOnItemFromInvTile(item, active_item)`
-* **Description:** Performs a controller-mode item-on-item action using inventory tile items.
-* **Parameters:**  
-  `item` (`Entity`) — The target item.  
-  `active_item` (`Entity`) — The active item.  
-* **Returns:** Nothing.
-* **Error states:** Returns early if either item is `nil` or invalid.
+* **Description:** Uses active item on another item from inventory tile (controller input). Delegates to `inst.components.inventory:ControllerUseItemOnItemFromInvTile()` if present, otherwise uses classified.
+* **Parameters:**
+  - `item` -- target item entity
+  - `active_item` -- active item entity
+* **Returns:** nil
+* **Error states:** None.
 
 ### `ControllerUseItemOnSelfFromInvTile(item)`
-* **Description:** Performs a controller-mode item-on-self action.
-* **Parameters:** `item` (`Entity`) — The item to use.
-* **Returns:** Nothing.
-* **Error states:** Returns early if `item` is `nil` or invalid.
+* **Description:** Uses item on self from inventory tile (controller input). Delegates to `inst.components.inventory:ControllerUseItemOnSelfFromInvTile()` if present, otherwise uses classified.
+* **Parameters:**
+  - `item` -- item entity to use
+* **Returns:** nil
+* **Error states:** None.
 
 ### `ControllerUseItemOnSceneFromInvTile(item)`
-* **Description:** Performs a controller-mode item-on-scene action.
-* **Parameters:** `item` (`Entity`) — The item to use.
-* **Returns:** Nothing.
-* **Error states:** Returns early if `item` is `nil` or invalid.
+* **Description:** Uses item on scene from inventory tile (controller input). Delegates to `inst.components.inventory:ControllerUseItemOnSceneFromInvTile()` if present, otherwise uses classified.
+* **Parameters:**
+  - `item` -- item entity to use
+* **Returns:** nil
+* **Error states:** None.
 
 ### `InspectItemFromInvTile(item)`
-* **Description:** Initiates inspection of `item` (e.g., for crafting or tooltip).
-* **Parameters:** `item` (`Entity`) — The item to inspect.
-* **Returns:** Nothing.
-* **Error states:** Returns early if `item` is `nil` or invalid.
+* **Description:** Inspects an item from inventory tile. Delegates to `inst.components.inventory:InspectItemFromInvTile()` if present, otherwise uses classified.
+* **Parameters:**
+  - `item` -- item entity to inspect
+* **Returns:** nil
+* **Error states:** None.
 
 ### `DropItemFromInvTile(item, single)`
-* **Description:** Drops `item` from inventory tile UI.
-* **Parameters:**  
-  `item` (`Entity`) — The item to drop.  
-  `single` (`boolean`) — Whether to drop only part of the stack.  
-* **Returns:** Nothing.
-* **Error states:** Returns early if `item` is `nil` or invalid.
+* **Description:** Drops an item from inventory tile. Delegates to `inst.components.inventory:DropItemFromInvTile()` if present, otherwise uses classified.
+* **Parameters:**
+  - `item` -- item entity to drop
+  - `single` -- boolean to drop single item vs whole stack
+* **Returns:** nil
+* **Error states:** None.
 
 ### `CastSpellBookFromInv(item)`
-* **Description:** Casts a spell from `item` (must be a `spellbook` component).
-* **Parameters:** `item` (`Entity`) — The spellbook to cast from.
-* **Returns:** Nothing.
-* **Error states:** Returns early if `item` is `nil` or invalid.
+* **Description:** Casts a spell from a spellbook item in inventory. Delegates to `inst.components.inventory:CastSpellBookFromInv()` if present, otherwise uses classified.
+* **Parameters:**
+  - `item` -- spellbook item entity
+* **Returns:** nil
+* **Error states:** None.
 
 ### `EquipActiveItem()`
-* **Description:** Equips the active item if valid and equip slot is free.
+* **Description:** Equips the active item if it is equippable. Delegates to `inst.components.inventory:EquipActiveItem()` if present, otherwise uses classified.
 * **Parameters:** None.
-* **Returns:** Nothing.
+* **Returns:** nil
+* **Error states:** None.
 
 ### `EquipActionItem(item)`
-* **Description:** Equips `item` as the action item (e.g., for quick-switch actions).
-* **Parameters:** `item` (`Entity`) — The item to equip.
-* **Returns:** Nothing.
+* **Description:** Equips an action item. Delegates to `inst.components.inventory:EquipActionItem()` if present, otherwise uses classified.
+* **Parameters:**
+  - `item` -- item entity to equip
+* **Returns:** nil
+* **Error states:** None.
 
 ### `SwapEquipWithActiveItem()`
-* **Description:** Swaps the currently equipped action item with the active item.
+* **Description:** Swaps equipped item with active item. Delegates to `inst.components.inventory:SwapEquipWithActiveItem()` if present, otherwise uses classified.
 * **Parameters:** None.
-* **Returns:** Nothing.
+* **Returns:** nil
+* **Error states:** None.
 
 ### `TakeActiveItemFromEquipSlot(eslot)`
-* **Description:** Moves the item from `eslot` into the active slot.
-* **Parameters:** `eslot` (`string`) — Equipment slot to de-equip from.
-* **Returns:** Nothing.
+* **Description:** Takes active item from the specified equip slot. Delegates to `inst.components.inventory:TakeActiveItemFromEquipSlot()` if present, otherwise uses classified.
+* **Parameters:**
+  - `eslot` -- integer equip slot index
+* **Returns:** nil
+* **Error states:** None.
 
 ### `MoveItemFromAllOfSlot(slot, container)`
-* **Description:** Moves an entire stack from `slot` to `container`.
-* **Parameters:**  
-  `slot` (`number`) — Source slot.  
-  `container` (`ContainerReplica?`) — Target container.  
-* **Returns:** Nothing.
+* **Description:** Moves all items from slot to a container. Delegates to `inst.components.inventory:MoveItemFromAllOfSlot()` if present, otherwise uses classified.
+* **Parameters:**
+  - `slot` -- integer slot index
+  - `container` -- target container entity
+* **Returns:** nil
+* **Error states:** None.
 
 ### `MoveItemFromHalfOfSlot(slot, container)`
-* **Description:** Moves half of the stack from `slot` to `container`.
-* **Parameters:**  
-  `slot` (`number`) — Source slot.  
-  `container` (`ContainerReplica?`) — Target container.  
-* **Returns:** Nothing.
+* **Description:** Moves half of items from slot to a container. Delegates to `inst.components.inventory:MoveItemFromHalfOfSlot()` if present, otherwise uses classified.
+* **Parameters:**
+  - `slot` -- integer slot index
+  - `container` -- target container entity
+* **Returns:** nil
+* **Error states:** None.
 
 ### `MoveItemFromCountOfSlot(slot, container, count)`
-* **Description:** Moves `count` items from `slot` to `container`.
-* **Parameters:**  
-  `slot` (`number`) — Source slot.  
-  `container` (`ContainerReplica?`) — Target container.  
-  `count` (`number`) — Number of items to move.  
-* **Returns:** Nothing.
+* **Description:** Moves a specific count of items from slot to a container. Delegates to `inst.components.inventory:MoveItemFromCountOfSlot()` if present, otherwise uses classified.
+* **Parameters:**
+  - `slot` -- integer slot index
+  - `container` -- target container entity
+  - `count` -- number of items to move
+* **Returns:** nil
+* **Error states:** None.
+
+### `OnVisibleDirty(classified)` (local)
+* **Description:** Event callback fired when `visible` netvar changes. Shows or hides the inventory UI based on the new value.
+* **Parameters:**
+  - `classified` -- the classified entity
+* **Returns:** nil
+* **Error states:** None.
+
+### `OnHeavyLiftingDirty(classified)` (local)
+* **Description:** Event callback fired when `heavylifting` netvar changes. Updates action filter stack on `playeractionpicker` to restrict actions when heavy lifting.
+* **Parameters:**
+  - `classified` -- the classified entity
+* **Returns:** nil
+* **Error states:** None.
+
+### `OnFloaterHeldDirty(classified)` (local)
+* **Description:** Event callback fired when `floaterheld` netvar changes. Updates action filter stack and triggers stategraph events (`sg_startfloating` or `sg_stopfloating`).
+* **Parameters:**
+  - `classified` -- the classified entity
+* **Returns:** nil
+* **Error states:** None.
+
+### `OpenInventory(inst, self)` (local)
+* **Description:** Static task callback that opens the inventory after a delay. Hides inventory if entity is a revivable corpse with `corpse` tag.
+* **Parameters:**
+  - `inst` -- the entity instance
+  - `self` -- the inventory component
+* **Returns:** nil
+* **Error states:** Errors if `inst.components.inventory` is nil (no guard before `:Open()` call). Errors if accessing `inst.components.revivablecorpse` when component is missing.
 
 ## Events & listeners
-- **Listens to:**  
-  - `newactiveitem` — Updates active item via `classified:SetActiveItem()`.  
-  - `itemget` — Updates item in a specific slot via `classified:SetSlotItem()`.  
-  - `itemlose` — Clears item in a specific slot via `classified:SetSlotItem(slot)`.  
-  - `equip` — Updates equipped item via `classified:SetSlotEquip()`.  
-  - `unequip` — Clears equipped slot via `classified:SetSlotEquip(eslot)`.  
-  - `visibledirty` — Shows/hides inventory UI.  
-  - `heavyliftingdirty` — Updates heavy-lifting action filter.  
-  - `floaterhelddirty` — Updates floater-held action filter and SG events.  
-  - `onremove` — Cleans up classified detachment on entity removal.
+- **Listens to (on master):**
+  - `newactiveitem` -- updates classified active item when active item changes. Data: `{item = entity}`
+  - `itemget` -- updates classified slot when item is added. Data: `{slot = number, item = entity, src_pos = vector}`
+  - `itemlose` -- clears classified slot when item is removed. Data: `{slot = number}`
+  - `equip` -- updates classified equip slot. Data: `{eslot = number, item = entity}`
+  - `unequip` -- clears classified equip slot. Data: `{eslot = number}`
+- **Listens to (on client via classified):**
+  - `visibledirty` -- triggers `OnVisibleDirty` when visibility netvar changes
+  - `heavyliftingdirty` -- triggers `OnHeavyLiftingDirty` when heavy lifting netvar changes
+  - `floaterhelddirty` -- triggers `OnFloaterHeldDirty` when floater held netvar changes
+  - `onremove` (on classified) -- triggers detach callback when classified is removed
+- **Pushes:**
+  - `newactiveitem` -- fired in `DetachClassified()` to clear active item. Data: `{}`
+  - `inventoryclosed` -- fired in `DetachClassified()` to signal inventory close. Data: none
 
-- **Pushes (via `inst:PushEvent()`):**  
-  - `newactiveitem` — Fired when detaching classified to reset active item state.  
-  - `inventoryclosed` — Fired on detach to signal full closure.
+**Note:** The netvars `visible`, `heavylifting`, and `floaterheld` belong to the `inventory_classified` prefab entity, not this component directly. This component reads/writes them via the classified entity reference.

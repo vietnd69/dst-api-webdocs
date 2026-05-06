@@ -1,58 +1,82 @@
 ---
 id: cattoy
 title: Cattoy
-description: Manages a callback-based interaction handler for cat toy items in DST, invoked when an entity plays with the item.
-tags: [item, interaction, event]
+description: Manages play interactions for toy items that creatures can interact with.
+tags: [entity, interaction, toy]
 sidebar_position: 10
-
-last_updated: 2026-03-03
-build_version: 714014
+last_updated: 2026-04-17
+build_version: 722832
 change_status: stable
 category_type: components
-source_hash: ca4cc0ed
+source_hash: 5361167b
 system_scope: entity
 ---
 
 # Cattoy
 
-> Based on game build **714014** | Last updated: 2026-03-03
+> Based on game build **722832** | Last updated: 2026-04-17
 
 ## Overview
-`CatToy` is a lightweight component that enables custom behavior to be attached to cat toy items. It stores an optional callback function (`onplay_fn`) that is executed when `Play()` is invoked—typically by creatures (e.g., cats) interacting with the item. The component itself does not enforce tags or logic, but comments indicate it is designed to work with the `"cattoy"` or `"cattoyairborne"` tags on the entity instance.
+`Cattoy` manages play interactions for toy items that creatures can interact with. It provides a callback system for custom play behavior and supports airborne play detection. While the component itself does not add tags, modders should consider adding "cattoy" or "cattoyairborne" tags to entities so creatures can identify items to play with.
 
 ## Usage example
 ```lua
 local inst = CreateEntity()
 inst:AddComponent("cattoy")
+
+-- Set a custom play callback
 inst.components.cattoy:SetOnPlay(function(inst, doer, is_airborne)
-    print("Item played with by", doer.prefab, "airborne?", is_airborne)
+    -- Custom play logic here
     return true
 end)
+
+-- Enable bypass for last air time check
+inst.components.cattoy:SetBypassLastAirTime(true)
+
+-- Trigger play interaction
+inst.components.cattoy:Play(doer, false)
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** Checks none directly; relies on external logic (e.g., creature prefabs) to check for `"cattoy"`/`"cattoyairborne"` tags.
+**Components used:**
+- None identified
+
+**Tags:**
+- None (component does not add/remove tags; "cattoy" and "cattoyairborne" tags are recommended for entity identification by creatures)
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `onplay_fn` | function or `nil` | `nil` | Callback function invoked on `Play()`. Signature: `(item_inst, doer, is_airborne) → boolean?`. |
+| `inst` | entity | entity instance | The owning entity instance. |
+| `onplay_fn` | function | `nil` | Callback function triggered when Play() is called. |
+| `bypass_last_air_time` | boolean | `nil` | Flag to bypass last air time checks for airborne play. |
 
 ## Main functions
 ### `SetOnPlay(fn)`
-*   **Description:** Assigns the callback function to be executed when `Play()` is called.
-*   **Parameters:** `fn` (function or `nil`) — a function taking three arguments (`item_inst`, `doer`, `is_airborne`) returning a boolean (or `nil`).
-*   **Returns:** Nothing.
+* **Description:** Sets the callback function that executes when the toy is played with.
+* **Parameters:** `fn` -- function to call when Play() is invoked. Should accept `(inst, doer, is_airborne)` parameters.
+* **Returns:** None
+* **Error states:** None
+
+### `SetBypassLastAirTime(boolval)`
+* **Description:** Enables or disables bypassing of last air time checks for airborne play interactions.
+* **Parameters:** `boolval` -- boolean value to set the bypass flag. Passes `nil` if `false` or `nil`.
+* **Returns:** None
+* **Error states:** None
+
+### `ShouldBypassLastAirTime()`
+* **Description:** Returns the current state of the bypass last air time flag.
+* **Parameters:** None
+* **Returns:** `true` if bypass is enabled, `nil` otherwise.
+* **Error states:** None
 
 ### `Play(doer, is_airborne)`
-*   **Description:** Invokes the stored callback if present. Used to signal that an entity (`doer`) has interacted with the item as a cat toy.
-*   **Parameters:**  
-    `doer` (entity instance) — the entity performing the play action.  
-    `is_airborne` (boolean) — whether the toy was airborne at time of interaction.
-*   **Returns:** Returns the result of `onplay_fn(...)` if set; otherwise returns `false`.
-*   **Error states:** If `onplay_fn` is `nil`, the function returns `false` and no callback is executed.
+* **Description:** Triggers the play interaction. Calls the `onplay_fn` callback if one is set.
+* **Parameters:**
+  - `doer` -- entity performing the play action
+  - `is_airborne` -- boolean indicating if the play is happening while airborne
+* **Returns:** Returns the result of `onplay_fn` if set, otherwise `false`.
+* **Error states:** None
 
 ## Events & listeners
-- **Listens to:** None identified  
-- **Pushes:** None identified
+None.

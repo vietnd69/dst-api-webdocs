@@ -1,160 +1,94 @@
 ---
 id: pigbrain
 title: Pigbrain
-description: Controls the AI behavior tree for pigs, handling movement, combat, foraging, trading, minigame spectating, and response to threats or environment.
-tags: [ai, entity, combat, foraging, environment]
+description: AI behavior tree controlling pig NPC behaviors including following, trading, eating, combat, and event participation.
+tags: [ai, brain, npc, behavior]
 sidebar_position: 10
-
-last_updated: 2026-02-27
-build_version: 714014
+last_updated: 2026-04-22
+build_version: 722832
 change_status: stable
-category_type: brain
+category_type: brains
+source_hash: a1fc97d5
 system_scope: brain
-source_hash: 187edaae
 ---
 
 # Pigbrain
 
-> Based on game build **714014** | Last updated: 2026-02-27
+> Based on game build **722832** | Last updated: 2026-04-22
 
 ## Overview
-
-`Pigbrain` is a Brain component that defines the behavior tree for pig entities (including NPC contestant pigs). It orchestrates decision-making across multiple contexts: day/night cycles, leadership loyalty, trader interactions, minigame spectating, threat responses, and environmental navigation. The component uses behavior tree nodes (`PriorityNode`, `WhileNode`, `DoAction`, `Follow`, `ChaseAndAttack`, `RunAway`, `Wander`, `Panic`, `FindLight`, `AvoidElectricFence`) and integrates with several key components: `Combat`, `Eater`, `Follower`, `HomeSeeker`, `Inventory`, `Trader`, `Health`, `Hauntable`, `Pinnable`, and `MinigameSpectator`.
+`Pigbrain` defines the complete AI behavior tree for pig NPCs in Don't Starve Together. It manages daily routines including following leaders, trading with players, finding food, combat responses, and special event participation (Year of the Beast contests, minigames). The brain prioritizes survival behaviors (panic, fleeing fire) over normal activities and adapts behavior based on day/night cycles and leader presence.
 
 ## Usage example
-
 ```lua
-local inst = TheWorld:SpawnPrefab("pig")
-inst:AddBrain("pigbrain")
--- The brain is automatically started when the entity is added to the world
--- It manages actions based on state such as time of day, nearby threats, and loyalty
+local inst = SpawnPrefab("pigman")
+local brain = require "brains/pigbrain"
+RunBrain(inst, brain:new(inst))
+
+-- Brain automatically handles:
+-- Following assigned leaders
+-- Trading when players approach with trade actions
+-- Finding and eating food during day/night
+-- Panicking from fire, monsters, or haunted entities
+-- Participating in contest events when tagged
 ```
 
 ## Dependencies & tags
+**External dependencies:**
+- `behaviours/wander` -- wandering behavior node
+- `behaviours/follow` -- following leader behavior node
+- `behaviours/faceentity` -- facing target entity node
+- `behaviours/chaseandattack` -- combat chase and attack node
+- `behaviours/runaway` -- fleeing behavior node
+- `behaviours/doaction` -- action execution node
+- `behaviours/findlight` -- light source seeking node
+- `behaviours/panic` -- panic state behavior node
+- `behaviours/chattynode` -- chatter dialog during behaviors
+- `behaviours/leash` -- home leash constraint node
+- `brains/braincommon` -- shared brain utility functions
 
 **Components used:**
-- `burnable` (IsBurning)
-- `combat` (HasTarget, InCooldown, TargetIs)
-- `eater` (CanEat, GetEdibleTags, TimeSinceLastEating)
-- `edible` (foodtype)
-- `follower` (GetLeader, GetLoyaltyPercent)
-- `hauntable` (panic)
-- `health` (takingfiredamage)
-- `homeseeker` (home, GetHomePos)
-- `inventory` (FindItem, GetItemByName, Has)
-- `minigame` (gametype, watchdist_min, watchdist_target, watchdist_max)
-- `minigame_spectator` (GetMinigame)
-- `pinnable` (IsStuck)
-- `shelf`
-- `timer` (TimerExists)
-- `trader` (IsTryingToTradeWithMe)
+- `trader` -- checks `IsTryingToTradeWithMe()` for trade interactions
+- `inventory` -- uses `FindItem()`, `Has()`, `GetItemByName()` for item management
+- `eater` -- uses `CanEat()`, `TimeSinceLastEating()`, `GetEdibleTags()` for food logic
+- `edible` -- checks `foodtype` property for diet restrictions
+- `follower` -- uses `GetLeader()`, `GetLoyaltyPercent()` for leader following
+- `homeseeker` -- uses `GetHomePos()`, `home` property for home location
+- `burnable` -- checks `IsBurning()` for fire detection on home
+- `health` -- checks `takingfiredamage` property for self-fire status
+- `combat` -- uses `HasTarget()`, `InCooldown()`, `TargetIs()`, `target` for combat
+- `hauntable` -- checks `panic` property for ghost haunting
+- `pinnable` -- checks `IsStuck()` for rescuing stuck leaders
+- `minigame_spectator` -- uses `GetMinigame()` for minigame participation
+- `minigame` -- accesses `gametype`, `watchdist_min`, `watchdist_target`, `watchdist_max`
+- `timer` -- uses `TimerExists()` for contest panic timer
+- `shelf` -- checks `itemonshelf`, `cantakeitem` for shelf food access
 
-**Tags:** None explicitly added or removed by this brain. Pig entities use tags from other systems (e.g., `"player"`, `"spider"`, `"pig"`, `"NPC_contestant"`, `"CHOP_workable"`, `"lightsource"`, etc.).
+**Tags:**
+- `outofreach` -- excluded from food finding
+- `takeshelfitem` -- identifies shelf items for food finding
+- `lightsource` -- identifies light sources for night behavior
+- `player` -- checked for trade and runaway behavior
+- `playerlight` -- checked for safe light distance calculation
+- `pig` -- checked for pig-vs-pig combat avoidance
+- `_combat` -- checked for pig-vs-pig combat avoidance
+- `NPC_contestant` -- enables contest behavior tree branch
+- `INLIMBO` -- excluded from prize collection
+- `spider` -- triggers runaway behavior at night
+- `minigame_participator` -- triggers runaway during minigames
+- `burnt` -- checked for valid home status
 
 ## Properties
-
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| `inst.brain_noveggie` | `boolean` or `nil` | `nil` | Temporary flag set during food search to restrict diet to meat only under certain satiety conditions; cleared after search. |
+| None | | | No properties are defined. |
 
 ## Main functions
-
-### `FindFoodAction(inst)`
-* **Description:** Determines the next food-related action for the pig: eat from inventory, take food from a shelf, or seek external food (meat only when hungry or饱食度 low). Skips if pig is busy (`"busy"` state tag), spectating a minigame, or recently ate.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** `BufferedAction` if a valid action exists; `nil` otherwise.
-* **Error states:** Returns `nil` if inventory or eater component missing, no food found within range, or pig recently ate (`time_since_eat <= TUNING.PIG_MIN_POOP_PERIOD * 2`).
-
-### `FindTreeToChopAction(inst)`
-* **Description:** Searches for a tree to chop if the pig is willing to help (e.g., leader is chopping or a deciduous tree monster is nearby). Prioritizes deciduous tree monsters (`prefab == "deciduoustree"`) if nearby.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** `BufferedAction` targeting a tree with `"CHOP_workable"` tag; `nil` otherwise.
-* **Error states:** Returns `nil` if no valid tree within `SEE_TREE_DIST`.
-
-### `GoHomeAction(inst)`
-* **Description:** Initiates action to return to home if the pig has no leader, has a valid home, and is not currently in combat.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** `BufferedAction` with `ACTIONS.GOHOME` if criteria met; `nil` otherwise.
-* **Error states:** Returns `nil` if no leader present, home invalid/destroyed/burning, or in combat.
-
-### `FindDeciduousTreeMonster(inst)`
-* **Description:** Searches for a deciduous tree monster (`prefab == "deciduoustree"`) within `SEE_TREE_DIST / 3`.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** Entity instance if found; `nil` otherwise.
-* **Error states:** Returns `nil` if no such entity exists in range.
-
-### `GetLeader(inst)`
-* **Description:** Returns the pig’s current leader from the `follower` component.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** Entity instance or `nil`.
-* **Error states:** Returns `nil` if `follower` component missing or no leader assigned.
-
-### `GetNoLeaderHomePos(inst)`
-* **Description:** Returns the home position only if the pig has no leader.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** `Vector3` position or `nil`.
-* **Error states:** Returns `nil` if leader exists or home invalid.
-
-### `GetNearestLightPos(inst)`
-* **Description:** Finds the nearest light source within `SEE_LIGHT_DIST` and returns its world position.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** `Vector3` position or `nil`.
-* **Error states:** Returns `nil` if no light source found in range.
-
-### `GetNearestLightRadius(inst)`
-* **Description:** Returns the calculated radius of the nearest light source within `SEE_LIGHT_DIST`.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** `number` (radius) or `1` if no light source found.
-* **Error states:** Returns `1` if no light source found.
-
-### `RescueLeaderAction(inst)`
-* **Description:** Attempts to unpig stuck leader using `ACTIONS.UNPIN`.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** `BufferedAction` or `nil`.
-* **Error states:** Returns `nil` if leader missing, not stuck, or leader’s `pinnable` component absent.
-
-### `WantsToGivePlayerPigTokenAction(inst)`
-* **Description:** Checks if pig wants to give its loyalty token to its leader (loyalty >= `TUNING.PIG_FULL_LOYALTY_PERCENT` and token in inventory).
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** `true` or `false`.
-* **Error states:** Returns `false` if leader missing, token not present, or loyalty below threshold.
-
-### `GivePlayerPigTokenAction(inst)`
-* **Description:** Attempts to drop the loyalty token to the leader using `ACTIONS.DROP`.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** `BufferedAction` or `nil`.
-* **Error states:** Returns `nil` if leader missing or token not found.
-
-### `CurrentContestTarget(inst)`
-* **Description:** Returns the current target for NPC contestant pigs during a minigame contest.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** Entity or `inst.npc_stage`.
-* **Error states:** Uses `inst.npc_stage.current_contest_target` if available.
-
-### `GetTraderFn(inst)`
-* **Description:** Scans nearby players (within `TRADE_DIST`) and returns the first one attempting to trade.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** Player entity or `nil`.
-* **Error states:** Returns `nil` if no trading player in range.
-
-### `GetRunAwayTarget(inst)`
-* **Description:** Returns the pig’s current combat target as the target to run away from (e.g., during dodge behavior).
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** Entity or `nil`.
-* **Error states:** Returns `nil` if no combat target.
-
-### `IsHomeOnFire(inst)`
-* **Description:** Checks if the pig’s home is burning and within a safe distance.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** `true` or `false`.
-* **Error states:** Returns `false` if home missing, non-burning, too far, or burnt.
-
-### `WatchingMinigame(inst)`
-* **Description:** Returns the minigame instance if the pig is spectating.
-* **Parameters:** `inst` — The pig entity instance.
-* **Returns:** Minigame entity or `nil`.
-* **Error states:** Returns `nil` if `minigame_spectator` component missing or no minigame assigned.
+### `OnStart()`
+* **Description:** Initializes the pig behavior tree with prioritized nodes for survival, daily routines, and special events. Builds a `PriorityNode` root with branches for panic states, combat, trading, leader rescue, contest participation, minigame watching, and day/night cycles.
+* **Parameters:** None
+* **Returns:** None
+* **Error states:** Errors if `self.inst` is nil when accessing components (no nil guard on `self.inst.components.X` calls throughout the function).
 
 ## Events & listeners
-
-Pigbrain does not directly register or fire events. It interacts with the `inst` entity’s `sg` (stategraph) via `inst.sg:HasStateTag("busy")`, but this is part of the `DoAction` behavior wrapper, not event registration. The behavior tree is executed within the `OnStart` method and runs continuously via the `BT` behavior tree runner.
+Not applicable — this brain file uses behavior tree nodes rather than direct event listeners. Events are handled through the behavior system (e.g., `ChattyNode`, `Panic`, `RunAway` nodes respond to entity state changes).

@@ -1,43 +1,63 @@
 ---
 id: hud
 title: Hud
-description: Manages asset and prefab loading for the in-game HUD system, ensuring all visual and UI resources are available.
-tags: [ui, assets, loading]
+description: Defines the HUD prefab responsible for loading user interface assets and dependencies.
+tags: [ui, assets, prefab]
 sidebar_position: 10
-
-last_updated: 2026-03-05
-build_version: 714014
+last_updated: 2026-04-18
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: 34a3f610
+source_hash: 9f5e9d69
 system_scope: ui
 ---
 
 # Hud
 
-> Based on game build **714014** | Last updated: 2026-03-05
+> Based on game build **722832** | Last updated: 2026-04-18
 
 ## Overview
-The `hud` prefab is a lightweight asset loader that does not instantiate a gameplay entity. Instead, it serves as a container for declaring all assets (images, animations, sounds, etc.) and child prefabs required by the HUD system. It is referenced during game initialization to ensure all visual resources for the user interface—including health, hunger, sanity meters, compass, inventory effects, emotes, and event-specific HUDs—are preloaded and available at runtime.
+`Hud` is a prefab definition used primarily to preload and manage assets required for the game's user interface. It does not represent a physical entity in the world but ensures that animations, images, and sounds for meters, compasses, and screens are available when needed. This prefab is typically loaded automatically by the engine during initialization. The prefab function creates a basic entity without attaching any components, serving purely as an asset container.
 
 ## Usage example
-This prefab is not added to entities. It is used internally by the engine’s asset management system during startup.
-
 ```lua
--- Example of how this prefab is referenced during asset loading
-Prefab("hud", fn, assets, prefabs)
--- This ensures all listed assets and sub-prefabs are loaded before UI initialization.
+-- The hud prefab is usually loaded automatically by the game engine.
+-- Modders typically do not need to spawn this directly.
+-- To reference assets defined here, ensure the prefab is loaded:
+
+if not Prefabs["hud"] then
+    -- Prefab not registered, assets may be missing
+end
+
+-- Spawning it creates an empty entity with assets preloaded:
+local hud_inst = SpawnPrefab("hud")
 ```
 
 ## Dependencies & tags
-**Components used:** None identified  
-**Tags:** None identified
+**External dependencies:**
+None identified.
+
+**Prefab dependencies:**
+- `minimap` -- Prefab dependency required for minimap functionality
+- `gridplacer` -- Prefab dependency required for grid placement logic
+
+**Components used:**
+None identified.
+
+**Tags:**
+None identified.
 
 ## Properties
-No public properties.
+| Property | Type | Default Value | Description |
+|----------|------|---------------|-------------|
+| None | | | No properties are defined. |
 
 ## Main functions
-This prefab does not define any functional methods beyond the constructor. It only provides a list of assets and prefabs to the `Prefab` constructor.
+### `fn()`
+*   **Description:** Internal constructor function called by the Prefab system to instantiate the entity. It creates a basic entity without adding specific components, serving purely as an asset loading container.
+*   **Parameters:** None
+*   **Returns:** Entity instance created via `CreateEntity()`.
+*   **Error states:** None
 
 ## Events & listeners
-None identified.
+None.

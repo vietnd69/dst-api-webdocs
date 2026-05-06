@@ -1,114 +1,82 @@
 ---
 id: fx
 title: Fx
-description: A runtime script that defines and configures visual and audio effect entities in Don't Starve Together using AnimState, SoundEmitter, and periodic update tasks.
-tags: [fx, rendering, audio, animation]
+description: Defines local helper functions for animation state manipulation and a comprehensive fx table containing visual effect configurations for Don't Starve Together, including splash effects, transformation effects, buff effects, environmental FX, turf effects, wagpunk, slingshot, and WX78 shield animations.
+tags: [fx, animation, visual, effects, configuration]
 sidebar_position: 10
 
-last_updated: 2026-03-10
-build_version: 714014
+last_updated: 2026-04-28
+build_version: 722832
 change_status: stable
-category_type: root
-source_hash: 28f6e804
+category_type: data_config
+source_hash: e238fe97
 system_scope: fx
 ---
 
 # Fx
 
-> Based on game build **714014** | Last updated: 2026-03-10
+> Based on game build **722832** | Last updated: 2026-04-28
 
 ## Overview
-The `fx.lua` script defines a library of visual and audio effect configurations used throughout the game. It does not define an ECS component itself but instead populates an `fx` table (typically `FX_TABLE`) with named effect definitions. Each entry specifies animation names, shaders, and a `fn` callback that initializes the entity instance upon spawn. These callbacks perform common setup tasks such as configuring animation orientation/layering, applying bloom and tint effects, adding sound emitters, and scheduling periodic or delayed update logic (e.g., fading alpha, eroding away, or oscillating positions). The script relies heavily on the `AnimState` and `SoundEmitter` components, and uses constants like `FRAMES`, `LAYER`, `ANIM_ORIENTATION`, and `TUNING.OCEAN_SHADER` for consistent FX behavior.
+`fx.lua` is a data configuration file that defines a comprehensive table of visual effect configurations and local helper functions for animation state manipulation in Don't Starve Together. The file contains effect definitions for splash effects, transformation effects, buff effects, environmental FX, turf effects, wagpunk, slingshot, and WX78 shield animations. Helper functions configure animation state properties such as final offset, bloom effects, orientation, and layer settings. This file is required by other systems that need to spawn or configure visual effects on entities.
 
 ## Usage example
 ```lua
-local FX = require "fx"
+local fx = require("fx")
 
--- Spawn a sinkhole warning effect
-local fx = SpawnPrefab("sinkhole_warn_fx_1")
-if fx ~= nil then
-    fx.Transform:SetPos(x, y, z)
-    -- The fx definition's `fn` callback will be invoked by the framework upon spawn
-    -- It adds a SoundEmitter and plays ground_break with params size=0.01
+-- Access a specific effect configuration from the fx table
+local splash_fx = fx.splash
+
+-- Apply a helper function to configure an entity's animation state
+local effect_entity = SpawnPrefab("fx_splash")
+if effect_entity ~= nil then
+    fx.FinalOffset1(effect_entity)
+    fx.Bloom(effect_entity)
+    fx.GroundOrientation(effect_entity)
 end
 
--- Use a utility helper to generate random timing jitter
-local time = GetRandomWithVariance(2 * FRAMES, 0.5)
+-- Use WX78 shield effect functions
+fx.Wx78ShieldFn(effect_entity)
 ```
 
 ## Dependencies & tags
+**External dependencies:**
+- `FRAMES` -- Animation frame constant used in timing calculations and position updates
+- `TUNING` -- Accesses TUNING.OCEAN_SHADER.EFFECT_TINT_AMOUNT for ocean blend parameters
+- `STRINGS` -- Accesses STRINGS.NAMES.MOLE_UNDERGROUND for mole effect name override
+- `Vector3` -- Creates color tint and transform scale vectors for effects
+- `ANIM_ORIENTATION` -- Sets animation orientation to OnGround for ground-level effects
+- `LAYER_BACKGROUND` -- Sets animation layer for background rendering
+- `LAYER_WORLD_BACKGROUND` -- Sets animation layer for world background rendering
+- `LAYER_BELOW_GROUND` -- Sets animation layer for below-ground rendering
+- `ANIM_SORT_ORDER` -- Sets animation sort order for proper rendering depth
+- `ANIM_SORT_ORDER_BELOW_GROUND` -- Sets animation sort order for below-ground elements like boat trails
+- `GetString` -- Retrieves localized description strings for mole underground effect
+- `LAYER_GROUND` -- Animation layering
+- `FinalOffset1` -- Referenced as fn callback
+- `FinalOffset2` -- Referenced as fn callback
+- `FinalOffset3` -- Referenced as fn callback
+- `ErodeAway` -- Called in degrade_fx_ice fn
+- `GetRandomWithVariance` -- Called in degrade_fx_ice fn
+
 **Components used:**
-- `AnimState`
-- `SoundEmitter`
-- `Transform`
-- `Light`
+- `AnimState` -- SetScale, SetMultColour, SetFinalOffset, PlayAnimation, SetOrientation, SetLayer, SetSortOrder, SetBloomEffectHandle, SetLightOverride, Hide, OverrideSymbol, SetFrame, SetAddColour, SetSymbolBloom, SetSymbolLightOverride
+- `Transform` -- SetFourFaced, SetScale, SetPosition, GetWorldPosition
+- `SoundEmitter` -- PlaySound, PlaySoundWithParams, KillSound
+- `entity` -- AddSoundEmitter, GetParent, SetParent
 
-**External constants used:**
-- `FRAMES`
-- `TUNING.OCEAN_SHADER.EFFECT_TINT_AMOUNT`
-- `LAYER_WORLD_BACKGROUND`, `LAYER_BELOW_GROUND`, `LAYER_BACKGROUND`
-- `ANIM_ORIENTATION.OnGround`, `ANIM_ORIENTATION.SixFaced`, `ANIM_ORIENTATION.EightFaced`, `ANIM_ORIENTATION.TwoFaced`
-- `ANIM_SORT_ORDER`, `ANIM_SORT_ORDER_BELOW_GROUND`
-
-**Tags:** None identified
+**Tags:**
+None identified
 
 ## Properties
 | Property | Type | Default Value | Description |
 |----------|------|---------------|-------------|
-| None | — | — | No top-level properties defined. All configuration occurs via fx entry `fn` callbacks and runtime instance properties (e.g., `fall_speed`). |
-
+| `SHOT_TYPES` | table | `{}` | Table defining available shot types for the weapon. |
+| `SPECIFIC_HITFX_ANIM` | table | `{}` | Table mapping hit effects to specific animations. |
+| `FX_SIZES` | table | `{"tiny", "small", "med", "large"}` | Valid size identifiers for visual effects. |
+| `FX_HEIGHTS` | table | `{"_low", "", "_high"}` | Valid height identifiers for visual effects (empty string = medium). |
+| `WX_SHIELD_COLOUR` | table | `{243/255, 187/255, 6/255}` | RGB color values for WX-78 shield effect. |
+| `DELAY_SHIELDFX_SET_NO_PARENT` | number | `11 * FRAMES` | Frame delay before shield effect clears parent reference. |
 ## Main functions
-### `FinalOffset1(inst)`
-* **Description:** Applies a final animation offset of `1` to the instance's `AnimState`.
-* **Parameters:** `inst` — the FX entity instance.
-* **Returns:** `nil` (side-effect only).
-
-### `FinalOffset2(inst)`
-* **Description:** Applies a final animation offset of `2` to the instance's `AnimState`.
-* **Parameters:** `inst` — the FX entity instance.
-* **Returns:** `nil` (side-effect only).
-
-### `FinalOffset3(inst)`
-* **Description:** Applies a final animation offset of `3` to the instance's `AnimState`.
-* **Parameters:** `inst` — the FX entity instance.
-* **Returns:** `nil` (side-effect only).
-
-### `FinalOffsetNegative1(inst)`
-* **Description:** Applies a final animation offset of `-1` to the instance's `AnimState`.
-* **Parameters:** `inst` — the FX entity instance.
-* **Returns:** `nil` (side-effect only).
-
-### `FinalOffsetNegative2(inst)`
-* **Description:** Applies a final animation offset of `-2` to the instance's `AnimState`.
-* **Parameters:** `inst` — the FX entity instance.
-* **Returns:** `nil` (side-effect only).
-
-### `UsePointFiltering(inst)`
-* **Description:** Enables point filtering for the instance's `AnimState`, typically to avoid interpolation artifacts in pixel-art FX.
-* **Parameters:** `inst` — the FX entity instance.
-* **Returns:** `nil` (side-effect only).
-
-### `GroundOrientation(inst)`
-* **Description:** Configures the instance for ground-aligned rendering by setting orientation to `OnGround` and layer to `LAYER_BACKGROUND` or `LAYER_BELOW_GROUND`.
-* **Parameters:** `inst` — the FX entity instance.
-* **Returns:** `nil` (side-effect only).
-
-### `Bloom(inst)`
-* **Description:** Enables bloom effect on the `AnimState` using a specific shader and sets final offset to `1`.
-* **Parameters:** `inst` — the FX entity instance.
-* **Returns:** `nil` (side-effect only).
-
-### `OceanTreeLeafFxFallUpdate(inst)`
-* **Description:** Updates the `y` transform position based on stored `fall_speed` and `FRAMES`. Used for animating falling leaf or particle effects over time.
-* **Parameters:** `inst` — the FX entity instance (must have `fall_speed` property and `Transform` component).
-* **Returns:** `nil` (side-effect only).
-
-### `GetRandomWithVariance(value, variance)`
-* **Description:** Returns `value + (math.random() - 0.5) * variance * 2`, used to add jitter to timing or offset values.
-* **Parameters:**  
-  - `value` — base numeric value  
-  - `variance` — proportion of variance (e.g., `0.5` for ±25% jitter)  
-* **Returns:** `number` — jittered value.
-
 ## Events & listeners
-No events are registered via `inst:ListenForEvent`, nor are any events pushed via `inst:PushEvent`. All asynchronous behavior is implemented via `DoTaskInTime` and `DoPeriodicTask`, which are scheduler-based utilities (not DST events).
+None.

@@ -1,139 +1,186 @@
 ---
 id: clockwork_common
-title: Clockwork common
-description: Provides shared utility functions for clockwork-related AI behaviors, including home positioning, combat retargeting, trading, regeneration, and befriendability logic.
-tags: [ai, combat, bot]
+title: Clockwork Common
+description: Utility module providing shared helper functions for clockwork entity behavior including sleep cycles, combat targeting, befriending, health regeneration, and trader interactions.
+tags: [clockwork, ai, utility, combat, behavior]
 sidebar_position: 10
-
-last_updated: 2026-03-04
-build_version: 714014
+last_updated: 2026-04-18
+build_version: 722832
 change_status: stable
 category_type: prefabs
-source_hash: d3f883b6
-system_scope: ai
+source_hash: 82859c6e
+system_scope: entity
 ---
 
-# Clockwork common
+# Clockwork Common
 
-> Based on game build **714014** | Last updated: 2026-03-04
+> Based on game build **722832** | Last updated: 2026-04-18
 
 ## Overview
-`clockwork_common` is a utility module that encapsulates common AI behaviors and state logic used by clockwork-themed entities (e.g., clockwork soldiers, clockwork birds) in DST. It centralizes functions for home定位, combat interactions (including retargeting and AOE targeting), health regeneration coordination, trading state, and befriendability — notably avoiding the use of an ECS component in favor of a module returning reusable functions. These functions are typically integrated into entity stategraphs or brains.
+`clockwork_common` is a utility module that exports shared helper functions for clockwork-type entities in Don't Starve Together. It provides behavior logic for sleep/wake cycles based on home position and threat detection, combat retargeting with ally checks, befriending mechanics through follower memory, health regeneration outside of combat, and trader interaction handling. This module is typically required by clockwork prefab files and stategraphs rather than added as a component.
 
 ## Usage example
 ```lua
 local clockwork_common = require("prefabs/clockwork_common")
 
-local function OnInstanceInit(inst)
-    clockwork_common.InitHomePosition(inst)
-    clockwork_common.MakeBefriendable(inst)
-    clockwork_common.MakeHealthRegen(inst)
+-- Initialize home position tracking
+clockwork_common.InitHomePosition(inst)
 
-    inst:ListenForEvent("onenterstate", function()
-        clockwork_common.sgTrySetBefriendable(inst)
-    end)
+-- Set up befriending functionality
+clockwork_common.MakeBefriendable(inst)
 
-    inst:ListenForEvent("onexitstate", function()
-        clockwork_common.sgTryClearBefriendable(inst)
-    end)
+-- Set up health regeneration outside combat
+clockwork_common.MakeHealthRegen(inst)
+
+-- Check if entity should sleep
+if clockwork_common.ShouldSleep(inst) then
+    -- entity can sleep
 end
 ```
 
 ## Dependencies & tags
-**Components used:** `burnable`, `combat`, `follower`, `followermemory`, `freezable`, `health`, `knownlocations`, `leader`, `minigame_participator`, `playercontroller`.  
-**Tags:** Adds/Removes `befriendable_clockwork` in stategraph context.
+**External dependencies:**
+- `behaviours/faceentity` -- used by WaitForTrader for entity facing behavior
+
+**Components used:**
+- `knownlocations` -- stores and retrieves home position via RememberLocation/GetLocation
+- `combat` -- target management via SetTarget, DropTarget, CanTarget, HasTarget, GetLastAttackedTime, ShareTarget, TargetIs, IsAlly
+- `follower` -- leader tracking via GetLeader, SetLeader
+- `followermemory` -- remembered leader handling via RememberAndSetLeader, HasRememberedLeader, IsRememberedLeader, SetOnLeaderLostFn, SetOnReuniteLeaderFn, GetTrackingPlayer
+- `health` -- regeneration via AddRegenSource, RemoveRegenSource, IsHurt, IsDead
+- `burnable` -- sleep blocking via IsBurning
+- `freezable` -- sleep blocking via IsFrozen
+- `clockworktracker` -- clockwork entity limits via AddClockwork, CanAddClockwork
+- `playercontroller` -- remote interaction detection via GetRemoteInteraction
+- `leader` -- checked for doer capability
+- `minigame_participator` -- checked for exclusion from befriending
+
+**Tags:**
+- `befriendable_clockwork` -- added by sgTrySetBefriendable, removed by sgTryClearBefriendable
+- `chess` -- checked by IsWildChess and ally detection
+- `chessfriend` -- checked during retargeting to exclude friendly chess entities
+- `character` -- threat detection tag
+- `monster` -- retargeting tag
+- `INLIMBO` -- exclusion tag for threats and retargeting
+- `notarget` -- AOE targeting exclusion
+- `noattack` -- AOE targeting exclusion
+- `_combat` -- retargeting requirement tag
 
 ## Properties
-No public properties. All values are internal or passed as function parameters.
+| None | | | No properties are defined. |
 
 ## Main functions
 ### `InitHomePosition(inst)`
-*   **Description:** Sets up event listeners for `entitysleep` and `entitywake` to initialize and preserve the entity's home position upon first waking.
-*   **Parameters:** `inst` (Entity) - the entity to initialize home tracking for.
-*   **Returns:** Nothing.
+* **Description:** Sets up event listeners for entity sleep/wake cycles to initialize and maintain the home position. Listens for `entitysleep` and `entitywake` events to call DoInitHomePosition, which records the current position as home.
+* **Parameters:** `inst` -- entity instance with knownlocations component
+* **Returns:** None
+* **Error states:** Errors if `inst` lacks `knownlocations` component (nil dereference on `inst.components.knownlocations` -- no guard present).
 
 ### `GetHomePosition(inst)`
-*   **Description:** Returns the stored home position if the entity has no leader; otherwise returns `nil`.
-*   **Parameters:** `inst` (Entity).
-*   **Returns:** `vector3?` — the home position or `nil`.
+* **Description:** Returns the stored home position if the entity has no leader. Returns nil if the entity is following a leader or has no home position recorded.
+* **Parameters:** `inst` -- entity instance with follower and knownlocations components
+* **Returns:** Vector position table or `nil`
+* **Error states:** Errors if `inst` lacks `follower` or `knownlocations` component (nil dereference -- no guard present).
 
 ### `ShouldSleep(inst)`
-*   **Description:** Determines if the entity can safely sleep (e.g., is far from home, no combat, burning, frozen, or visible nearby threats).
-*   **Parameters:** `inst` (Entity).
-*   **Returns:** `boolean` — `true` if the entity should enter sleep state, otherwise `false`.
+* **Description:** Determines if a clockwork entity should enter sleep state. Returns false if no home position exists, entity has combat target, is burning, is frozen, is too far from home, or threats are nearby.
+* **Parameters:** `inst` -- entity instance
+* **Returns:** `true` if entity can sleep, `false` otherwise
+* **Error states:** Errors if `inst` lacks required components (combat, burnable, freezable, follower, followermemory, knownlocations) or Transform (nil dereference -- no guard present).
 
 ### `ShouldWake(inst)`
-*   **Description:** Convenience wrapper for negation of `ShouldSleep`.
-*   **Parameters:** `inst` (Entity).
-*   **Returns:** `boolean`.
+* **Description:** Returns the inverse of ShouldSleep. Determines if a sleeping entity should wake up based on threats, distance from home, or other conditions.
+* **Parameters:** `inst` -- entity instance
+* **Returns:** `true` if entity should wake, `false` otherwise
+* **Error states:** Same as ShouldSleep -- errors if required components are missing.
 
 ### `IsAlly(inst, target)`
-*   **Description:** Checks whether `target` is an ally of `inst`, considering both generic combat ally logic and clockwork-specific “wild chess” logic.
-*   **Parameters:** `inst` (Entity), `target` (Entity).
-*   **Returns:** `boolean`.
+* **Description:** Checks if two entities are allies. Returns true if both are wild chess entities, if combat component marks them as allies, or if they share the same leader or remembered leader.
+* **Parameters:**
+  - `inst` -- source entity instance
+  - `target` -- target entity to check alliance with
+* **Returns:** `true` if allies, `false` otherwise
+* **Error states:** Errors if either entity lacks required components (combat, follower, followermemory) -- no guard present.
 
 ### `Retarget(inst, range, extrafilterfn)`
-*   **Description:** Finds a new valid combat target for a wild clockwork entity (i.e., one not currently following a player), optionally filtered by `extrafilterfn`. Returns `nil` if it has a remembered leader or is out of range of home.
-*   **Parameters:**
-    *   `inst` (Entity) — the entity performing retargeting.
-    *   `range` (number) — search radius.
-    *   `extrafilterfn` (function?) — optional filter function taking `(inst, guy)` and returning `boolean?`.
-*   **Returns:** `Entity?` — the selected target or `nil`.
+* **Description:** Finds a new combat target within range. Returns nil if entity is too far from home, is not wild chess, or has a remembered leader. Filters out chess friends outside friendly range and allies.
+* **Parameters:**
+  - `inst` -- entity instance seeking target
+  - `range` -- number search radius
+  - `extrafilterfn` -- optional function(inst, guy) returning boolean for additional filtering
+* **Returns:** Target entity or `nil`
+* **Error states:** Errors if `inst` lacks required components (combat, follower, followermemory, knownlocations, Transform) -- no guard present.
 
 ### `FindAOETargetsAtXZ(inst, x, z, radius, fn)`
-*   **Description:** Iterates over all entities within an AOE area at `x,z` (using `radius`) and invokes `fn(target, inst)` for each eligible target (visible, targetable, not an ally, and either the current target or currently targeting `inst`).
-*   **Parameters:**
-    *   `inst` (Entity).
-    *   `x` (number) — X coordinate center.
-    *   `z` (number) — Z coordinate center.
-    *   `radius` (number) — AOE radius.
-    *   `fn` (function) — callback invoked for each valid AOE target.
-*   **Returns:** Nothing.
+* **Description:** Finds all valid targets at a specific world position and calls the provided function for each. Excludes self, invisible entities, and allies. Includes current target and entities targeting this inst.
+* **Parameters:**
+  - `inst` -- source entity instance
+  - `x` -- number world X coordinate
+  - `z` -- number world Z coordinate
+  - `radius` -- number search radius
+  - `fn` -- function(v, inst) called for each valid target
+* **Returns:** None
+* **Error states:** Errors if `inst` lacks combat component or Transform -- no guard present.
 
 ### `KeepTarget(inst, target)`
-*   **Description:** Determines whether to continue chasing or holding a target based on distance from home or self, and whether the target is no longer an ally.
-*   **Parameters:** `inst` (Entity), `target` (Entity).
-*   **Returns:** `boolean` — `true` if target should be retained.
+* **Description:** Determines if a current combat target should be maintained. Returns false if target is too far from home position (or inst if no home), or if target became an ally mid-fight.
+* **Parameters:**
+  - `inst` -- entity instance
+  - `target` -- current target entity
+* **Returns:** `true` to keep target, `false` to drop
+* **Error states:** Errors if `inst` lacks knownlocations component or target lacks Transform -- no guard present.
 
 ### `OnAttacked(inst, data)`
-*   **Description:** Called when `inst` is attacked. Sets the attacker as the new combat target and, if `inst` is a wild clockwork, shares the aggro with nearby wild clockwork allies.
-*   **Parameters:** `inst` (Entity), `data` (table) — event data including `attacker`.
-*   **Returns:** Nothing.
+* **Description:** Handles attack events. Sets attacker as combat target. If wild chess, shares target with nearby wild chess entities that don't share the same leader. Ignores accidental hits between wild chess entities.
+* **Parameters:**
+  - `inst` -- entity instance that was attacked
+  - `data` -- table containing attacker entity in data.attacker
+* **Returns:** None
+* **Error states:** None -- function guards against nil data and data.attacker with conditional check before accessing attacker.
 
 ### `OnNewCombatTarget(inst, data)`
-*   **Description:** Marks whether the newly assigned combat target was an ally at the time of assignment (for `KeepTarget` logic).
-*   **Parameters:** `inst` (Entity), `data` (table) — event data including `target`.
-*   **Returns:** Nothing.
+* **Description:** Stores whether the new combat target was an ally at the time of targeting. Sets inst._targetwasally flag for KeepTarget logic.
+* **Parameters:**
+  - `inst` -- entity instance
+  - `data` -- table containing target entity in data.target
+* **Returns:** None
+* **Error states:** None -- handles nil data gracefully.
 
 ### `MakeBefriendable(inst)`
-*   **Description:** Enables befriendability logic by adding the `followermemory` component (if missing) and setting up leader-lost and leader-reunite callbacks that rehome or re-friend the entity.
-*   **Parameters:** `inst` (Entity).
-*   **Returns:** Nothing.
+* **Description:** Sets up befriending functionality for a clockwork entity. Adds followermemory component, sets reunion and leader lost callbacks, and exposes TryBefriendChess function on inst.
+* **Parameters:** `inst` -- entity instance to make befriendable
+* **Returns:** None
+* **Error states:** Errors if `inst` lacks followermemory or follower component -- no guard present.
 
 ### `sgTrySetBefriendable(inst)`
-*   **Description:** Adds the `befriendable_clockwork` tag if the `inst.TryBefriendChess` function exists (used to signal availability to traders in stategraph).
-*   **Parameters:** `inst` (Entity).
-*   **Returns:** Nothing.
+* **Description:** Stategraph helper function that adds the `befriendable_clockwork` tag if inst.TryBefriendChess exists. Called from stategraph onenter handlers.
+* **Parameters:** `inst` -- entity instance
+* **Returns:** None
+* **Error states:** None -- checks for TryBefriendChess existence before adding tag.
 
 ### `sgTryClearBefriendable(inst)`
-*   **Description:** Removes the `befriendable_clockwork` tag unless `inst.sg.statemem.keepbefriendable` is `true`.
-*   **Parameters:** `inst` (Entity).
-*   **Returns:** Nothing.
+* **Description:** Stategraph helper function that removes the `befriendable_clockwork` tag if inst.TryBefriendChess exists and keepbefriendable state memory is not set. Called from stategraph onexit handlers.
+* **Parameters:** `inst` -- entity instance
+* **Returns:** None
+* **Error states:** None -- checks for TryBefriendChess existence before removing tag.
 
 ### `MakeHealthRegen(inst)`
-*   **Description:** Connects health regeneration behavior: regenerates when out of combat, cancels when entering combat.
-*   **Parameters:** `inst` (Entity).
-*   **Returns:** Nothing.
+* **Description:** Sets up health regeneration system that activates when out of combat and hurt. Listens for newcombattarget to stop regen and droppedtarget to restart regen.
+* **Parameters:** `inst` -- entity instance with health component
+* **Returns:** None
+* **Error states:** Errors if `inst` lacks health component -- no guard present.
 
 ### `WaitForTrader(inst)`
-*   **Description:** Returns a PriorityNode sequence that handles waiting for a nearby trader, switching targets if necessary, and pausing behavior if the trader changed.
-*   **Parameters:** `inst` (Entity).
-*   **Returns:** `table` — a PriorityNode suitable for use in an AI brain.
+* **Description:** Returns a PriorityNode behavior tree structure for trader interaction. Uses FaceEntity to face the nearest trading player within range. Handles trader switching logic.
+* **Parameters:** `inst` -- entity instance with follower and combat components
+* **Returns:** PriorityNode behavior tree node
+* **Error states:** Errors if `inst` lacks required components (follower, combat, Transform, playercontroller on trading player) -- no guard present.
 
 ## Events & listeners
-- **Listens to:**
-    - `entitysleep`, `entitywake` — to initialize home location.
-    - `newcombattarget` — to halt regeneration on combat entry.
-    - `droppedtarget` — to resume regeneration when combat ends.
-    - `healthdelta` — to trigger delayed health regeneration.
-- **Pushes:** None directly; integrates into events raised by other components and stategraphs.
+- **Listens to:** `entitysleep` -- triggers home position initialization
+- **Listens to:** `entitywake` -- triggers home position initialization
+- **Listens to:** `healthdelta` -- triggers health regeneration logic
+- **Listens to:** `newcombattarget` -- stops health regeneration on combat entry
+- **Listens to:** `droppedtarget` -- restarts health regeneration on combat exit
+- **Pushes:** `makefriend` -- fired on doer when chess entity is befriended
+- **Pushes:** `ms_maxclockworks` -- fired on doer when clockwork limit is reached
